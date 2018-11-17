@@ -79,8 +79,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     // method configs
     private List<MethodConfig> methods;
     // default config
+    /**
+     * 消费者配置
+     */
     private ConsumerConfig consumer;
     private String protocol;
+    /**
+     * 代理后的对象引用 也就是保存服务提供者的引用
+     */
     // interface proxy reference
     private transient volatile T ref;
     private transient volatile Invoker<?> invoker;
@@ -121,10 +127,16 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         return urls;
     }
 
+    /**
+     * 引用服务 (服务消费者) 就是通过这个方法获取 服务提供者的 实现类的
+     * @return
+     */
     public synchronized T get() {
+        //如果 已经停止了
         if (destroyed) {
             throw new IllegalStateException("Already destroyed!");
         }
+        //如果 没有 获取到的 实现对象 就 进行初始化
         if (ref == null) {
             init();
         }
@@ -148,31 +160,46 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         ref = null;
     }
 
+    /**
+     * 初始化 服务消费者
+     */
     private void init() {
+        //如果 已经初始化完成 就直接返回
         if (initialized) {
             return;
         }
+        //设置 以初始化的标识
         initialized = true;
+        //需要被 代理的 接口 没有设置就抛出异常
         if (interfaceName == null || interfaceName.length() == 0) {
             throw new IllegalStateException("<dubbo:reference interface=\"\" /> interface not allow null!");
         }
         // get consumer's global configuration
+        //创建并加载 消费者 配置
         checkDefault();
+        //为本对象 从 系统变量中 获取 属性
         appendProperties(this);
+        //当 泛化模式 为null 消费者不为null
         if (getGeneric() == null && getConsumer() != null) {
+            //从消费者配置中 获取泛化配置 并设置
             setGeneric(getConsumer().getGeneric());
         }
+        //根据 泛化 信息判断是否是 泛化模式  为 true nativejava bean 代表是泛化模式
         if (ProtocolUtils.isGeneric(getGeneric())) {
+            //将接口 变成了 泛化接口
             interfaceClass = GenericService.class;
         } else {
             try {
+                //反射创建对应的接口对象  反射是可以创建接口对象的
                 interfaceClass = Class.forName(interfaceName, true, Thread.currentThread()
                         .getContextClassLoader());
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            //检查 该接口中是否 存在这些方法
             checkInterfaceAndMethods(interfaceClass, methods);
         }
+
         String resolve = System.getProperty(interfaceName);
         String resolveFile = null;
         if (resolve == null || resolve.length() == 0) {
@@ -397,6 +424,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         return (T) proxyFactory.getProxy(invoker);
     }
 
+    /**
+     * 检查配置 如果消费者配置 未被初始化 就 创建 并 从系统变量中 加载对应属性
+     */
     private void checkDefault() {
         if (consumer == null) {
             consumer = new ConsumerConfig();

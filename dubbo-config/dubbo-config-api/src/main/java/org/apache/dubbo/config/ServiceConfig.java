@@ -158,8 +158,14 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return provider;
     }
 
+    /**
+     * 获取随机端口
+     * @param protocol
+     * @return
+     */
     private static Integer getRandomPort(String protocol) {
         protocol = protocol.toLowerCase();
+        //找到 协议对应的 默认 端口号
         if (RANDOM_PORT_MAP.containsKey(protocol)) {
             return RANDOM_PORT_MAP.get(protocol);
         }
@@ -469,13 +475,17 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
+        //创建新的资源 定位符
         URL url = new URL(name, host, port, (contextPath == null || contextPath.length() == 0 ? "" : contextPath + "/") + path, map);
 
+        //配置 规则 这里先不看
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                     .getExtension(url.getProtocol()).getConfigurator(url).configure(url);
         }
+
+        //总结一下该方法的核心 就是 校验,初始化 各个配置 并设置到一个 配置容器中  获取注册中心的 地址 并暴露服务
 
         String scope = url.getParameter(Constants.SCOPE_KEY);
         // don't export when none is configured
@@ -548,44 +558,59 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Configuration priority: environment variables -> java system properties -> host property in config file ->
      * /etc/hosts -> default network address -> first available network address
      *
-     * @param protocolConfig
-     * @param registryURLs
-     * @param map
+     * @param protocolConfig 协议配置
+     * @param registryURLs 注册中心的 url
+     * @param map 配置容器
      * @return
      */
     private String findConfigedHosts(ProtocolConfig protocolConfig, List<URL> registryURLs, Map<String, String> map) {
+        //是否使用任意一个 host
         boolean anyhost = false;
 
+        //通过 配置名去 环境变量 or 系统变量获取信息
         String hostToBind = getValueFromConfig(protocolConfig, Constants.DUBBO_IP_TO_BIND);
+        //如果地址是 127 或 0000 等默认或无效地址
         if (hostToBind != null && hostToBind.length() > 0 && isInvalidLocalHost(hostToBind)) {
             throw new IllegalArgumentException("Specified invalid bind ip from property:" + Constants.DUBBO_IP_TO_BIND + ", value:" + hostToBind);
         }
 
+        //如果从 环境变量中没有找到地址
         // if bind ip is not found in environment, keep looking up
         if (hostToBind == null || hostToBind.length() == 0) {
+            //尝试直接从 协议配置中获取 没有就从 服务提供者获取
             hostToBind = protocolConfig.getHost();
             if (provider != null && (hostToBind == null || hostToBind.length() == 0)) {
                 hostToBind = provider.getHost();
             }
+            //如果地址还是无效
             if (isInvalidLocalHost(hostToBind)) {
+                //随意获取一个地址
                 anyhost = true;
                 try {
+                    //获取本机地址
                     hostToBind = InetAddress.getLocalHost().getHostAddress();
                 } catch (UnknownHostException e) {
                     logger.warn(e.getMessage(), e);
                 }
+                //还是无效
                 if (isInvalidLocalHost(hostToBind)) {
+                    //遍历注册中心地址
                     if (registryURLs != null && !registryURLs.isEmpty()) {
                         for (URL registryURL : registryURLs) {
+                            //如果注册中心是 多播模式
                             if (Constants.MULTICAST.equalsIgnoreCase(registryURL.getParameter("registry"))) {
                                 // skip multicast registry since we cannot connect to it via Socket
                                 continue;
                             }
                             try {
+                                //创建socket
                                 Socket socket = new Socket();
                                 try {
+                                    //创建 socket 地址
                                     SocketAddress addr = new InetSocketAddress(registryURL.getHost(), registryURL.getPort());
+                                    //连接到注册中心
                                     socket.connect(addr, 1000);
+                                    //设置成连接后返回的地址
                                     hostToBind = socket.getLocalAddress().getHostAddress();
                                     break;
                                 } finally {
@@ -599,6 +624,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                             }
                         }
                     }
+                    //如果是 非法地址 使用本地网卡 获取合法ip
                     if (isInvalidLocalHost(hostToBind)) {
                         hostToBind = getLocalHost();
                     }
@@ -606,17 +632,22 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             }
         }
 
+        //找到就直接跳到这一步
+        //将 ip 保存到 配置的容器中
         map.put(Constants.BIND_IP_KEY, hostToBind);
 
         // registry ip is not used for bind ip by default
+        //获取hostToRegistry 无效 也抛出异常
         String hostToRegistry = getValueFromConfig(protocolConfig, Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry != null && hostToRegistry.length() > 0 && isInvalidLocalHost(hostToRegistry)) {
             throw new IllegalArgumentException("Specified invalid registry ip from property:" + Constants.DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);
         } else if (hostToRegistry == null || hostToRegistry.length() == 0) {
             // bind ip is used as registry ip by default
+            //默认设置成一样的
             hostToRegistry = hostToBind;
         }
 
+        //保存是否使用了 其他host
         map.put(Constants.ANYHOST_KEY, String.valueOf(anyhost));
 
         return hostToRegistry;
@@ -627,40 +658,50 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Configuration priority: environment variable -> java system properties -> port property in protocol config file
      * -> protocol default port
      *
-     * @param protocolConfig
-     * @param name
+     * @param protocolConfig 协议配置
+     * @param name 就是从协议配置中取出的 name
      * @return
      */
     private Integer findConfigedPorts(ProtocolConfig protocolConfig, String name, Map<String, String> map) {
         Integer portToBind = null;
 
         // parse bind port from environment
+        //从环境变量中 获取端口
         String port = getValueFromConfig(protocolConfig, Constants.DUBBO_PORT_TO_BIND);
+        //解析端口
         portToBind = parsePort(port);
 
         // if there's no bind port found from environment, keep looking up.
         if (portToBind == null) {
             portToBind = protocolConfig.getPort();
+            //没有得到端口就 从 服务提供者中获取
             if (provider != null && (portToBind == null || portToBind == 0)) {
                 portToBind = provider.getPort();
             }
+            //获取默认的端口
             final int defaultPort = ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(name).getDefaultPort();
             if (portToBind == null || portToBind == 0) {
                 portToBind = defaultPort;
             }
+            //获取随机端口
             if (portToBind == null || portToBind <= 0) {
+                //通过协议名 获取端口号
                 portToBind = getRandomPort(name);
                 if (portToBind == null || portToBind < 0) {
+                    //获取可用的  端口
                     portToBind = getAvailablePort(defaultPort);
+                    //保存端口和 协议的映射关系
                     putRandomPort(name, portToBind);
                 }
                 logger.warn("Use random available port(" + portToBind + ") for protocol " + name);
             }
         }
 
+        //在 配置容器中增加 绑定的端口
         // save bind port, used as url's key later
         map.put(Constants.BIND_PORT_KEY, String.valueOf(portToBind));
 
+        //通过配置去 环境变量 or 系统变量获取属性
         // registry port, not used as bind port by default
         String portToRegistryStr = getValueFromConfig(protocolConfig, Constants.DUBBO_PORT_TO_REGISTRY);
         Integer portToRegistry = parsePort(portToRegistryStr);
@@ -671,6 +712,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return portToRegistry;
     }
 
+    /**
+     * 解析端口 就是将 string 转换成 int
+     * @param configPort
+     * @return
+     */
     private Integer parsePort(String configPort) {
         Integer port = null;
         if (configPort != null && configPort.length() > 0) {
@@ -687,9 +733,17 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return port;
     }
 
+    /**
+     * 通过配置和key 获取对应配置信息
+     * @param protocolConfig
+     * @param key
+     * @return
+     */
     private String getValueFromConfig(ProtocolConfig protocolConfig, String key) {
         String protocolPrefix = protocolConfig.getName().toUpperCase() + "_";
+        //从环境变量 或 系统变量 获取配置
         String port = ConfigUtils.getSystemProperty(protocolPrefix + key);
+        //不拼接前缀尝试获取
         if (port == null || port.length() == 0) {
             port = ConfigUtils.getSystemProperty(key);
         }
