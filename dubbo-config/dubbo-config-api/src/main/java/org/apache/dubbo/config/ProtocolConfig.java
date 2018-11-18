@@ -35,67 +35,119 @@ import java.util.Map;
  *
  * @export
  */
+//协议 配置
 public class ProtocolConfig extends AbstractConfig {
 
     private static final long serialVersionUID = 6913423882496634749L;
 
+    /**
+     * 协议名称
+     */
     // protocol name
     private String name;
 
+    /**
+     * 服务主机名，多网卡选择或指定VIP及域名时使用，为空则自动查找本机IP，-建议不要配置，让Dubbo自动获取本机IP
+     */
     // service IP address (when there are multiple network cards available)
     private String host;
 
+    /**
+     * 服务端口
+     */
     // service port
     private Integer port;
 
     // context path
     private String contextpath;
 
+    /**
+     * 线程池 类型 fixed / cached
+     */
     // thread pool
     private String threadpool;
 
+    /**
+     * 核心线程池数量
+     */
     // thread pool core thread size
     private Integer corethreads;
 
+    /**
+     * 固定线程数量
+     */
     // thread pool size (fixed size)
     private Integer threads;
 
+    /**
+     * io线程大小
+     */
     // IO thread pool size (fixed size)
     private Integer iothreads;
 
+    /**
+     * 线程池队列大小
+     */
     // thread pool's queue length
     private Integer queues;
 
+    /**
+     * 服务提供方 可接受的最大连接数 应该是做限流的
+     */
     // max acceptable connections
     private Integer accepts;
 
+    /**
+     * 协议编码方式
+     */
     // protocol codec
     private String codec;
 
+    /**
+     * 序列化方式
+     */
     // serialization
     private String serialization;
 
+    /**
+     * 字符集
+     */
     // charset
     private String charset;
 
+    /**
+     * 请求和响应数据包大小
+     */
     // payload max length
     private Integer payload;
 
+    /**
+     * 网络缓冲区大小
+     */
     // buffer size
     private Integer buffer;
 
+    /**
+     * 心跳检测间隔
+     */
     // heartbeat interval
     private Integer heartbeat;
 
     // access log
     private String accesslog;
 
+    /**
+     * 协议传输 类型 netty/mina
+     */
     // transfort
     private String transporter;
 
     // how information is exchanged
     private String exchanger;
 
+    /**
+     * 协议的消息派发方式，用于指定线程模型，比如：dubbo协议的all, direct, message, execution, connection等
+     */
     // thread dispatch mode
     private String dispatcher;
 
@@ -117,6 +169,9 @@ public class ProtocolConfig extends AbstractConfig {
     // status check
     private String status;
 
+    /**
+     * 该协议的服务是否注册到注册中心	
+     */
     // whether to register
     private Boolean register;
 

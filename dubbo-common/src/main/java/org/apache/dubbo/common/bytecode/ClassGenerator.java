@@ -78,6 +78,11 @@ public final class ClassGenerator {
         return new ClassGenerator(getClassPool(loader));
     }
 
+    /**
+     * 判断该类是否是动态生成的  看来这里对动态生成的类就是 实现了 DC
+     * @param cl
+     * @return
+     */
     public static boolean isDynamicClass(Class<?> cl) {
         return ClassGenerator.DC.class.isAssignableFrom(cl);
     }

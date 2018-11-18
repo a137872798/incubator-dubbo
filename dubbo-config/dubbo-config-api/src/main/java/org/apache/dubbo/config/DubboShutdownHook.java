@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Because {@link ApplicationShutdownHooks} use {@link java.util.IdentityHashMap}
  * to store the shutdown hooks.
  */
+//终结钩子
 public class DubboShutdownHook extends Thread {
 
     private static final Logger logger = LoggerFactory.getLogger(DubboShutdownHook.class);
@@ -47,6 +48,9 @@ public class DubboShutdownHook extends Thread {
 
     private DubboShutdownHook(String name) {
         super(name);
+        /**
+         * 初始化的 终结状态是false
+         */
         this.destroyed = new AtomicBoolean(false);
     }
 
@@ -65,6 +69,7 @@ public class DubboShutdownHook extends Thread {
         if (!destroyed.compareAndSet(false, true)) {
             return;
         }
+        //在程序 终止时 销毁 注册者 和 协议 对象
         // destroy all the registries
         AbstractRegistryFactory.destroyAll();
         // destroy all the protocols
@@ -75,9 +80,11 @@ public class DubboShutdownHook extends Thread {
      * Destroy all the protocols.
      */
     private void destroyProtocols() {
+        //获得拓展对象
         ExtensionLoader<Protocol> loader = ExtensionLoader.getExtensionLoader(Protocol.class);
         for (String protocolName : loader.getLoadedExtensions()) {
             try {
+                //从容器中获取协议对象 并 销毁
                 Protocol protocol = loader.getLoadedExtension(protocolName);
                 if (protocol != null) {
                     protocol.destroy();

@@ -120,6 +120,9 @@ public final class ReflectUtils {
 
     private static final ConcurrentMap<String, Class<?>> NAME_CLASS_CACHE = new ConcurrentHashMap<String, Class<?>>();
 
+    /**
+     * key ：methodSignature value ： 对应的 method
+     */
     private static final ConcurrentMap<String, Method> Signature_METHODS_CACHE = new ConcurrentHashMap<String, Method>();
 
     private ReflectUtils() {
@@ -640,6 +643,11 @@ public final class ReflectUtils {
         return sb.toString();
     }
 
+    /**
+     * 通过给定名称生成对应类对象
+     * @param name
+     * @return
+     */
     public static Class<?> forName(String name) {
         try {
             return name2class(name);
@@ -677,18 +685,23 @@ public final class ReflectUtils {
      * @param name name.
      * @return Class instance.
      */
+    //处理 name 后生成class 对象
     private static Class<?> name2class(ClassLoader cl, String name) throws ClassNotFoundException {
         int c = 0, index = name.indexOf('[');
         if (index > 0) {
             c = (name.length() - index) / 2;
+            //将 名字后面的[] 去掉
             name = name.substring(0, index);
         }
+        //这个代表是 数组对象
         if (c > 0) {
             StringBuilder sb = new StringBuilder();
+            //几个 c 代表几层数组 [[L 就代表是 二维数组
             while (c-- > 0) {
                 sb.append("[");
             }
 
+            //换成字节码文件对应的类型标识
             if ("void".equals(name)) {
                 sb.append(JVM_VOID);
             } else if ("boolean".equals(name)) {
@@ -708,10 +721,12 @@ public final class ReflectUtils {
             } else if ("short".equals(name)) {
                 sb.append(JVM_SHORT);
             } else {
+                //如果不是上面的 类型 就生成特殊格式
                 sb.append('L').append(name).append(';'); // "java.lang.Object" ==> "Ljava.lang.Object;"
             }
             name = sb.toString();
         } else {
+            //如果是不携带 数组的 就不需要[ 做首部 且是基本类型就直接返回
             if ("void".equals(name)) {
                 return void.class;
             } else if ("boolean".equals(name)) {
@@ -736,8 +751,10 @@ public final class ReflectUtils {
         if (cl == null) {
             cl = ClassHelper.getClassLoader();
         }
+        //非基本类型情况 就 通过反射获取 并保存到缓存中
         Class<?> clazz = NAME_CLASS_CACHE.get(name);
         if (clazz == null) {
+            //反射能直接读取 Ljava.lang.Object; 这种格式的 字符串 解读出来就是数组对象
             clazz = Class.forName(name, true, cl);
             NAME_CLASS_CACHE.put(name, clazz);
         }
@@ -851,26 +868,32 @@ public final class ReflectUtils {
      * @throws ClassNotFoundException
      * @throws IllegalStateException  when multiple methods are found (overridden method when parameter info is not provided)
      */
+    //通过创建方法签名 查找方法
     public static Method findMethodByMethodSignature(Class<?> clazz, String methodName, String[] parameterTypes)
             throws NoSuchMethodException, ClassNotFoundException {
         String signature = clazz.getName() + "." + methodName;
         if (parameterTypes != null && parameterTypes.length > 0) {
             signature += StringUtils.join(parameterTypes);
         }
+        //通过方法 签名 从缓存中查找对应的方法
         Method method = Signature_METHODS_CACHE.get(signature);
         if (method != null) {
             return method;
         }
+
+        //没有从 缓存中找到时
         if (parameterTypes == null) {
             List<Method> finded = new ArrayList<Method>();
             for (Method m : clazz.getMethods()) {
                 if (m.getName().equals(methodName)) {
+                    //获取对应的所有方法
                     finded.add(m);
                 }
             }
             if (finded.isEmpty()) {
                 throw new NoSuchMethodException("No such method " + methodName + " in class " + clazz);
             }
+            //方法不唯一 抛出异常
             if (finded.size() > 1) {
                 String msg = String.format("Not unique method for method name(%s) in class(%s), find %d methods.",
                         methodName, clazz.getName(), finded.size());
@@ -885,6 +908,8 @@ public final class ReflectUtils {
             method = clazz.getMethod(methodName, types);
 
         }
+
+        //将找到的方法保存到容器
         Signature_METHODS_CACHE.put(signature, method);
         return method;
     }
@@ -894,16 +919,27 @@ public final class ReflectUtils {
         return findMethodByMethodSignature(clazz, methodName, null);
     }
 
+    /**
+     * 寻找 clazz 对象使用 后面参数生成对象的构造器
+     * @param clazz 服务提供者 实现类
+     * @param paramType 服务提供者接口
+     * @return
+     * @throws NoSuchMethodException
+     */
     public static Constructor<?> findConstructor(Class<?> clazz, Class<?> paramType) throws NoSuchMethodException {
         Constructor<?> targetConstructor;
         try {
+            //获取使用指定参数的 构造器
             targetConstructor = clazz.getConstructor(new Class<?>[]{paramType});
         } catch (NoSuchMethodException e) {
+            //获取不到对应的构造器
             targetConstructor = null;
+            //获取 该class 所有的构造器
             Constructor<?>[] constructors = clazz.getConstructors();
             for (Constructor<?> constructor : constructors) {
                 if (Modifier.isPublic(constructor.getModifiers())
                         && constructor.getParameterTypes().length == 1
+                        //如果找到 该 参数类型的父类 也算是 找到
                         && constructor.getParameterTypes()[0].isAssignableFrom(paramType)) {
                     targetConstructor = constructor;
                     break;
@@ -940,16 +976,24 @@ public final class ReflectUtils {
         return false;
     }
 
+    /**
+     * 获取 mock 对应是 empty 时 返回的数据
+     * @param returnType  默认是null
+     * @return
+     */
     public static Object getEmptyObject(Class<?> returnType) {
         return getEmptyObject(returnType, new HashMap<Class<?>, Object>(), 0);
     }
 
     private static Object getEmptyObject(Class<?> returnType, Map<Class<?>, Object> emptyInstances, int level) {
+        //level 超过2 就是null
         if (level > 2) {
             return null;
         }
+        //如果 第一个参数是 null 直接返回null
         if (returnType == null) {
             return null;
+            //根据 返回类型 返回对应的默认值
         } else if (returnType == boolean.class || returnType == Boolean.class) {
             return false;
         } else if (returnType == char.class || returnType == Character.class) {
@@ -968,6 +1012,7 @@ public final class ReflectUtils {
             return 0D;
         } else if (returnType.isArray()) {
             return Array.newInstance(returnType.getComponentType(), 0);
+            //如果 继承特殊类型 就返回 更精确的 默认值结果
         } else if (returnType.isAssignableFrom(ArrayList.class)) {
             return new ArrayList<Object>(0);
         } else if (returnType.isAssignableFrom(HashSet.class)) {
@@ -976,31 +1021,41 @@ public final class ReflectUtils {
             return new HashMap<Object, Object>(0);
         } else if (String.class.equals(returnType)) {
             return "";
+            //返回值类型是个实体类型
         } else if (!returnType.isInterface()) {
             try {
+                //如果能在 给与的容器中找到对应的返回值
                 Object value = emptyInstances.get(returnType);
                 if (value == null) {
+                    //找不到就初始化 对象 并保存到容器中
                     value = returnType.newInstance();
                     emptyInstances.put(returnType, value);
                 }
                 Class<?> cls = value.getClass();
                 while (cls != null && cls != Object.class) {
+                    //获取 该 返回值对象的 所有 字段
                     Field[] fields = cls.getDeclaredFields();
                     for (Field field : fields) {
+                        //如果是在编译过程中生成的 特殊字段 就 跳过
+                        //在使用反射获取属性时可能就有一些编译器生成的字段
                         if (field.isSynthetic()) {
                             continue;
                         }
+                        //这个 level 代表的是 递归深度 从返回值的类型的实例对象中获取所有字段 并 递归获取第二轮默认空值
                         Object property = getEmptyObject(field.getType(), emptyInstances, level + 1);
+                        //代表获取到了 默认的 初始值
                         if (property != null) {
                             try {
                                 if (!field.isAccessible()) {
                                     field.setAccessible(true);
                                 }
+                                //如果返回的 是 某个实例对象 还要将该对象内部 的所有字段都初始化 是null 就不用了
                                 field.set(value, property);
                             } catch (Throwable e) {
                             }
                         }
                     }
+                    //是子类 还要 跳到父类 继续初始化
                     cls = cls.getSuperclass();
                 }
                 return value;
@@ -1008,6 +1063,7 @@ public final class ReflectUtils {
                 return null;
             }
         } else {
+            //如果是接口类型 返回null
             return null;
         }
     }

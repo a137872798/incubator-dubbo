@@ -26,33 +26,60 @@ import java.util.List;
  *
  * @export
  */
+//方法级别配置
 public class MethodConfig extends AbstractMethodConfig {
 
     private static final long serialVersionUID = 884908855422675941L;
 
+    /**
+     * 针对的方法名
+     */
     // method name
     private String name;
 
+    /**
+     * 统计次数
+     */
     // stat
     private Integer stat;
 
+    /**
+     * 是否开启重试
+     */
     // whether to retry
     private Boolean retry;
 
+    /**
+     * 是否可用
+     */
     // if it's reliable
     private Boolean reliable;
 
+    /**
+     * 该方法最大使用的线程??? 什么意思
+     */
     // thread limits for method invocations
     private Integer executes;
 
+    /**
+     * 该方法是否过时
+     */
     // if it's deprecated
     private Boolean deprecated;
 
+    /**
+     * 是否都调用这个一个 服务提供者 而不是 在集群中负载
+     */
     // whether to enable sticky
     private Boolean sticky;
 
+    /**
+     * 是否具有返回值
+     */
     // whether need to return
     private Boolean isReturn;
+
+    //在不同触发时机调用的回调对象 以及对应的回调方法
 
     // callback instance when async-call is invoked
     private Object oninvoke;

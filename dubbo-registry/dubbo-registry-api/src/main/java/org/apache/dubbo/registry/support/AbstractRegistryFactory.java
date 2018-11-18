@@ -44,6 +44,9 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
     private static final ReentrantLock LOCK = new ReentrantLock();
 
     // Registry Collection Map<RegistryAddress, Registry>
+    /**
+     * 维护注册者的容器 在终止时 会清空
+     */
     private static final Map<String, Registry> REGISTRIES = new HashMap<>();
 
     /**
@@ -59,6 +62,10 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
      * Close all created registries
      */
     // TODO: 2017/8/30 to move somewhere else better
+
+    /**
+     * 当程序 终止时 触发的钩子中 会销毁当前的注册者
+     */
     public static void destroyAll() {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Close all registries " + getRegistries());
@@ -68,6 +75,7 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         try {
             for (Registry registry : getRegistries()) {
                 try {
+                    //委托到这一层就先不看了
                     registry.destroy();
                 } catch (Throwable e) {
                     LOGGER.error(e.getMessage(), e);

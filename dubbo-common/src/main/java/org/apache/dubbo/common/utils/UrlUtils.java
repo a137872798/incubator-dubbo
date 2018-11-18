@@ -32,14 +32,23 @@ public class UrlUtils {
      */
     private final static String URL_PARAM_STARTING_SYMBOL = "?";
 
+    /**
+     * 解析 地址
+     * @param address
+     * @param defaults
+     * @return
+     */
     public static URL parseURL(String address, Map<String, String> defaults) {
+        //地址不存在 直接返回
         if (address == null || address.length() == 0) {
             return null;
         }
         String url;
+        //如果地址包含这些特殊标识 就代表一定是地址
         if (address.contains("://") || address.contains(URL_PARAM_STARTING_SYMBOL)) {
             url = address;
         } else {
+            //拆分地址
             String[] addresses = Constants.COMMA_SPLIT_PATTERN.split(address);
             url = addresses[0];
             if (addresses.length > 1) {
@@ -50,9 +59,11 @@ public class UrlUtils {
                     }
                     backup.append(addresses[i]);
                 }
+                //换一种方式 追加字符串
                 url += URL_PARAM_STARTING_SYMBOL + Constants.BACKUP_KEY + "=" + backup.toString();
             }
         }
+        //从容器中获取默认值
         String defaultProtocol = defaults == null ? null : defaults.get("protocol");
         if (defaultProtocol == null || defaultProtocol.length() == 0) {
             defaultProtocol = "dubbo";
@@ -63,6 +74,7 @@ public class UrlUtils {
         String defaultPath = defaults == null ? null : defaults.get("path");
         Map<String, String> defaultParameters = defaults == null ? null : new HashMap<String, String>(defaults);
         if (defaultParameters != null) {
+            //创建副本 并移除掉 默认的 属性
             defaultParameters.remove("protocol");
             defaultParameters.remove("username");
             defaultParameters.remove("password");
@@ -70,6 +82,7 @@ public class UrlUtils {
             defaultParameters.remove("port");
             defaultParameters.remove("path");
         }
+        //通过 url 获取到 对应的 url对象
         URL u = URL.valueOf(url);
         boolean changed = false;
         String protocol = u.getProtocol();
@@ -79,6 +92,7 @@ public class UrlUtils {
         int port = u.getPort();
         String path = u.getPath();
         Map<String, String> parameters = new HashMap<String, String>(u.getParameters());
+        //url 对应的资源没有找到 就使用默认的
         if ((protocol == null || protocol.length() == 0) && defaultProtocol != null && defaultProtocol.length() > 0) {
             changed = true;
             protocol = defaultProtocol;
@@ -111,36 +125,51 @@ public class UrlUtils {
             }
         }
         if (defaultParameters != null && defaultParameters.size() > 0) {
+            //这里是 遍历剩余的 其他属性 看看有没有不一样的
             for (Map.Entry<String, String> entry : defaultParameters.entrySet()) {
                 String key = entry.getKey();
                 String defaultValue = entry.getValue();
                 if (defaultValue != null && defaultValue.length() > 0) {
+                    //从url 中能否 获得对应的  除了上面 之外的属性
                     String value = parameters.get(key);
                     if (value == null || value.length() == 0) {
                         changed = true;
+                        //获取不到就使用 从默认容器设置的属性
                         parameters.put(key, defaultValue);
                     }
                 }
             }
         }
+        //发生改变就创建新的 url 对象 也就是 有新的值就使用新的 没有就使用默认的
         if (changed) {
             u = new URL(protocol, username, password, host, port, path, parameters);
         }
         return u;
     }
 
+    /**
+     * 解析地址
+     * @param address
+     * @param defaults
+     * @return
+     */
     public static List<URL> parseURLs(String address, Map<String, String> defaults) {
+        //为null 直接返回
         if (address == null || address.length() == 0) {
             return null;
         }
+        //通过 ; 拆分 地址信息
         String[] addresses = Constants.REGISTRY_SPLIT_PATTERN.split(address);
         if (addresses == null || addresses.length == 0) {
             return null; //here won't be empty
         }
         List<URL> registries = new ArrayList<URL>();
         for (String addr : addresses) {
+            //将每个地址解析后保存到 容器中
+            //通过 address 定位到 资源 并生成 资源对象 如果没有某些属性就从 默认容器中获取
             registries.add(parseURL(addr, defaults));
         }
+        //返回解析后的 资源列表
         return registries;
     }
 

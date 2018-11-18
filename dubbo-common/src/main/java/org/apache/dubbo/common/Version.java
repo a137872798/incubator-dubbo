@@ -31,11 +31,18 @@ import java.util.Set;
 /**
  * Version
  */
+//dubbo 的版本对象
 public final class Version {
     private static final Logger logger = LoggerFactory.getLogger(Version.class);
 
     // Dubbo RPC protocol version, for compatibility, it must not be between 2.0.10 ~ 2.6.2
+    /**
+     * 协议版本
+     */
     public static final String DEFAULT_DUBBO_PROTOCOL_VERSION = "2.0.2";
+    /**
+     * jar 包版本
+     */
     // Dubbo implementation version, usually is jar version.
     private static final String VERSION = getVersion(Version.class, "");
 
@@ -43,7 +50,11 @@ public final class Version {
      * For protocol compatibility purpose.
      * Because {@link #isSupportResponseAttatchment} is checked for every call, int compare expect to has higher performance than string.
      */
+    //最低版本
     private static final int LOWEST_VERSION_FOR_RESPONSE_ATTATCHMENT = 20002; // 2.0.2
+    /**
+     * 版本 和 int 的映射
+     */
     private static final Map<String, Integer> VERSION2INT = new HashMap<String, Integer>();
 
     static {
@@ -121,11 +132,19 @@ public final class Version {
         }
     }
 
+    /**
+     * 获取 jar 包版本
+     * @param cls
+     * @param defaultVersion
+     * @return
+     */
     public static String getVersion(Class<?> cls, String defaultVersion) {
         try {
             // find version info from MANIFEST.MF first
+            // 直接从包中获取版本
             String version = cls.getPackage().getImplementationVersion();
             if (version == null || version.length() == 0) {
+                //获取明确版本
                 version = cls.getPackage().getSpecificationVersion();
             }
             if (version == null || version.length() == 0) {
@@ -134,6 +153,7 @@ public final class Version {
                 if (codeSource == null) {
                     logger.info("No codeSource for class " + cls.getName() + " when getVersion, use default version " + defaultVersion);
                 } else {
+                    //从这里获取 版本信息
                     String file = codeSource.getLocation().getFile();
                     if (file != null && file.length() > 0 && file.endsWith(".jar")) {
                         file = file.substring(0, file.length() - 4);
@@ -158,6 +178,7 @@ public final class Version {
                 }
             }
             // return default version if no version info is found
+            //不存在 返回默认版本号
             return version == null || version.length() == 0 ? defaultVersion : version;
         } catch (Throwable e) {
             // return default version when any exception is thrown

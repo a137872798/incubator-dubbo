@@ -45,6 +45,11 @@ public class ProtocolUtils {
         return buf.toString();
     }
 
+    /**
+     * 判断 是否是 true/nativejava/bean
+     * @param generic
+     * @return
+     */
     public static boolean isGeneric(String generic) {
         return generic != null
                 && !"".equals(generic)

@@ -26,25 +26,44 @@ import java.util.Map;
  *
  * @export
  */
+//注册中心配置
 public class RegistryConfig extends AbstractConfig {
 
     public static final String NO_AVAILABLE = "N/A";
     private static final long serialVersionUID = 5508512956753757169L;
+    /**
+     * 注册中心地址
+     */
     // register center address
     private String address;
 
+    /**
+     * 登录注册中心的用户名
+     */
     // username to login register center
     private String username;
 
+    /**
+     * 登录注册中心的密码
+     */
     // password to login register center
     private String password;
 
+    /**
+     * 端口
+     */
     // default port for register center
     private Integer port;
 
+    /**
+     * 注同中心地址协议，支持dubbo, http, local三种协议，分别表示，dubbo地址，http地址，本地注册中心
+     */
     // protocol for register center
     private String protocol;
 
+    /**
+     * 网络传输方式 mina  netty
+     */
     // client impl
     private String transporter;
 
@@ -58,27 +77,51 @@ public class RegistryConfig extends AbstractConfig {
 
     private String version;
 
+    /**
+     * 访问注册中心请求的 超时时间
+     */
     // request timeout in milliseconds for register center
     private Integer timeout;
 
+    /**
+     * 这个可能就是心跳检测的 时间 不同的注册中心 实现不一样
+     */
     // session timeout in milliseconds for register center
     private Integer session;
 
+    /**
+     * 保存服务提供者的文件
+     */
     // file for saving register center dynamic list
     private String file;
 
+    /**
+     * 停止时等待通知完成时间
+     */
     // wait time before stop
     private Integer wait;
 
+    /**
+     * 当注册中心不可用时 是否报错
+     */
     // whether to check if register center is available when boot up
     private Boolean check;
 
+    /**
+     * 是否会 动态的 开启 or 关闭 服务提供者 当某个服务提供者上线 或 下线
+      */
     // whether to allow dynamic service to register on the register center
     private Boolean dynamic;
 
+    /**
+     * 是否允许服务提供者向该注册中心注册服务
+     */
     // whether to export service on the register center
     private Boolean register;
 
+    /**
+     * 是否允许从注册中心 获取服务
+     */
     // whether allow to subscribe service on the register center
     private Boolean subscribe;
 
@@ -95,6 +138,11 @@ public class RegistryConfig extends AbstractConfig {
         setAddress(address);
     }
 
+    /**
+     * 在 使用 协议初始化对象时 会判断 名字是否符合正则规范
+     * @param address
+     * @param protocol
+     */
     public RegistryConfig(String address, String protocol) {
         setAddress(address);
         setProtocol(protocol);

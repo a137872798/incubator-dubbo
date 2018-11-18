@@ -50,46 +50,89 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
     private static final long serialVersionUID = -1559314110797223229L;
 
+    /**
+     * 设为true，表示使用缺省代理类名，即：接口名 + Local后缀，服务接口客户端本地代理类名，
+     * 用于在客户端执行本地逻辑，如本地缓存等，该本地代理类的构造函数必须允许传入远程代理对象，
+     * 构造函数如：public XxxServiceLocal(XxxService xxxService)
+     */
     // local impl class name for the service interface
     protected String local;
 
+    /**
+     * 设为true，表示使用缺省代理类名，即：接口名 + Local后缀，服务接口客户端本地代理类名，
+     * 用于在客户端执行本地逻辑，如本地缓存等，该本地代理类的构造函数必须允许传入远程代理对象，
+     * 构造函数如：public XxxServiceLocal(XxxService xxxService)
+     */
     // local stub class name for the service interface
     protected String stub;
 
+    /**
+     * 监控中心的配置
+     */
     // service monitor
     protected MonitorConfig monitor;
 
+    /**
+     * 生成代理的 方式 jdk/javassist
+     */
     // proxy type
     protected String proxy;
 
+    /**
+     * 集群方式，可选：failover/failfast/failsafe/failback/forking
+     */
     // cluster type
     protected String cluster;
 
+    /**
+     * 服务提供方远程调用过程拦截器名称，多个名称用逗号分隔
+     */
     // filter
     protected String filter;
 
+    /**
+     * 服务提供方导出服务监听器名称，多个名称用逗号分隔
+     */
     // listener
     protected String listener;
 
+    /**
+     * 调用服务负责人，用于服务治理，请填写负责人公司邮箱前缀
+     */
     // owner
     protected String owner;
 
+    /**
+     * 对每个提供者的最大连接数，rmi、http、hessian等短连接协议表示限制连接数，dubbo等长连接协表示建立的长连接个数
+     */
     // connection limits, 0 means shared connection, otherwise it defines the connections delegated to the
     // current service
     protected Integer connections;
 
+    /**
+     * 服务提供者所在的分层。如：biz、dao、intl:web、china:acton。
+     */
     // layer
     protected String layer;
 
+    /**
+     * 应用配置
+     */
     // application info
     protected ApplicationConfig application;
 
     // module info
     protected ModuleConfig module;
 
+    /**
+     * 注册中心配置
+     */
     // registry centers
     protected List<RegistryConfig> registries;
 
+    /**
+     * 触发的 事件
+     */
     // connection events
     protected String onconnect;
 
@@ -102,12 +145,16 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     // the scope for referring/exporting a service, if it's local, it means searching in current JVM only.
     private String scope;
 
+    /**
+     * 检查注册中心地址是否存在 并从系统变量中加载对应属性
+     */
     protected void checkRegistry() {
         // for backward compatibility
         if (registries == null || registries.isEmpty()) {
             String address = ConfigUtils.getProperty("dubbo.registry.address");
             if (address != null && address.length() > 0) {
                 registries = new ArrayList<RegistryConfig>();
+                //通过 | 分割字符串 并设置到注册中心容器中
                 String[] as = address.split("\\s*[|]+\\s*");
                 for (String a : as) {
                     RegistryConfig registryConfig = new RegistryConfig();
@@ -116,6 +163,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 }
             }
         }
+        //还是 为 null 就抛出异常
         if ((registries == null || registries.isEmpty())) {
             throw new IllegalStateException((getClass().getSimpleName().startsWith("Reference")
                     ? "No such any registry to refer service in consumer "
@@ -125,14 +173,19 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     + Version.getVersion()
                     + ", Please add <dubbo:registry address=\"...\" /> to your spring config. If you want unregister, please set <dubbo:service registry=\"N/A\" />");
         }
+        //在系统变量中 加载对应属性 并设置到 注册中心的配置中
         for (RegistryConfig registryConfig : registries) {
             appendProperties(registryConfig);
         }
     }
 
+    /**
+     * 检查 应用 配置 并从系统变量中获取属性进行初始化
+     */
     @SuppressWarnings("deprecation")
     protected void checkApplication() {
         // for backward compatibility
+        //如果能从 系统变量中 获取应用名  这里没有设置应用名
         if (application == null) {
             String applicationName = ConfigUtils.getProperty("dubbo.application.name");
             if (applicationName != null && applicationName.length() > 0) {
@@ -143,12 +196,15 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             throw new IllegalStateException(
                     "No such application config! Please add <dubbo:application name=\"...\" /> to your spring config.");
         }
+        //从环境变量中 设置  这里会把应用名 设置进去
         appendProperties(application);
 
+        //将 等待属性 去空后 重新设置
         String wait = ConfigUtils.getProperty(Constants.SHUTDOWN_WAIT_KEY);
         if (wait != null && wait.trim().length() > 0) {
             System.setProperty(Constants.SHUTDOWN_WAIT_KEY, wait.trim());
         } else {
+            //将 等待属性 去空后 重新设置
             wait = ConfigUtils.getProperty(Constants.SHUTDOWN_WAIT_SECONDS_KEY);
             if (wait != null && wait.trim().length() > 0) {
                 System.setProperty(Constants.SHUTDOWN_WAIT_SECONDS_KEY, wait.trim());
@@ -156,29 +212,44 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         }
     }
 
+    /**
+     * 加载 注册中心
+     * 也就是通过 注册中心的 地址 获取到对应的url 并且通过校验的 返回 单个注册中心的 地址可能包含多了url
+     * @param provider 是否创建了 provider
+     * @return
+     */
     protected List<URL> loadRegistries(boolean provider) {
+        //检测 注册中心是否存在
         checkRegistry();
         List<URL> registryList = new ArrayList<URL>();
+        //遍历 注册中心列表
         if (registries != null && !registries.isEmpty()) {
             for (RegistryConfig config : registries) {
+                //不存在 地址就设置一个 默认值
                 String address = config.getAddress();
                 if (address == null || address.length() == 0) {
                     address = Constants.ANYHOST_VALUE;
                 }
+                //获取系统变量 存在就 替换地址
                 String sysaddress = System.getProperty("dubbo.registry.address");
                 if (sysaddress != null && sysaddress.length() > 0) {
                     address = sysaddress;
                 }
+                //地址 存在 且 不是 N/A
                 if (address.length() > 0 && !RegistryConfig.NO_AVAILABLE.equalsIgnoreCase(address)) {
+                    //创建 容器并从 application 和 registerconfig 读取响应属性
                     Map<String, String> map = new HashMap<String, String>();
                     appendParameters(map, application);
                     appendParameters(map, config);
+                    //保存配置
                     map.put("path", RegistryService.class.getName());
                     map.put("dubbo", Version.getProtocolVersion());
                     map.put(Constants.TIMESTAMP_KEY, String.valueOf(System.currentTimeMillis()));
+                    //设置 pid
                     if (ConfigUtils.getPid() > 0) {
                         map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
                     }
+                    //设置协议 如果有 remote 的拓展就设置 否则使用默认的协议
                     if (!map.containsKey("protocol")) {
                         if (ExtensionLoader.getExtensionLoader(RegistryFactory.class).hasExtension("remote")) {
                             map.put("protocol", "remote");
@@ -186,10 +257,15 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                             map.put("protocol", "dubbo");
                         }
                     }
+                    //解析 地址字符串 并返回 一组资源定位符  address可能是 ;拼接的 多个 地址
+                    //通过地址定位到资源 如果资源中某些属性不存在 就使用容器中的默认属性
                     List<URL> urls = UrlUtils.parseURLs(address, map);
                     for (URL url : urls) {
+                        //遍历每个 资源对象 设置注册中心协议
                         url = url.addParameter(Constants.REGISTRY_KEY, url.getProtocol());
+                        //将协议修改成registry
                         url = url.setProtocol(Constants.REGISTRY_PROTOCOL);
+                        //这个应该是一个 校验 提供者对应注册 订阅者对应订阅
                         if ((provider && url.getParameter(Constants.REGISTER_KEY, true))
                                 || (!provider && url.getParameter(Constants.SUBSCRIBE_KEY, true))) {
                             registryList.add(url);
@@ -255,19 +331,28 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         return null;
     }
 
+    /**
+     * 检测在给与的 接口中能否找到对应方法
+     * @param interfaceClass
+     * @param methods
+     */
     protected void checkInterfaceAndMethods(Class<?> interfaceClass, List<MethodConfig> methods) {
+        //接口类 不能为空
         // interface cannot be null
         if (interfaceClass == null) {
             throw new IllegalStateException("interface not allow null!");
         }
+        //接口类 必须是 接口对象
         // to verify interfaceClass is an interface
         if (!interfaceClass.isInterface()) {
             throw new IllegalStateException("The interface class " + interfaceClass + " is not a interface!");
         }
+        //检查 给定的方法在 接口中能否找到
         // check if methods exist in the interface
         if (methods != null && !methods.isEmpty()) {
             for (MethodConfig methodBean : methods) {
                 String methodName = methodBean.getName();
+                //给与的 配置 必须有方法名
                 if (methodName == null || methodName.length() == 0) {
                     throw new IllegalStateException("<dubbo:method> name attribute is required! Please check: <dubbo:service interface=\"" + interfaceClass.getName() + "\" ... ><dubbo:method name=\"\" ... /></<dubbo:reference>");
                 }
@@ -278,6 +363,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                         break;
                     }
                 }
+                //给定的方法 在接口中找不到
                 if (!hasMethod) {
                     throw new IllegalStateException("The interface " + interfaceClass.getName()
                             + " not found method " + methodName);
@@ -286,24 +372,40 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         }
     }
 
+    /**
+     * 检查 mock 对象
+     * @param interfaceClass
+     */
     void checkMock(Class<?> interfaceClass) {
         if (ConfigUtils.isEmpty(mock)) {
             return;
         }
 
+        /**
+         * 将mock 字符串做如下转换
+         * return => return null</li>
+         * <li>fail => default</li>
+         * <li>force => default</li>
+         * <li>fail:throw/return foo => throw/return foo</li>
+         * <li>force:throw/return foo => throw/return foo</li>
+         */
         String normalizedMock = MockInvoker.normalizeMock(mock);
         if (normalizedMock.startsWith(Constants.RETURN_PREFIX)) {
+            //去除 return 前缀
             normalizedMock = normalizedMock.substring(Constants.RETURN_PREFIX.length()).trim();
             try {
+                //将 mock 转换成对应的 值 这里应该是全部都获取成默认值 实现比较复杂 先不看了
                 MockInvoker.parseMockValue(normalizedMock);
             } catch (Exception e) {
                 throw new IllegalStateException("Illegal mock return in <dubbo:service/reference ... " +
                         "mock=\"" + mock + "\" />");
             }
+            //如果是异常情况
         } else if (normalizedMock.startsWith(Constants.THROW_PREFIX)) {
             normalizedMock = normalizedMock.substring(Constants.THROW_PREFIX.length()).trim();
             if (ConfigUtils.isNotEmpty(normalizedMock)) {
                 try {
+                    //创建 异常对象 并设置到缓存中
                     MockInvoker.getThrowable(normalizedMock);
                 } catch (Exception e) {
                     throw new IllegalStateException("Illegal mock throw in <dubbo:service/reference ... " +
@@ -311,23 +413,32 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 }
             }
         } else {
+            //如果是其余mock 情况 创建 mock实例 主要是为了判别 这个mock 实例是否实现了该接口
             MockInvoker.getMockObject(normalizedMock, interfaceClass);
         }
     }
 
+    /**
+     * 检验 stub
+     * @param interfaceClass
+     */
     void checkStub(Class<?> interfaceClass) {
         if (ConfigUtils.isNotEmpty(local)) {
+            //是否为 true||default 是就要将接口名 贴上Local 否则 是直接用local 创建对象
+            //相当于用本地类 来实现服务提供
             Class<?> localClass = ConfigUtils.isDefault(local) ? ReflectUtils.forName(interfaceClass.getName() + "Local") : ReflectUtils.forName(local);
             if (!interfaceClass.isAssignableFrom(localClass)) {
                 throw new IllegalStateException("The local implementation class " + localClass.getName() + " not implement interface " + interfaceClass.getName());
             }
             try {
+                //判断 该类有没有以 interface作为 参数的构造器
                 ReflectUtils.findConstructor(localClass, interfaceClass);
             } catch (NoSuchMethodException e) {
                 throw new IllegalStateException("No such constructor \"public " + localClass.getSimpleName() + "(" + interfaceClass.getName() + ")\" in local implementation class " + localClass.getName());
             }
         }
         if (ConfigUtils.isNotEmpty(stub)) {
+            //同上
             Class<?> localClass = ConfigUtils.isDefault(stub) ? ReflectUtils.forName(interfaceClass.getName() + "Stub") : ReflectUtils.forName(stub);
             if (!interfaceClass.isAssignableFrom(localClass)) {
                 throw new IllegalStateException("The local implementation class " + localClass.getName() + " not implement interface " + interfaceClass.getName());

@@ -26,25 +26,44 @@ import java.util.List;
  *
  * @export
  */
+//模块信息配置
 public class ModuleConfig extends AbstractConfig {
 
     private static final long serialVersionUID = 5508512956753757169L;
 
+    /**
+     * 模块名
+     */
     // module name
     private String name;
 
+    /**
+     * 模块版本
+     */
     // module version
     private String version;
 
+    /**
+     * 模块所有者 一般是 公司邮箱
+     */
     // module owner
     private String owner;
 
+    /**
+     * 模块组织
+     */
     // module's organization
     private String organization;
 
+    /**
+     * 注册中心配置
+     */
     // registry centers
     private List<RegistryConfig> registries;
 
+    /**
+     * 监控中心配置
+     */
     // monitor center
     private MonitorConfig monitor;
 

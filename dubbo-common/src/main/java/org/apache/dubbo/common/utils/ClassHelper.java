@@ -38,6 +38,7 @@ public class ClassHelper {
      * Map with primitive type name as key and corresponding primitive type as
      * value, for example: "int" -> "int.class".
      */
+    //保存原始类型 和对应的 类对象
     private static final Map<String, Class<?>> primitiveTypeNameMap = new HashMap<String, Class<?>>(16);
     /**
      * Map with primitive wrapper type as key and corresponding primitive type
@@ -48,6 +49,7 @@ public class ClassHelper {
     private static final char PACKAGE_SEPARATOR_CHAR = '.';
 
     static {
+        //将保存包装类型和原始类型的对象初始化
         primitiveWrapperTypeMap.put(Boolean.class, boolean.class);
         primitiveWrapperTypeMap.put(Byte.class, byte.class);
         primitiveWrapperTypeMap.put(Character.class, char.class);
@@ -68,6 +70,12 @@ public class ClassHelper {
         }
     }
 
+    /**
+     * 通过给定name 生成对应类对象
+     * @param name
+     * @return
+     * @throws ClassNotFoundException
+     */
     public static Class<?> forNameWithThreadContextClassLoader(String name)
             throws ClassNotFoundException {
         return forName(name, Thread.currentThread().getContextClassLoader());
@@ -88,6 +96,7 @@ public class ClassHelper {
      * @param clazz
      * @return class loader
      */
+    //获取类加载器对象
     public static ClassLoader getClassLoader(Class<?> clazz) {
         ClassLoader cl = null;
         try {
@@ -151,39 +160,53 @@ public class ClassHelper {
      * @throws LinkageError           if the class file could not be loaded
      * @see Class#forName(String, boolean, ClassLoader)
      */
+    //封装了 jdk 的 forName 方法
     public static Class<?> forName(String name, ClassLoader classLoader)
             throws ClassNotFoundException, LinkageError {
 
+        //将 包装类转换成原始类型返回 找不到 就会返回null
         Class<?> clazz = resolvePrimitiveClassName(name);
         if (clazz != null) {
             return clazz;
         }
 
+        //这里代表上面的 类名不能转换 为 原始类型
+        //如果 类名 以 [] 结尾
         // "java.lang.String[]" style arrays
         if (name.endsWith(ARRAY_SUFFIX)) {
+            //截取 获取 类名
             String elementClassName = name.substring(0, name.length() - ARRAY_SUFFIX.length());
+            //递归调用 再次尝试获取类名
             Class<?> elementClass = forName(elementClassName, classLoader);
+            //根据 类型创建 对象的数据对象
             return Array.newInstance(elementClass, 0).getClass();
         }
 
+        //如果上面的 数组对象 递归调用了 就会走到这里
+        //如果是 特殊格式
         // "[Ljava.lang.String;" style arrays
         int internalArrayMarker = name.indexOf(INTERNAL_ARRAY_PREFIX);
         if (internalArrayMarker != -1 && name.endsWith(";")) {
+            //截取 获取 对应的类名
             String elementClassName = null;
             if (internalArrayMarker == 0) {
                 elementClassName = name
                         .substring(INTERNAL_ARRAY_PREFIX.length(), name.length() - 1);
+                //如果不是 [L 开头 而是 [ 开头 同样截取掉 [
             } else if (name.startsWith("[")) {
                 elementClassName = name.substring(1);
             }
+            //递归调用
             Class<?> elementClass = forName(elementClassName, classLoader);
             return Array.newInstance(elementClass, 0).getClass();
         }
 
+        //当不满足上述2种特殊格式的时候
         ClassLoader classLoaderToUse = classLoader;
         if (classLoaderToUse == null) {
             classLoaderToUse = getClassLoader();
         }
+        //使用类加载器 获取对象
         return classLoaderToUse.loadClass(name);
     }
 
@@ -199,6 +222,7 @@ public class ClassHelper {
      * @return the primitive class, or <code>null</code> if the name does not
      * denote a primitive class or primitive array class
      */
+    //将 给定的名字 转换成原始类型
     public static Class<?> resolvePrimitiveClassName(String name) {
         Class<?> result = null;
         // Most class names will be quite long, considering that they

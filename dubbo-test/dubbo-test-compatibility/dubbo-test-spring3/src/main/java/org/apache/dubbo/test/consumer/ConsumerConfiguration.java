@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportResource;
 
 /**
- * Consumer {@Link Configuration}
+ * Consumer {@link Configuration}
  *
  * @since 2.5.8
  */

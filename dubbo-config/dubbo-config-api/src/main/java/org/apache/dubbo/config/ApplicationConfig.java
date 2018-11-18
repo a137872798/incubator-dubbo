@@ -35,33 +35,63 @@ public class ApplicationConfig extends AbstractConfig {
 
     private static final long serialVersionUID = 5508512956753757169L;
 
+    /**
+     * 当前应用名称 用来计算应用间 依赖关系 消费者和提供者应使用不同的 应用名 这个应该是 计算哪个提供者 被多少消费者使用
+     */
     // application name
     private String name;
 
+    /**
+     * 当前应用版本
+     */
     // module version
     private String version;
 
+    /**
+     * 应用负责人 一般是填企业邮箱
+     */
     // application owner
     private String owner;
 
+    /**
+     * 组织名称 用来区分服务 来源 建议写死
+     */
     // application's organization (BU)
     private String organization;
 
+    /**
+     * 架构层  国际  or china
+     */
     // architecture layer
     private String architecture;
 
+    /**
+     * 使用的环境
+     */
     // environment, e.g. dev, test or production
     private String environment;
 
+    /**
+     * 实现动态代理方式 jdk or javassist
+     */
     // Java compiler
     private String compiler;
 
+    /**
+     * 使用的 日志类
+     */
     // logger
     private String logger;
 
+    /**
+     * 该应用中包含的 注册中心配置
+     */
     // registry centers
     private List<RegistryConfig> registries;
 
+    /**
+     * 统计中心配置
+     */
     // monitor center
     private MonitorConfig monitor;
 
@@ -90,6 +120,10 @@ public class ApplicationConfig extends AbstractConfig {
     public ApplicationConfig() {
     }
 
+    /**
+     * 使用名称进行初始化 同时会检测名字是否符合正则规范
+     * @param name
+     */
     public ApplicationConfig(String name) {
         setName(name);
     }
@@ -100,6 +134,7 @@ public class ApplicationConfig extends AbstractConfig {
     }
 
     public void setName(String name) {
+        //正则校验
         checkName("name", name);
         this.name = name;
         if (id == null || id.length() == 0) {

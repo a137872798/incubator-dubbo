@@ -68,10 +68,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see java.net.URL
  * @see java.net.URI
  */
+//dubbo 的 资源定位符
 public /**final**/ class URL implements Serializable {
 
     private static final long serialVersionUID = -1985165475234910535L;
 
+    //一些属性字段 好像是 拼接在 url上的  在发送到注册中心时 就会将整串 url 传过去 消费者通过解析获取到对应属性
     private final String protocol;
 
     private final String username;
@@ -86,6 +88,9 @@ public /**final**/ class URL implements Serializable {
 
     private final String path;
 
+    /**
+     * 非必要的 属性
+     */
     private final Map<String, String> parameters;
 
     // ==== cache ====
@@ -176,6 +181,7 @@ public /**final**/ class URL implements Serializable {
      * @return URL instance
      * @see URL
      */
+    //通过url 定位到资源
     public static URL valueOf(String url) {
         if (url == null || (url = url.trim()).length() == 0) {
             throw new IllegalArgumentException("url == null");
@@ -256,6 +262,11 @@ public /**final**/ class URL implements Serializable {
         return new URL(protocol, username, password, host, port, path, parameters);
     }
 
+    /**
+     * 针对参数进行转义
+     * @param value
+     * @return
+     */
     public static String encode(String value) {
         if (value == null || value.length() == 0) {
             return "";

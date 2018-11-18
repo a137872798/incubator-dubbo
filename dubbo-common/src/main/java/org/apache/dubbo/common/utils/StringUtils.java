@@ -737,6 +737,12 @@ public final class StringUtils {
         return buf.toString();
     }
 
+    /**
+     * dsadaDsDDs 转换成 dsada.ds.d.ds
+     * @param camelName
+     * @param split
+     * @return
+     */
     public static String camelToSplitName(String camelName, String split) {
         if (isEmpty(camelName)) {
             return camelName;
@@ -744,17 +750,23 @@ public final class StringUtils {
         StringBuilder buf = null;
         for (int i = 0; i < camelName.length(); i++) {
             char ch = camelName.charAt(i);
+            //如果方法中还有 大写的 字符
             if (ch >= 'A' && ch <= 'Z') {
+                //延时初始化
                 if (buf == null) {
                     buf = new StringBuilder();
                     if (i > 0) {
+                        //将 之前的 字符截取出来
                         buf.append(camelName.substring(0, i));
                     }
                 }
                 if (i > 0) {
+                    //设置分隔符
                     buf.append(split);
                 }
+                //将大写字符转为小写后 补上
                 buf.append(Character.toLowerCase(ch));
+                //正常追加
             } else if (buf != null) {
                 buf.append(ch);
             }

@@ -44,18 +44,34 @@ public abstract class AbstractServiceConfig extends AbstractInterfaceConfig {
     // delay service exporting
     protected Integer delay;
 
+    /**
+     * 是否已经暴露服务
+     */
     // whether to export the service
     protected Boolean export;
 
+    /**
+     * 服务权重
+     */
     // weight
     protected Integer weight;
 
+    /**
+     * 服务文档URL
+     */
     // document center
     protected String document;
 
+    /**
+     * 服务是否动态注册，如果设为false，注册后将显示后disable状态，需人工启用，并且服务提供者停止时，也不会自动取消册，需人工禁用。
+     */
     // whether to register as a dynamic service or not on register center
     protected Boolean dynamic;
 
+    /**
+     * 令牌验证，为空表示不开启，如果为true，表示随机生成动态令牌，否则使用静态令牌，令牌的作用是防止消费者绕过注册中心直接访问，
+     * 保证注册中心的授权功能有效，如果使用点对点调用，需关闭令牌功能
+     */
     // whether to use token
     protected String token;
 
@@ -64,6 +80,11 @@ public abstract class AbstractServiceConfig extends AbstractInterfaceConfig {
     protected List<ProtocolConfig> protocols;
     // max allowed execute times
     private Integer executes;
+
+    /**
+     * 向指定注册中心注册，在多个注册中心时使用，值为<dubbo:registry>的id属性，多个注册中心ID用逗号分隔，
+     * 如果不想将该服务注册到任何registry，可将值设为N/A
+     */
     // whether to register
     private Boolean register;
 

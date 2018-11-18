@@ -35,9 +35,16 @@ import java.util.regex.Matcher;
 /**
  * Wrapper.
  */
+//包装类
 public abstract class Wrapper {
+    /**
+     * 类和 对应包装对象的映射
+     */
     private static final Map<Class<?>, Wrapper> WRAPPER_MAP = new ConcurrentHashMap<Class<?>, Wrapper>(); //class wrapper map
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
+    /**
+     * Object 的默认方法
+     */
     private static final String[] OBJECT_METHODS = new String[]{"getClass", "hashCode", "toString", "equals"};
     private static final Wrapper OBJECT_WRAPPER = new Wrapper() {
         @Override
@@ -103,32 +110,50 @@ public abstract class Wrapper {
      * @param c Class instance.
      * @return Wrapper instance(not null).
      */
+    //包装给定对象
     public static Wrapper getWrapper(Class<?> c) {
+        //是否是动态生成的类 通过判断是否 实现了
+        /**
+         * {@link ClassGenerator.DC}
+         */
         while (ClassGenerator.isDynamicClass(c)) // can not wrapper on dynamic class.
         {
+            //就获取父类
             c = c.getSuperclass();
         }
 
+        //如果变成Object 就返回 Object 的包装对象
         if (c == Object.class) {
             return OBJECT_WRAPPER;
         }
 
+        //容器中不存在就 设置
         Wrapper ret = WRAPPER_MAP.get(c);
         if (ret == null) {
+            //生成包装类
             ret = makeWrapper(c);
             WRAPPER_MAP.put(c, ret);
         }
         return ret;
     }
 
+    /**
+     * 生成包装类
+     * @param c
+     * @return
+     */
     private static Wrapper makeWrapper(Class<?> c) {
+        //不能为 原始类型创建包装类
         if (c.isPrimitive()) {
             throw new IllegalArgumentException("Can not create wrapper for primitive type: " + c);
         }
 
+        //获取该对象的类加载器
         String name = c.getName();
         ClassLoader cl = ClassHelper.getClassLoader(c);
 
+        //生成方法的 字符串
+        //给这个对象增加3个方法
         StringBuilder c1 = new StringBuilder("public void setPropertyValue(Object o, String n, Object v){ ");
         StringBuilder c2 = new StringBuilder("public Object getPropertyValue(Object o, String n){ ");
         StringBuilder c3 = new StringBuilder("public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws " + InvocationTargetException.class.getName() + "{ ");
@@ -143,25 +168,32 @@ public abstract class Wrapper {
         List<String> dmns = new ArrayList<String>(); // declaring method names.
 
         // get all public field.
+        // 遍历所有属性
         for (Field f : c.getFields()) {
             String fn = f.getName();
             Class<?> ft = f.getType();
+            //不包含 static 和 transient
             if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers())) {
                 continue;
             }
 
+            // 修饰setPropertyVlaue 和 getPropertyValue
             c1.append(" if( $2.equals(\"").append(fn).append("\") ){ w.").append(fn).append("=").append(arg(ft, "$3")).append("; return; }");
             c2.append(" if( $2.equals(\"").append(fn).append("\") ){ return ($w)w.").append(fn).append("; }");
+            //将新的方法中包含的字段设置到 容器中
             pts.put(fn, ft);
         }
 
+        //获取对象的所有方法
         Method[] methods = c.getMethods();
         // get all public method.
         boolean hasMethod = hasMethods(methods);
         if (hasMethod) {
+            //invokeMethod 增加调用方法
             c3.append(" try{");
         }
         for (Method m : methods) {
+            //属于 Object 的方法跳过
             if (m.getDeclaringClass() == Object.class) //ignore Object's method.
             {
                 continue;
@@ -172,6 +204,7 @@ public abstract class Wrapper {
             int len = m.getParameterTypes().length;
             c3.append(" && ").append(" $3.length == ").append(len);
 
+            //如果 被 重写过
             boolean override = false;
             for (Method m2 : methods) {
                 if (m != m2 && m.getName().equals(m2.getName())) {
@@ -333,6 +366,11 @@ public abstract class Wrapper {
         return pn.length() == 1 || Character.isLowerCase(pn.charAt(1)) ? Character.toLowerCase(pn.charAt(0)) + pn.substring(1) : pn;
     }
 
+    /**
+     * 判断这些方法 是否属于非Object 的其他类
+     * @param methods
+     * @return
+     */
     private static boolean hasMethods(Method[] methods) {
         if (methods == null || methods.length == 0) {
             return false;

@@ -196,6 +196,13 @@ public class PojoUtils {
         return realize0(pojo, type, null, new IdentityHashMap<Object, Object>());
     }
 
+    /**
+     *
+     * @param pojo 默认值对象
+     * @param type 该mock方法返回的类型
+     * @param genericType 返回的类型数组中 第二个元素 可能会为null
+     * @return
+     */
     public static Object realize(Object pojo, Class<?> type, Type genericType) {
         return realize0(pojo, type, genericType, new IdentityHashMap<Object, Object>());
     }
@@ -289,6 +296,14 @@ public class PojoUtils {
         return result;
     }
 
+    /**
+     *
+     * @param pojo 默认的 mock返回值
+     * @param type 返回值类型
+     * @param genericType 返回值数组的 第二个元素
+     * @param history 上次调用该方法保存的数据  这个方法也是递归调用
+     * @return
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static Object realize0(Object pojo, Class<?> type, Type genericType, final Map<Object, Object> history) {
         if (pojo == null) {
@@ -296,6 +311,7 @@ public class PojoUtils {
         }
 
         if (type != null && type.isEnum() && pojo.getClass() == String.class) {
+            //通过字符串 获取指定的 枚举属性
             return Enum.valueOf((Class<Enum>) type, (String) pojo);
         }
 

@@ -21,16 +21,22 @@ import org.apache.dubbo.common.Constants;
 import java.lang.reflect.Method;
 import java.util.Map;
 
+/**
+ * 被消费的方法 的 模型
+ */
 public class ConsumerMethodModel {
+    //方法的实体
     private final Method method;
     //    private final boolean isCallBack;
 //    private final boolean isFuture;
+    //参数名  类型 返回值 等
     private final String[] parameterTypes;
     private final Class<?>[] parameterClasses;
     private final Class<?> returnClass;
     private final String methodName;
     private final boolean generic;
 
+    //调用方法 前后触发的 回调信息
     private final AsyncMethodInfo asyncInfo;
 
 
@@ -90,6 +96,7 @@ public class ConsumerMethodModel {
     }
 
 
+    //异步方法信息 能够在指定的 时机触发对应的 函数
     public static class AsyncMethodInfo {
         // callback instance when async-call is invoked
         private Object oninvokeInstance;

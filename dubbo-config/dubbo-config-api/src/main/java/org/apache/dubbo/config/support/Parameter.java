@@ -30,16 +30,40 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD})
 public @interface Parameter {
 
+    /**
+     * 标识
+     * @return
+     */
     String key() default "";
 
+    /**
+     * 是否必填
+     * @return
+     */
     boolean required() default false;
 
+    /**
+     * 是否忽略
+     * @return
+     */
     boolean excluded() default false;
 
+    /**
+     * 是否转义
+     * @return
+     */
     boolean escaped() default false;
 
+    /**
+     * 标明该字段是否是  属性 这样就可以使用 appendAttribute 了
+     * @return
+     */
     boolean attribute() default false;
 
+    /**
+     * 设置属性是 追加还是 覆盖之前的属性
+     * @return
+     */
     boolean append() default false;
 
 }

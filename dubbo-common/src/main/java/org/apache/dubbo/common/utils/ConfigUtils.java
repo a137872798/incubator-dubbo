@@ -118,14 +118,23 @@ public class ConfigUtils {
         return names;
     }
 
+    /**
+     *
+     * @param expression
+     * @param params
+     * @return
+     */
     public static String replaceProperty(String expression, Map<String, String> params) {
+        //直接返回 不需要做修改
         if (expression == null || expression.length() == 0 || expression.indexOf('$') < 0) {
             return expression;
         }
         Matcher matcher = VARIABLE_PATTERN.matcher(expression);
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
+            //通过获取的 key 查找系统变量
             String key = matcher.group(1);
+            //找不到 就去 给与 的 容器中找
             String value = System.getProperty(key);
             if (value == null && params != null) {
                 value = params.get(key);
@@ -133,23 +142,29 @@ public class ConfigUtils {
             if (value == null) {
                 value = "";
             }
+            //应该是 追加什么配置 这里先不管
             matcher.appendReplacement(sb, Matcher.quoteReplacement(value));
         }
         matcher.appendTail(sb);
         return sb.toString();
     }
 
+    //获取配置
     public static Properties getProperties() {
+        //延时初始化
         if (PROPERTIES == null) {
             synchronized (ConfigUtils.class) {
                 if (PROPERTIES == null) {
                     String path = System.getProperty(Constants.DUBBO_PROPERTIES_KEY);
                     if (path == null || path.length() == 0) {
+                        //获取环境变量
                         path = System.getenv(Constants.DUBBO_PROPERTIES_KEY);
                         if (path == null || path.length() == 0) {
+                            //获取不到就 设置特定值
                             path = Constants.DEFAULT_DUBBO_PROPERTIES;
                         }
                     }
+                    //从特定的地址 获取 属性
                     PROPERTIES = ConfigUtils.loadProperties(path, false, true);
                 }
             }
@@ -167,17 +182,31 @@ public class ConfigUtils {
         }
     }
 
+    /**
+     * 通过 key 找到 对应的 属性
+     * @param key
+     * @return
+     */
     public static String getProperty(String key) {
         return getProperty(key, null);
     }
 
+    /**
+     * 通过key 获取 对应的属性
+     * @param key
+     * @param defaultValue 默认值
+     * @return
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static String getProperty(String key, String defaultValue) {
+        //在系统变量中找到就直接返回
         String value = System.getProperty(key);
         if (value != null && value.length() > 0) {
             return value;
         }
+        //从系统变量 或 环境变量中 获取属性
         Properties properties = getProperties();
+        //解析 获取的 属性 再从 properties 中获取更多的属性 并拼接返回
         return replaceProperty(properties.getProperty(key, defaultValue), (Map) properties);
     }
 
@@ -215,13 +244,17 @@ public class ConfigUtils {
      * </ul>
      * @throws IllegalStateException not allow multi-file, but multi-file exsit on class path.
      */
+    //从指定的文件 获取 properties
     public static Properties loadProperties(String fileName, boolean allowMultiFile, boolean optional) {
+        //创建属性对象
         Properties properties = new Properties();
         // add scene judgement in windows environment Fix 2557
+        //符合正则就创建对应的文件流
         if (fileName.startsWith("/") || fileName.matches("^[A-z]:\\\\\\S+$")) {
             try {
                 FileInputStream input = new FileInputStream(fileName);
                 try {
+                    //读取属性
                     properties.load(input);
                 } finally {
                     input.close();
@@ -232,8 +265,10 @@ public class ConfigUtils {
             return properties;
         }
 
+        //如果 获取不到对应的文件 这个列表 保存的是一组 文件
         List<java.net.URL> list = new ArrayList<java.net.URL>();
         try {
+            //使用类加载器 解析 资源 返回一个类似迭代器的对象
             Enumeration<java.net.URL> urls = ClassHelper.getClassLoader().getResources(fileName);
             list = new ArrayList<java.net.URL>();
             while (urls.hasMoreElements()) {
@@ -244,12 +279,16 @@ public class ConfigUtils {
         }
 
         if (list.isEmpty()) {
+            //如果不是可选的 就返回这个 结果
             if (!optional) {
                 logger.warn("No " + fileName + " found on the class path.");
             }
             return properties;
         }
 
+        /**
+         * 如果获取的长度不合适
+         */
         if (!allowMultiFile) {
             if (list.size() > 1) {
                 String errMsg = String.format("only 1 %s file is expected, but %d dubbo.properties files found on class path: %s",
@@ -260,6 +299,7 @@ public class ConfigUtils {
 
             // fall back to use method getResourceAsStream
             try {
+                //以流的形式 读取 属性
                 properties.load(ClassHelper.getClassLoader().getResourceAsStream(fileName));
             } catch (Throwable e) {
                 logger.warn("Failed to load " + fileName + " file from " + fileName + "(ignore this file): " + e.getMessage(), e);
@@ -269,6 +309,7 @@ public class ConfigUtils {
 
         logger.info("load " + fileName + " properties file from " + list);
 
+        //这里可能是 不允许 多个 但是长度刚好是1 也可能是 允许多个 就从获取到的每个url 获取属性
         for (java.net.URL url : list) {
             try {
                 Properties p = new Properties();
@@ -292,9 +333,14 @@ public class ConfigUtils {
         return properties;
     }
 
+    /**
+     * 从环境变量中获取 pid
+     * @return
+     */
     public static int getPid() {
         if (PID < 0) {
             try {
+                //解析 获取 pid
                 RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
                 String name = runtime.getName(); // format: "pid@hostname"
                 PID = Integer.parseInt(name.substring(0, name.indexOf('@')));

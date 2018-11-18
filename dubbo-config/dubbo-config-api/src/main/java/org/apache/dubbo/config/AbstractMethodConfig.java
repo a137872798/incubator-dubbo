@@ -27,40 +27,71 @@ import java.util.Map;
  *
  * @export
  */
+//方法级别的 抽象配置
 public abstract class AbstractMethodConfig extends AbstractConfig {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * 该方法的调用超时时间
+     */
     // timeout for remote invocation in milliseconds
     protected Integer timeout;
 
+    /**
+     * 调用重试次数
+     */
     // retry times
     protected Integer retries;
 
+    /**
+     * 最高并发调用量
+     */
     // max concurrent invocations
     protected Integer actives;
 
+    /**
+     * 负载均衡策略，可选值：random,roundrobin,leastactive，分别表示：随机，轮循，最少活跃调用
+     */
     // load balance
     protected String loadbalance;
 
+    /**
+     * 同步 or 异步调用
+     */
     // whether to async
     protected Boolean async;
 
+    /**
+     * 异步调用时 表示网络以发出数据
+     */
     // whether to ack async-sent
     protected Boolean sent;
 
+    /**
+     * mock 类 当负载过高时 调用这个方法
+     */
     // the name of mock class which gets called when a service fails to execute
     protected String mock;
 
     // merger
     protected String merger;
 
+    /**
+     * 以调用参数为key，缓存返回结果，可选：lru, threadlocal, jcache等
+     */
     // cache
     protected String cache;
 
+    /**
+     * 是否启用JSR303标准注解验证，如果启用，将对方法参数上的注解进行校验
+     */
     // validation
     protected String validation;
 
+    /**
+     * 消费者 携带的 参数
+     */
     // customized parameters
     protected Map<String, String> parameters;
 
