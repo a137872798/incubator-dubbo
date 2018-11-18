@@ -30,18 +30,34 @@ import java.util.Map;
  *
  * @serial Don't change the class name and properties.
  */
+//rpc调用对象
 public class RpcInvocation implements Invocation, Serializable {
 
     private static final long serialVersionUID = -4355285085441097045L;
 
+    /**
+     * 方法名对象
+     */
     private String methodName;
 
+    /**
+     * 参数类型
+     */
     private Class<?>[] parameterTypes;
 
+    /**
+     * 参数对象
+     */
     private Object[] arguments;
 
+    /**
+     * 绑定的 额外参数
+     */
     private Map<String, String> attachments;
 
+    /**
+     * 返回的 invoker对象
+     */
     private transient Invoker<?> invoker;
 
     public RpcInvocation() {
@@ -51,24 +67,33 @@ public class RpcInvocation implements Invocation, Serializable {
         this(invocation.getMethodName(), invocation.getParameterTypes(),
                 invocation.getArguments(), new HashMap<String, String>(invocation.getAttachments()),
                 invocation.getInvoker());
+        //如果传入的 invoker 对象不为null
         if (invoker != null) {
+            //获取该对象的 资源定位符
             URL url = invoker.getUrl();
+            //绑定 path
             setAttachment(Constants.PATH_KEY, url.getPath());
             if (url.hasParameter(Constants.INTERFACE_KEY)) {
+                //存在 interface 也绑定
                 setAttachment(Constants.INTERFACE_KEY, url.getParameter(Constants.INTERFACE_KEY));
             }
+            //绑定group
             if (url.hasParameter(Constants.GROUP_KEY)) {
                 setAttachment(Constants.GROUP_KEY, url.getParameter(Constants.GROUP_KEY));
             }
+            //绑定版本
             if (url.hasParameter(Constants.VERSION_KEY)) {
                 setAttachment(Constants.VERSION_KEY, url.getParameter(Constants.VERSION_KEY, "0.0.0"));
             }
+            //超时时间
             if (url.hasParameter(Constants.TIMEOUT_KEY)) {
                 setAttachment(Constants.TIMEOUT_KEY, url.getParameter(Constants.TIMEOUT_KEY));
             }
+            //令牌
             if (url.hasParameter(Constants.TOKEN_KEY)) {
                 setAttachment(Constants.TOKEN_KEY, url.getParameter(Constants.TOKEN_KEY));
             }
+            //应用名
             if (url.hasParameter(Constants.APPLICATION_KEY)) {
                 setAttachment(Constants.APPLICATION_KEY, url.getParameter(Constants.APPLICATION_KEY));
             }

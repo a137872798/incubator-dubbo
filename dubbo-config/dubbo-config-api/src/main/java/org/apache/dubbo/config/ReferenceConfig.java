@@ -200,13 +200,18 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             checkInterfaceAndMethods(interfaceClass, methods);
         }
 
+        //获取 该 接口的 配置信息
         String resolve = System.getProperty(interfaceName);
         String resolveFile = null;
+        //当获取不到配置时
         if (resolve == null || resolve.length() == 0) {
+            //获取 文件
             resolveFile = System.getProperty("dubbo.resolve.file");
             if (resolveFile == null || resolveFile.length() == 0) {
+                //创建一个新的文件
                 File userResolveFile = new File(new File(System.getProperty("user.home")), "dubbo-resolve.properties");
                 if (userResolveFile.exists()) {
+                    //创建成功后 获取绝对路径
                     resolveFile = userResolveFile.getAbsolutePath();
                 }
             }
@@ -214,6 +219,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 Properties properties = new Properties();
                 FileInputStream fis = null;
                 try {
+                    //从文件中读取属性
                     fis = new FileInputStream(new File(resolveFile));
                     properties.load(fis);
                 } catch (IOException e) {
@@ -227,10 +233,12 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         logger.warn(e.getMessage(), e);
                     }
                 }
+                //从 配置中获取 resolve 信息
                 resolve = properties.getProperty(interfaceName);
             }
         }
         if (resolve != null && resolve.length() > 0) {
+            //将url 设置成 resolve
             url = resolve;
             if (logger.isWarnEnabled()) {
                 if (resolveFile != null) {
@@ -241,6 +249,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             }
         }
         if (consumer != null) {
+            //从消费者中 获取对应配置
             if (application == null) {
                 application = consumer.getApplication();
             }
@@ -270,24 +279,33 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 monitor = application.getMonitor();
             }
         }
+        //检查配置 并从环境变量中获取属性
         checkApplication();
+        //检查 stub
         checkStub(interfaceClass);
+        //这个  看不懂先不管 就是校验mock方法的
         checkMock(interfaceClass);
         Map<String, String> map = new HashMap<String, String>();
+        //如果当前接口类是 异步类 更换信息设置成 同步类 并初始化 异步类相关信息
         resolveAsyncInterface(interfaceClass, map);
 
+        //设置 时间戳 协议版本 和 side标识
         map.put(Constants.SIDE_KEY, Constants.CONSUMER_SIDE);
         map.put(Constants.DUBBO_VERSION_KEY, Version.getProtocolVersion());
         map.put(Constants.TIMESTAMP_KEY, String.valueOf(System.currentTimeMillis()));
+        //设置 pid
         if (ConfigUtils.getPid() > 0) {
             map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
         }
+        //如果 不是 泛化类型
         if (!isGeneric()) {
+            //获取配置信息
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
                 map.put("revision", revision);
             }
 
+            //将 该接口 包装 增加几个 方法  还没看懂
             String[] methods = Wrapper.getWrapper(interfaceClass).getMethodNames();
             if (methods.length == 0) {
                 logger.warn("NO method found in service interface " + interfaceClass.getName());
@@ -296,7 +314,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 map.put("methods", StringUtils.join(new HashSet<String>(Arrays.asList(methods)), ","));
             }
         }
+        //设置 接口名
         map.put(Constants.INTERFACE_KEY, interfaceName);
+        //从配置中获取相关属性设置到map中
         appendParameters(map, application);
         appendParameters(map, module);
         appendParameters(map, consumer, Constants.DEFAULT_KEY);
@@ -305,28 +325,35 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (methods != null && !methods.isEmpty()) {
             attributes = new HashMap<String, Object>();
             for (MethodConfig methodConfig : methods) {
+                //从每个 方法配置中抽出  属性 第三个参数 是 前缀
                 appendParameters(map, methodConfig, methodConfig.getName());
                 String retryKey = methodConfig.getName() + ".retry";
                 if (map.containsKey(retryKey)) {
+                    //跟服务提供者一样的  移除重试属性  设置重试次数属性
                     String retryValue = map.remove(retryKey);
                     if ("false".equals(retryValue)) {
                         map.put(methodConfig.getName() + ".retries", "0");
                     }
                 }
+                //从配置中 抽取 回调函数 并生成异步对象 保存到容器中
                 attributes.put(methodConfig.getName(), convertMethodConfig2AyncInfo(methodConfig));
             }
         }
 
+        //从环境变量或 系统变量中 获取 host
         String hostToRegistry = ConfigUtils.getSystemProperty(Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry == null || hostToRegistry.length() == 0) {
             hostToRegistry = NetUtils.getLocalHost();
         } else if (isInvalidLocalHost(hostToRegistry)) {
             throw new IllegalArgumentException("Specified invalid registry ip from property:" + Constants.DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);
         }
+        //保存端口信息
         map.put(Constants.REGISTER_IP_KEY, hostToRegistry);
 
+        //通过配置 创建  代理对象
         ref = createProxy(map);
 
+        //先不看
         ConsumerModel consumerModel = new ConsumerModel(getUniqueServiceName(), ref, interfaceClass.getMethods(), attributes);
         ApplicationModel.initConsumerModel(getUniqueServiceName(), consumerModel);
     }
@@ -434,18 +461,30 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         appendProperties(consumer);
     }
 
+    /**
+     *
+     * @param interfaceClass 需要被 服务提供者实现的接口
+     * @param map
+     */
     private void resolveAsyncInterface(Class<?> interfaceClass, Map<String, String> map) {
+        //从接口类上获取 异步注解
         AsyncFor annotation = interfaceClass.getAnnotation(AsyncFor.class);
         if (annotation == null) {
             return;
         }
+        //获取 目标类
         Class<?> target = annotation.value();
+        //如果 目标类 不是 该接口的 父类 就返回
         if (!target.isAssignableFrom(interfaceClass)) {
             return;
         }
+        //将 异步接口 改成 本接口
         this.asyncInterfaceClass = interfaceClass;
+        //本接口 变成 注解上的值
         this.interfaceClass = target;
+        //修改 interfaceName的值  如果 id不存在 也一起修改
         setInterface(this.interfaceClass.getName());
+        //将 接口 信息保存到容器中
         map.put(Constants.INTERFACES, interfaceClass.getName());
     }
 
@@ -491,6 +530,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         setInterface(interfaceClass == null ? null : interfaceClass.getName());
     }
 
+    /**
+     * 将接口名称 设置成给定的接口名
+     * @param interfaceName
+     */
     public void setInterface(String interfaceName) {
         this.interfaceName = interfaceName;
         if (id == null || id.length() == 0) {
