@@ -33,18 +33,33 @@ public abstract class AbstractReferenceConfig extends AbstractInterfaceConfig {
 
     // ======== Reference config default values, will take effect if reference's attribute is not set  ========
 
+    /**
+     * 启动时检查 服务提供者是否存在
+     */
     // check if service provider exists
     protected Boolean check;
 
+    /**
+     * 是否在afterPropertiesSet()时饥饿初始化引用，否则等到有人注入或引用该实例时再初始化。
+     */
     // whether to eagle-init
     protected Boolean init;
 
+    /**
+     * 是否是 缺省泛化接口 如果是 将返回GenericService
+     */
     // whether to use generic interface
     protected String generic;
 
+    /**
+     * 是否在本地寻找 接口的实现类
+     */
     // whether to find reference's instance from the current JVM
     protected Boolean injvm;
 
+    /**
+     * 是否延迟创建连接
+     */
     // lazy create connection
     protected Boolean lazy;
 
@@ -52,6 +67,9 @@ public abstract class AbstractReferenceConfig extends AbstractInterfaceConfig {
 
     protected Boolean sticky;
 
+    /**
+     * 是否支持 stub
+     */
     // whether to support event in stub. //TODO solve merge problem
     protected Boolean stubevent;//= Constants.DEFAULT_STUB_EVENT;
 

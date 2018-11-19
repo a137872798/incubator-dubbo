@@ -33,7 +33,7 @@ public @interface AsyncFor {
 
     /**
      * The original sync-style interface
-     *
+     * 原来的 同步接口对象
      * @return
      */
     Class<?> value();

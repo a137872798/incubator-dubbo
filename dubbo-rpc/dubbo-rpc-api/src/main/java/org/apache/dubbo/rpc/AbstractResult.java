@@ -20,8 +20,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- *
+ * Result's Skeleton class
  */
+//这个类没有实现 recreate 方法
 public abstract class AbstractResult implements Result {
     protected Map<String, String> attachments = new HashMap<String, String>();
 

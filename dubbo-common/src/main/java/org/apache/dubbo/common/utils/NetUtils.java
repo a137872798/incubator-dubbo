@@ -57,6 +57,10 @@ public class NetUtils {
         return RND_PORT_START + RANDOM.nextInt(RND_PORT_RANGE);
     }
 
+    /**
+     * 通过socket 绑定到本地 获取端口后 断开
+     * @return
+     */
     public static int getAvailablePort() {
         ServerSocket ss = null;
         try {
@@ -75,8 +79,14 @@ public class NetUtils {
         }
     }
 
+    /**
+     * 将 传入的端口变成 可以的端口
+     * @param port
+     * @return
+     */
     public static int getAvailablePort(int port) {
         if (port <= 0) {
+            //绑定本地 获取端口号 后解绑
             return getAvailablePort();
         }
         for (int i = port; i < MAX_PORT; i++) {
@@ -116,6 +126,12 @@ public class NetUtils {
         return "0.0.0.0".equals(host);
     }
 
+
+    /**
+     * 如果是 127 开头的地址 或是无效地址
+     * @param host
+     * @return
+     */
     public static boolean isInvalidLocalHost(String host) {
         return host == null
                 || host.length() == 0

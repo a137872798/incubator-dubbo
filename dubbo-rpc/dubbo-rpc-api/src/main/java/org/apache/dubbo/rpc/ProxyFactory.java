@@ -25,11 +25,12 @@ import org.apache.dubbo.common.extension.SPI;
  * ProxyFactory. (API/SPI, Singleton, ThreadSafe)
  */
 @SPI("javassist")
+//代理工厂 使用javassist
 public interface ProxyFactory {
 
     /**
      * create proxy.
-     *
+     * 创建 Proxy 在引用服务时调用
      * @param invoker
      * @return proxy
      */
@@ -38,7 +39,7 @@ public interface ProxyFactory {
 
     /**
      * create proxy.
-     *
+     * 创建 Proxy 在引用服务时调用
      * @param invoker
      * @return proxy
      */
@@ -47,7 +48,7 @@ public interface ProxyFactory {
 
     /**
      * create invoker.
-     *
+     * 创建 Invoker 在暴露服务时调用
      * @param <T>
      * @param proxy
      * @param type

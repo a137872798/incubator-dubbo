@@ -25,6 +25,7 @@ import java.util.Map;
  * @see org.apache.dubbo.rpc.Invoker#invoke(Invocation)
  * @see org.apache.dubbo.rpc.RpcInvocation
  */
+//会话层 的 接口 持有调用过程的  方法名 参数等
 public interface Invocation {
 
     /**
@@ -50,6 +51,8 @@ public interface Invocation {
      * @serial
      */
     Object[] getArguments();
+
+    //attachment 用于携带参数外的 额外信息 类似于 cookie
 
     /**
      * get attachments.
@@ -81,6 +84,7 @@ public interface Invocation {
      * @return invoker.
      * @transient
      */
+    //获取invoker 对象
     Invoker<?> getInvoker();
 
 }

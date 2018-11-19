@@ -25,7 +25,7 @@ import org.apache.dubbo.common.Node;
  * @see org.apache.dubbo.rpc.InvokerListener
  * @see org.apache.dubbo.rpc.protocol.AbstractInvoker
  */
-//调用者对象 能够获取实例 and 调用
+//dubbo 的 核心接口 代表可以被调用的  dubbo的其他模型都往这里靠近
 public interface Invoker<T> extends Node {
 
     /**
@@ -33,6 +33,7 @@ public interface Invoker<T> extends Node {
      *
      * @return service interface.
      */
+    //获取服务接口
     Class<T> getInterface();
 
     /**
@@ -42,6 +43,7 @@ public interface Invoker<T> extends Node {
      * @return result
      * @throws RpcException
      */
+    //调用并返回结果
     Result invoke(Invocation invocation) throws RpcException;
 
 }

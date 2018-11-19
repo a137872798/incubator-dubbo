@@ -27,6 +27,10 @@ import java.util.Map;
  * @see org.apache.dubbo.rpc.Invoker#invoke(Invocation)
  * @see org.apache.dubbo.rpc.RpcResult
  */
+
+/**
+ * 调用invoker 返回的结果
+ */
 public interface Result extends Serializable {
 
     /**
@@ -34,6 +38,7 @@ public interface Result extends Serializable {
      *
      * @return result. if no result return null.
      */
+    //返回的 值对象
     Object getValue();
 
     /**
@@ -41,6 +46,7 @@ public interface Result extends Serializable {
      *
      * @return exception. if no exception return null.
      */
+    //返回的异常对象
     Throwable getException();
 
     /**
@@ -48,6 +54,7 @@ public interface Result extends Serializable {
      *
      * @return has exception.
      */
+    //是否存在异常
     boolean hasException();
 
     /**
@@ -64,6 +71,7 @@ public interface Result extends Serializable {
      * @return result.
      * @throws if has exception throw it.
      */
+    //看不懂 好像就是 有异常 返回异常 没有就返回结果对象
     Object recreate() throws Throwable;
 
     /**
@@ -79,6 +87,7 @@ public interface Result extends Serializable {
      *
      * @return attachments.
      */
+    //获取绑定的额外参数
     Map<String, String> getAttachments();
 
     /**
@@ -86,6 +95,7 @@ public interface Result extends Serializable {
      *
      * @param map
      */
+    //在原有的基础上增加 这么多新的 attachment
     void addAttachments(Map<String, String> map);
 
     /**
@@ -93,6 +103,7 @@ public interface Result extends Serializable {
      *
      * @param map
      */
+    //替换原来的 attachment
     void setAttachments(Map<String, String> map);
 
     /**
@@ -100,6 +111,7 @@ public interface Result extends Serializable {
      *
      * @return attachment value.
      */
+    //获取attachment对象
     String getAttachment(String key);
 
     /**
@@ -107,6 +119,7 @@ public interface Result extends Serializable {
      *
      * @return attachment value.
      */
+    //携带默认值的 获取attachment方法
     String getAttachment(String key, String defaultValue);
 
     void setAttachment(String key, String value);
