@@ -26,15 +26,19 @@ import java.util.List;
 
 /**
  * ListenerExporter
+ * 暴露服务的 监听器对象
  */
 public class ListenerExporterWrapper<T> implements Exporter<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ListenerExporterWrapper.class);
 
+    //通过 委托 来实现功能
     private final Exporter<T> exporter;
 
+    //存放一组监听对象
     private final List<ExporterListener> listeners;
 
+    //传入 暴露者对象 和 一组监听器  因为一般是在暴露的时候才创建该对象 所以 初始化的同时就进行暴露了
     public ListenerExporterWrapper(Exporter<T> exporter, List<ExporterListener> listeners) {
         if (exporter == null) {
             throw new IllegalArgumentException("exporter == null");
@@ -46,6 +50,7 @@ public class ListenerExporterWrapper<T> implements Exporter<T> {
             for (ExporterListener listener : listeners) {
                 if (listener != null) {
                     try {
+                        //依次触发 监听器的 暴露逻辑
                         listener.exported(this);
                     } catch (RuntimeException t) {
                         logger.error(t.getMessage(), t);
@@ -74,6 +79,7 @@ public class ListenerExporterWrapper<T> implements Exporter<T> {
                 for (ExporterListener listener : listeners) {
                     if (listener != null) {
                         try {
+                            //调用 unexport 触发 取消 暴露逻辑
                             listener.unexported(this);
                         } catch (RuntimeException t) {
                             logger.error(t.getMessage(), t);

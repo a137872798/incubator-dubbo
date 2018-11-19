@@ -29,13 +29,16 @@ import java.util.List;
 
 /**
  * ListenerInvoker
+ * invoker 监听器 主要是 监听 protocol.refer()
  */
 public class ListenerInvokerWrapper<T> implements Invoker<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ListenerInvokerWrapper.class);
 
+    //包装的invoker对象
     private final Invoker<T> invoker;
 
+    //一组监听器对象 一般也是通过SPI 实现
     private final List<InvokerListener> listeners;
 
     public ListenerInvokerWrapper(Invoker<T> invoker, List<InvokerListener> listeners) {
@@ -48,6 +51,7 @@ public class ListenerInvokerWrapper<T> implements Invoker<T> {
             for (InvokerListener listener : listeners) {
                 if (listener != null) {
                     try {
+                        //初始化时 就触发 监听器的对应方法
                         listener.referred(invoker);
                     } catch (Throwable t) {
                         logger.error(t.getMessage(), t);

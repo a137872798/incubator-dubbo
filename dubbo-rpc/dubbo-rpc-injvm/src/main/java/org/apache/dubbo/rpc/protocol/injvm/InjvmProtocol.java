@@ -31,19 +31,35 @@ import java.util.Map;
 
 /**
  * InjvmProtocol
+ * 本地 协议实现
  */
 public class InjvmProtocol extends AbstractProtocol implements Protocol {
 
+    /**
+     * 协议名
+     */
     public static final String NAME = Constants.LOCAL_PROTOCOL;
 
+    /**
+     * 默认端口
+     */
     public static final int DEFAULT_PORT = 0;
+
+    /**
+     * 单例引用
+     */
     private static InjvmProtocol INSTANCE;
 
     public InjvmProtocol() {
         INSTANCE = this;
     }
 
+    /**
+     * 获取 injvm 对象
+     * @return
+     */
     public static InjvmProtocol getInjvmProtocol() {
+        //加载 拓展类信息 后 获取 指定 key 的 拓展实现类
         if (INSTANCE == null) {
             ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(InjvmProtocol.NAME); // load
         }
@@ -81,8 +97,16 @@ public class InjvmProtocol extends AbstractProtocol implements Protocol {
         return DEFAULT_PORT;
     }
 
+    /**
+     * 本地 服务 暴露方法 将invoker 变成export 对象
+     * @param invoker Service invoker
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //创建暴露对象 传入 服务键 和 暴露map 创建后 会将 服务键和 生成的暴露对象本身作为键值对 保存到map 中
         return new InjvmExporter<T>(invoker, invoker.getUrl().getServiceKey(), exporterMap);
     }
 

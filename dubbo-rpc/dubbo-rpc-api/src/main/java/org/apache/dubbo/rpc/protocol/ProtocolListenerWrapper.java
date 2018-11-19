@@ -32,6 +32,8 @@ import java.util.Collections;
 
 /**
  * ListenerProtocol
+ * 协议监听器
+ * 当通过SPI 初始化 协议对象时 同时 初始化了这些包装类
  */
 public class ProtocolListenerWrapper implements Protocol {
 
@@ -49,21 +51,41 @@ public class ProtocolListenerWrapper implements Protocol {
         return protocol.getDefaultPort();
     }
 
+    /**
+     * 在 暴露前后进行监听
+     * @param invoker Service invoker
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //同样 如果 是 registry 不做任何处理
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
+        //创建一个监听对象  协议暴露完后 生成一个暴露者对象 帮助 监听器 完成 监听暴露的功能
         return new ListenerExporterWrapper<T>(protocol.export(invoker),
+                //通过 SPI 返回 监听器实现
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(ExporterListener.class)
                         .getActivateExtension(invoker.getUrl(), Constants.EXPORTER_LISTENER_KEY)));
     }
 
+    /**
+     * 查阅
+     * @param type Service class
+     * @param url  URL address for the remote service
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        //registry 不做处理
         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return protocol.refer(type, url);
         }
+        //创建 监听器对象  这个是invoker 监听器 而不是 export监听器
         return new ListenerInvokerWrapper<T>(protocol.refer(type, url),
                 Collections.unmodifiableList(
                         ExtensionLoader.getExtensionLoader(InvokerListener.class)

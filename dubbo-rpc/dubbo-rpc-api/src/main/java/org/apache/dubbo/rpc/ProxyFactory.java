@@ -50,9 +50,9 @@ public interface ProxyFactory {
      * create invoker.
      * 创建 Invoker 在暴露服务时调用
      * @param <T>
-     * @param proxy
-     * @param type
-     * @param url
+     * @param proxy 服务提供者 实现类
+     * @param type 被提供的 接口
+     * @param url 暴露的目标 url
      * @return invoker
      */
     @Adaptive({Constants.PROXY_KEY})

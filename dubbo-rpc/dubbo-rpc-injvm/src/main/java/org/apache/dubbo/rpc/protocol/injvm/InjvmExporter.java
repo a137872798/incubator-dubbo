@@ -24,23 +24,32 @@ import java.util.Map;
 
 /**
  * InjvmExporter
+ * 本地服务暴露对象
  */
 class InjvmExporter<T> extends AbstractExporter<T> {
 
+    /**
+     * 服务键
+     */
     private final String key;
 
+    /**
+     * 就是{@link org.apache.dubbo.rpc.protocol.AbstractProtocol#exporterMap}
+     */
     private final Map<String, Exporter<?>> exporterMap;
 
     InjvmExporter(Invoker<T> invoker, String key, Map<String, Exporter<?>> exporterMap) {
         super(invoker);
         this.key = key;
         this.exporterMap = exporterMap;
+        //在容器中 保存 服务键 和对象本身
         exporterMap.put(key, this);
     }
 
     @Override
     public void unexport() {
         super.unexport();
+        //取消暴露时 移除 服务键
         exporterMap.remove(key);
     }
 

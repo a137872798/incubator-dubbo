@@ -22,6 +22,7 @@ import org.apache.dubbo.rpc.RpcException;
 
 /**
  * ExporterListenerAdapter
+ * noop
  */
 public abstract class ExporterListenerAdapter implements ExporterListener {
 

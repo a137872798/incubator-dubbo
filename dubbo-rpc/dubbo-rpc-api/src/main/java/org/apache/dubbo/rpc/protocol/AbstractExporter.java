@@ -23,13 +23,20 @@ import org.apache.dubbo.rpc.Invoker;
 
 /**
  * AbstractExporter.
+ * 暴露者对象的 骨架类
  */
 public abstract class AbstractExporter<T> implements Exporter<T> {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+    /**
+     * 包裹的 invoker 对象
+     */
     private final Invoker<T> invoker;
 
+    /**
+     * 是否 取消暴露
+     */
     private volatile boolean unexported = false;
 
     public AbstractExporter(Invoker<T> invoker) {
@@ -50,12 +57,16 @@ public abstract class AbstractExporter<T> implements Exporter<T> {
         return invoker;
     }
 
+    /**
+     * 取消暴露
+     */
     @Override
     public void unexport() {
         if (unexported) {
             return;
         }
         unexported = true;
+        //委托 invoker 对象 destroy
         getInvoker().destroy();
     }
 

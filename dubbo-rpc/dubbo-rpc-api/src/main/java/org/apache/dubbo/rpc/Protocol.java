@@ -20,6 +20,8 @@ import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.extension.Adaptive;
 import org.apache.dubbo.common.extension.SPI;
 
+import java.util.Arrays;
+
 /**
  * Protocol. (API/SPI, Singleton, ThreadSafe)
  */

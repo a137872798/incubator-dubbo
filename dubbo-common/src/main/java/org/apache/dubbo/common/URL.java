@@ -454,9 +454,15 @@ public /**final**/ class URL implements Serializable {
         return decode(getParameter(key, defaultValue));
     }
 
+    /**
+     * 通过key 查找对应属性
+     * @param key
+     * @return
+     */
     public String getParameter(String key) {
         String value = parameters.get(key);
         if (value == null || value.length() == 0) {
+            //找不到 就 给key 增加一个前缀
             value = parameters.get(Constants.DEFAULT_KEY_PREFIX + key);
         }
         return value;
@@ -904,6 +910,12 @@ public /**final**/ class URL implements Serializable {
         return Constants.ANYHOST_VALUE.equals(host) || getParameter(Constants.ANYHOST_KEY, false);
     }
 
+    /**
+     * 添加参数 并对 value 编码
+     * @param key
+     * @param value
+     * @return
+     */
     public URL addParameterAndEncoded(String key, String value) {
         if (value == null || value.length() == 0) {
             return this;

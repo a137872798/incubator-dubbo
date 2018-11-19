@@ -71,7 +71,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private static final long serialVersionUID = 3033787999037024738L;
 
     /**
-     * 通过 SPI 拓展机制 获取 自适应@Adaptive 对象
+     * 通过 SPI 拓展机制 获取 自适应@Adaptive 对象  自适应对象 好像是 根据 传入不同的 url 能动态生成不同的类
      */
     private static final Protocol protocol = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
 
@@ -550,34 +550,50 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             }
             //远程暴露
             // export to remote if the config is not local (export to local only when config is local)
+            // 等价于 == remote
             if (!Constants.SCOPE_LOCAL.equalsIgnoreCase(scope)) {
                 if (logger.isInfoEnabled()) {
                     logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
                 }
                 if (registryURLs != null && !registryURLs.isEmpty()) {
+                    //遍历注册中心的 URL 地址
                     for (URL registryURL : registryURLs) {
+                        //给本地 url 增加 dynamic 动态 key  从 远程地址的配置中 获取 动态key
+                        // "dynamic" ：服务是否动态注册，如果设为false，注册后将显示后disable状态，需人工启用，并且服务提供者停止时，也不会自动取消册，需人工禁用。
                         url = url.addParameterIfAbsent(Constants.DYNAMIC_KEY, registryURL.getParameter(Constants.DYNAMIC_KEY));
+                        //获取监控中心 的url
                         URL monitorUrl = loadMonitor(registryURL);
                         if (monitorUrl != null) {
+                            //为 本地url 设置 特殊属性  key: monitor value: 监控中心的 url
                             url = url.addParameterAndEncoded(Constants.MONITOR_KEY, monitorUrl.toFullString());
                         }
                         if (logger.isInfoEnabled()) {
                             logger.info("Register dubbo service " + interfaceClass.getName() + " url " + url + " to registry " + registryURL);
                         }
 
+                        // 从本地url 中获取代理属性
                         // For providers, this is used to enable custom proxy to generate invoker
                         String proxy = url.getParameter(Constants.PROXY_KEY);
                         if (StringUtils.isNotEmpty(proxy)) {
+                            //如果存在 就 设置到 注册中心的 url中
                             registryURL = registryURL.addParameter(Constants.PROXY_KEY, proxy);
                         }
 
+                        //通过 代理工厂 创建 invoker 对象
+                        //param1: 实际被暴露的对象 param2:被服务提供者实现的目标接口 param3: 注册中心的 url 里面设置了一个 本地url 同时本地url 有一个属性记录了 监测中心的url
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
+
+                        //该对象封装了 invoker 和 serviceConfig  该对象还是 实现invoker接口
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
+                        //暴露 被封装的对象  因为 这个 protocol 是自适应对象 所以根据传入的参数不同就会 调用不同实现类的 方法
+                        //远程 协议 默认 protocol 是 dubbo 就会生成 DubboProtocol 协议对象
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
+                        //加入到 该服务提供者的暴露对象中  每个 注册中心地址 对应一个 暴露对象
                         exporters.add(exporter);
                     }
                 } else {
+                    //创建的对象不再 包含 监控中心 和 注册中心的url 而是使用 本地url 进行暴露
                     Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);
                     DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 

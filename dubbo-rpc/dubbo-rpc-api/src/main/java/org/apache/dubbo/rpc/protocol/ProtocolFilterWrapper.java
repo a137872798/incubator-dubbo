@@ -31,9 +31,11 @@ import java.util.List;
 
 /**
  * ListenerProtocol
+ * 给Invoker 增加过滤链
  */
 public class ProtocolFilterWrapper implements Protocol {
 
+    //协议对象
     private final Protocol protocol;
 
     public ProtocolFilterWrapper(Protocol protocol) {
@@ -43,13 +45,26 @@ public class ProtocolFilterWrapper implements Protocol {
         this.protocol = protocol;
     }
 
+    /**
+     * 构建一个 调用链对象
+     * @param invoker 调用者对象
+     * @param key serivce.filter
+     * @param group provider/ consumer
+     * @param <T>
+     * @return
+     */
     private static <T> Invoker<T> buildInvokerChain(final Invoker<T> invoker, String key, String group) {
+        //传入的 invoker 对象作为 链尾
         Invoker<T> last = invoker;
+        //通过 SPI 创建 Filter 对象  这里的 key: serivce.filter 去 url 中获取对应的值 返回一组 被拓展的 Filter对象
         List<Filter> filters = ExtensionLoader.getExtensionLoader(Filter.class).getActivateExtension(invoker.getUrl(), key, group);
         if (!filters.isEmpty()) {
             for (int i = filters.size() - 1; i >= 0; i--) {
                 final Filter filter = filters.get(i);
+                //从尾往前创建 每此调用下一个 元素 也就是 正序
                 final Invoker<T> next = last;
+
+                //全部委托给 invoker 实现
                 last = new Invoker<T>() {
 
                     @Override
@@ -69,6 +84,7 @@ public class ProtocolFilterWrapper implements Protocol {
 
                     @Override
                     public Result invoke(Invocation invocation) throws RpcException {
+                        //调用 next 相当于 从前往后调用
                         return filter.invoke(next, invocation);
                     }
 
@@ -84,6 +100,7 @@ public class ProtocolFilterWrapper implements Protocol {
                 };
             }
         }
+        //这个 last 相当于是一个临时对象 通过调用连依次向下调用
         return last;
     }
 
@@ -92,11 +109,22 @@ public class ProtocolFilterWrapper implements Protocol {
         return protocol.getDefaultPort();
     }
 
+    /**
+     * 暴露 服务提供者
+     * @param invoker Service invoker
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+
+        //如果 协议是 registry 就 直接 暴露
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
+        //通过 service.filter 这个key 返回了  一组拓展对象 并构成一个调用链
+        //还是 委托 给 协议对象 暴露
         return protocol.export(buildInvokerChain(invoker, Constants.SERVICE_FILTER_KEY, Constants.PROVIDER));
     }
 

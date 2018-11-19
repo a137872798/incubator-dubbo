@@ -682,7 +682,7 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("unchecked")
     /**
-     * 根据拓展名 创建拓展对象
+     * 根据拓展名 创建拓展对象 如果 该拓展类 有包装类 要返回被包装过的 对象
      */
     private T createExtension(String name) {
         //getExtensionClasses() 就已经加载了配置
@@ -706,7 +706,8 @@ public class ExtensionLoader<T> {
             Set<Class<?>> wrapperClasses = cachedWrapperClasses;
             if (wrapperClasses != null && !wrapperClasses.isEmpty()) {
                 for (Class<?> wrapperClass : wrapperClasses) {
-                    //通过 该实例对象作为 构造函数参数 创建新对象 并注入属性后 再次作为新的 参数进行下次包装处理
+                    //通过 该实例对象作为 构造函数参数 创建新对象 并注入属性后 再次作为新的 参数进行下次包装处理 也就是一个 满足 SPI 的 接口 如果有
+                    //Wrapper 对象 就会被全部的 wrapper 包装 对外是 不可见的
                     //只有 包含本 type 作为 构造函数参数的类才会被加入到容器中
                     instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
                 }
@@ -1159,6 +1160,7 @@ public class ExtensionLoader<T> {
                         Method[] ms = pts[i].getMethods();
                         for (Method m : ms) {
                             String name = m.getName();
+                            //这里 参数 类型一般是接口类型 然后 该接口 又继承了其他接口就有更多方法了 在getMethod 中都能获取到
                             if ((name.startsWith("get") || name.length() > 3)
                                     && Modifier.isPublic(m.getModifiers())
                                     && !Modifier.isStatic(m.getModifiers())
