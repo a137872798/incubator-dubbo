@@ -58,6 +58,8 @@ public @interface SPI {
 
     /**
      * default extension name
+     * 代表默认的 拓展类 名 要加上 待拓展接口
+     * 如 ： protocol @SPI("dubbo") DubboProtocol
      */
     String value() default "";
 

@@ -70,23 +70,44 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     private static final long serialVersionUID = 3033787999037024738L;
 
+    /**
+     * 通过 SPI 拓展机制 获取 自适应@Adaptive 对象
+     */
     private static final Protocol protocol = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
 
+    /**
+     * 同上
+     */
     private static final ProxyFactory proxyFactory = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
 
     private static final Map<String, Integer> RANDOM_PORT_MAP = new HashMap<String, Integer>();
 
     private static final ScheduledExecutorService delayExportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("DubboServiceDelayExporter", true));
     private final List<URL> urls = new ArrayList<URL>();
+
+    /**
+     * 服务配置的 暴露对象 根据 scope 生成 可能是 remote + Local 也可能是单个 也可能是0
+     */
     private final List<Exporter<?>> exporters = new ArrayList<Exporter<?>>();
     // interface type
     private String interfaceName;
+
+    /**
+     * 实现的接口对象
+     */
     private Class<?> interfaceClass;
-    // reference to interface impl
+
+    /**
+     * reference to interface impl
+     * 接口实现类
+     */
     private T ref;
     // service name
     private String path;
-    // method configuration
+    /**
+     * method configuration
+     * 暴露的 方法配置
+     */
     private List<MethodConfig> methods;
     private ProviderConfig provider;
     private transient volatile boolean exported;
@@ -314,6 +335,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (path == null || path.length() == 0) {
             path = interfaceName;
         }
+        //上诉检查 和加载 对应 资源结束后 开始 执行暴露逻辑
         doExportUrls();
         ProviderModel providerModel = new ProviderModel(getUniqueServiceName(), ref, interfaceClass);
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
@@ -352,52 +374,74 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
+    /**
+     * 暴露服务
+     */
     private void doExportUrls() {
+        //从 系统变量/xml/property 中获取注册中心地址 并 将地址解析成对应的url 对象返回
         List<URL> registryURLs = loadRegistries(true);
+        //遍历 协议 列表
         for (ProtocolConfig protocolConfig : protocols) {
+            //根据 一些和 要暴露的 注册中心 进行注册
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
 
+    /**
+     * 使用某个协议 对注册中心进行暴露
+     * @param protocolConfig
+     * @param registryURLs
+     */
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
+        //当协议名不存在时 使用 dubbo
         String name = protocolConfig.getName();
         if (name == null || name.length() == 0) {
             name = "dubbo";
         }
 
         Map<String, String> map = new HashMap<String, String>();
+        //设置 版本 时间戳 提供者/消费者
         map.put(Constants.SIDE_KEY, Constants.PROVIDER_SIDE);
         map.put(Constants.DUBBO_VERSION_KEY, Version.getProtocolVersion());
         map.put(Constants.TIMESTAMP_KEY, String.valueOf(System.currentTimeMillis()));
         if (ConfigUtils.getPid() > 0) {
             map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
         }
+        //从中获取属性到 map中
         appendParameters(map, application);
         appendParameters(map, module);
         appendParameters(map, provider, Constants.DEFAULT_KEY);
         appendParameters(map, protocolConfig);
         appendParameters(map, this);
+        //如果存在方法配置
         if (methods != null && !methods.isEmpty()) {
             for (MethodConfig method : methods) {
+                //从 方法中获取属性 第三个参数是前缀 这样获取属性才会 覆盖
                 appendParameters(map, method, method.getName());
+                //获取 重试 key
                 String retryKey = method.getName() + ".retry";
                 if (map.containsKey(retryKey)) {
+                    //这种 模板 出现很多次了 还没理解 就是将 retry 去除 然后设置了一个 retries
                     String retryValue = map.remove(retryKey);
                     if ("false".equals(retryValue)) {
                         map.put(method.getName() + ".retries", "0");
                     }
                 }
+                //获取 该 方法的 参数 配置信息
                 List<ArgumentConfig> arguments = method.getArguments();
                 if (arguments != null && !arguments.isEmpty()) {
+                    //遍历参数配置
                     for (ArgumentConfig argument : arguments) {
                         // convert argument type
                         if (argument.getType() != null && argument.getType().length() > 0) {
+                            //获取 接口类的 所有方法
                             Method[] methods = interfaceClass.getMethods();
                             // visit all methods
                             if (methods != null && methods.length > 0) {
                                 for (int i = 0; i < methods.length; i++) {
                                     String methodName = methods[i].getName();
                                     // target the method, and get its signature
+                                    // 接口方法对应到了 方法配置 对比需要的参数 是否能和 参数配置对上
                                     if (methodName.equals(method.getName())) {
                                         Class<?>[] argtypes = methods[i].getParameterTypes();
                                         // one callback in the method
@@ -408,9 +452,12 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                                                 throw new IllegalArgumentException("argument config error : the index attribute and type attribute not match :index :" + argument.getIndex() + ", type:" + argument.getType());
                                             }
                                         } else {
+                                            //参数 配置为-1的时候
                                             // multiple callbacks in the method
                                             for (int j = 0; j < argtypes.length; j++) {
+                                                //遍历接口方法 的 每个 参数类型
                                                 Class<?> argclazz = argtypes[j];
+                                                //当 参数 类型 与 参数配置对上的时候
                                                 if (argclazz.getName().equals(argument.getType())) {
                                                     appendParameters(map, argument, method.getName() + "." + j);
                                                     if (argument.getIndex() != -1 && argument.getIndex() != j) {
@@ -422,6 +469,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                                     }
                                 }
                             }
+                            //没有规定类型 但是有下标时
                         } else if (argument.getIndex() != -1) {
                             appendParameters(map, argument, method.getName() + "." + argument.getIndex());
                         } else {
@@ -433,15 +481,18 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             } // end of methods for
         }
 
+        //是否是通用的
         if (ProtocolUtils.isGeneric(generic)) {
             map.put(Constants.GENERIC_KEY, generic);
             map.put(Constants.METHODS_KEY, Constants.ANY_VALUE);
         } else {
+            //获取版本 并设置 jdk自带的方法 暂时看不懂
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
                 map.put("revision", revision);
             }
 
+            //将接口生成包装类后 获取了 所有方法 这里 有一些 包装时 生成的 新方法
             String[] methods = Wrapper.getWrapper(interfaceClass).getMethodNames();
             if (methods.length == 0) {
                 logger.warn("NO method found in service interface " + interfaceClass.getName());
@@ -450,6 +501,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 map.put(Constants.METHODS_KEY, StringUtils.join(new HashSet<String>(Arrays.asList(methods)), ","));
             }
         }
+        //设置令牌
         if (!ConfigUtils.isEmpty(token)) {
             if (ConfigUtils.isDefault(token)) {
                 map.put(Constants.TOKEN_KEY, UUID.randomUUID().toString());
@@ -457,34 +509,46 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 map.put(Constants.TOKEN_KEY, token);
             }
         }
+        //如果是 本地协议 也就是 不进行通信  injvm
         if (Constants.LOCAL_PROTOCOL.equals(protocolConfig.getName())) {
+            // 就不注册到 注册中心了
             protocolConfig.setRegister(false);
             map.put("notify", "false");
         }
         // export service
+        // 获取 上下文对象路径
         String contextPath = protocolConfig.getContextpath();
         if ((contextPath == null || contextPath.length() == 0) && provider != null) {
             contextPath = provider.getContextpath();
         }
 
+        //从配置中找到 host 和 port
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
+
+        //根据获取到的 创建URL 对象 这个URL 应该是本机的
         URL url = new URL(name, host, port, (contextPath == null || contextPath.length() == 0 ? "" : contextPath + "/") + path, map);
 
+        //获取 配置工厂的 拓展对象 判断有没有 protocol 有的话  传入旧的url  返回新的
+        //这里 还不太清楚
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                     .getExtension(url.getProtocol()).getConfigurator(url).configure(url);
         }
 
+        //获取scope 判断是 注册到远程还是本地
         String scope = url.getParameter(Constants.SCOPE_KEY);
         // don't export when none is configured
+        //如果 是 none 代表不进行注册
         if (!Constants.SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
+            //如果 是local 进行本地暴露 传入的参数是本地的 URL
             if (!Constants.SCOPE_REMOTE.equalsIgnoreCase(scope)) {
                 exportLocal(url);
             }
+            //远程暴露
             // export to remote if the config is not local (export to local only when config is local)
             if (!Constants.SCOPE_LOCAL.equalsIgnoreCase(scope)) {
                 if (logger.isInfoEnabled()) {
@@ -526,14 +590,25 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
+    /**
+     * 本地暴露
+     * 这个方法 是 服务提供者调用所有协议类型进行暴露的
+     * @param url 本机url
+     */
     private void exportLocal(URL url) {
+        //当协议 不是 injvm 时会触发
         if (!Constants.LOCAL_PROTOCOL.equalsIgnoreCase(url.getProtocol())) {
+            //将本地 url 转换成字符串后 又转换成 对象 并重新设置了协议和 host port
             URL local = URL.valueOf(url.toFullString())
                     .setProtocol(Constants.LOCAL_PROTOCOL)
                     .setHost(LOCALHOST)
                     .setPort(0);
+            //委托协议对象 进行暴露 也就是 injvm 在本地还是要进行暴露的
+            //这里是基于 url 实现功能的 能够根据 协议和 方法名 动态实现
             Exporter<?> exporter = protocol.export(
+                    //param1 服务提供者实现类 param2 接口类型 param3 本地url
                     proxyFactory.getInvoker(ref, (Class) interfaceClass, local));
+            //获得 暴露对象后 保存到容器中
             exporters.add(exporter);
             logger.info("Export dubbo service " + interfaceClass.getName() + " to local registry");
         }
@@ -548,6 +623,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Configuration priority: environment variables -> java system properties -> host property in config file ->
      * /etc/hosts -> default network address -> first available network address
      *
+     * //就是获取指定的 host 根据不同优先级  系统变量 -> 配置文件->默认网卡端口 -> 第一个 连接返回的地址
      * @param protocolConfig
      * @param registryURLs
      * @param map
@@ -627,6 +703,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * Configuration priority: environment variable -> java system properties -> port property in protocol config file
      * -> protocol default port
      *
+     * 获取默认端口 根据不同优先级
      * @param protocolConfig
      * @param name
      * @return

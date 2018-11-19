@@ -47,6 +47,7 @@ public @interface Activate {
      * Activate the current extension when one of the groups matches. The group passed into
      * {@link ExtensionLoader#getActivateExtension(URL, String, String)} will be used for matching.
      *
+     * group 的过滤条件
      * @return group names to match
      * @see ExtensionLoader#getActivateExtension(URL, String, String)
      */
@@ -59,6 +60,7 @@ public @interface Activate {
      * there's either <code>cache</code> or <code>validation</code> key appeared in the URL's parameters.
      * </p>
      *
+     * key的过滤条件 也就是url 中的key
      * @return URL parameter keys
      * @see ExtensionLoader#getActivateExtension(URL, String)
      * @see ExtensionLoader#getActivateExtension(URL, String, String)
@@ -69,6 +71,7 @@ public @interface Activate {
      * Relative ordering info, optional
      * Deprecated since 2.7.0
      *
+     * 排序信息
      * @return extension list which should be put before the current one
      */
     @Deprecated
@@ -86,6 +89,7 @@ public @interface Activate {
     /**
      * Absolute ordering info, optional
      *
+     * 排序信息
      * @return absolute ordering info
      */
     int order() default 0;

@@ -44,7 +44,8 @@ public class UrlUtils {
             return null;
         }
         String url;
-        //如果地址包含这些特殊标识 就代表一定是地址
+        //地址 有2种 格式 一种就是域名 一种是用,拼接的 ip
+        //第一种
         if (address.contains("://") || address.contains(URL_PARAM_STARTING_SYMBOL)) {
             url = address;
         } else {
@@ -59,7 +60,8 @@ public class UrlUtils {
                     }
                     backup.append(addresses[i]);
                 }
-                //换一种方式 追加字符串
+                //换一种方式 追加字符串   backup 备份的 意思 就是说针对多个ip 选择第一个将其他作为备份地址
+                //比如：10.20.153.10:2181?backup = 10.20.153.11:2181,10.20.153.12:2181
                 url += URL_PARAM_STARTING_SYMBOL + Constants.BACKUP_KEY + "=" + backup.toString();
             }
         }
@@ -74,7 +76,7 @@ public class UrlUtils {
         String defaultPath = defaults == null ? null : defaults.get("path");
         Map<String, String> defaultParameters = defaults == null ? null : new HashMap<String, String>(defaults);
         if (defaultParameters != null) {
-            //创建副本 并移除掉 默认的 属性
+            //创建副本 这几个独有属性要移除掉 避免 设置到 url 的 parameter容器中 其余属性 没有 就从这个 默认 map中获取
             defaultParameters.remove("protocol");
             defaultParameters.remove("username");
             defaultParameters.remove("password");
@@ -85,6 +87,7 @@ public class UrlUtils {
         //通过 url 获取到 对应的 url对象
         URL u = URL.valueOf(url);
         boolean changed = false;
+        //先抽离出 独有属性
         String protocol = u.getProtocol();
         String username = u.getUsername();
         String password = u.getPassword();
@@ -92,7 +95,7 @@ public class UrlUtils {
         int port = u.getPort();
         String path = u.getPath();
         Map<String, String> parameters = new HashMap<String, String>(u.getParameters());
-        //url 对应的资源没有找到 就使用默认的
+        //url 对应的资源没有找到 就使用默认的  这里是从传入的 map 中获取的
         if ((protocol == null || protocol.length() == 0) && defaultProtocol != null && defaultProtocol.length() > 0) {
             changed = true;
             protocol = defaultProtocol;
@@ -158,7 +161,7 @@ public class UrlUtils {
         if (address == null || address.length() == 0) {
             return null;
         }
-        //通过 ; 拆分 地址信息
+        //通过 ; or | 拆分 地址信息
         String[] addresses = Constants.REGISTRY_SPLIT_PATTERN.split(address);
         if (addresses == null || addresses.length == 0) {
             return null; //here won't be empty

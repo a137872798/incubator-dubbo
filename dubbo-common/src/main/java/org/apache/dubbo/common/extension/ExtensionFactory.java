@@ -18,6 +18,8 @@ package org.apache.dubbo.common.extension;
 
 /**
  * ExtensionFactory
+ * 拓展工厂自身 也是拓展接口 可以通过SPI 加载实现类
+ * 子类兼容了 SPRING 的 属性注入
  */
 @SPI
 public interface ExtensionFactory {

@@ -37,6 +37,7 @@ public class FixedThreadPool implements ThreadPool {
 
     @Override
     public Executor getExecutor(URL url) {
+        //从url 中 获取 线程名 线程数量 阻塞队列 容量
         String name = url.getParameter(Constants.THREAD_NAME_KEY, Constants.DEFAULT_THREAD_NAME);
         int threads = url.getParameter(Constants.THREADS_KEY, Constants.DEFAULT_THREADS);
         int queues = url.getParameter(Constants.QUEUES_KEY, Constants.DEFAULT_QUEUES);

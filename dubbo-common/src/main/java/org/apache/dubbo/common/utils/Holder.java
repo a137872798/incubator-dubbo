@@ -18,6 +18,7 @@ package org.apache.dubbo.common.utils;
 
 /**
  * Helper Class for hold a value.
+ *
  */
 public class Holder<T> {
 

@@ -106,11 +106,10 @@ public abstract class Wrapper {
 
     /**
      * get wrapper.
-     *
+     * 生成给定对象的包装类
      * @param c Class instance.
      * @return Wrapper instance(not null).
      */
-    //包装给定对象
     public static Wrapper getWrapper(Class<?> c) {
         //是否是动态生成的类 通过判断是否 实现了
         /**

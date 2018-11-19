@@ -284,7 +284,7 @@ public abstract class AbstractConfig implements Serializable {
                         }
                         //如果是 append 模式 就将现在的属性追加到原来的属性中
                         if (parameter != null && parameter.append()) {
-                            //从map 中获取属性
+                            //是否存在 指定前缀
                             String pre = parameters.get(Constants.DEFAULT_KEY + "." + key);
                             if (pre != null && pre.length() > 0) {
                                 //增加属性
@@ -301,6 +301,7 @@ public abstract class AbstractConfig implements Serializable {
                             key = prefix + "." + key;
                         }
                         //使用新的 key 保存属性  就是覆盖原属性
+                        //如果 针对不同方法的 MethodConfig 进行 属性抽取 因为携带了前缀 所以不会覆盖
                         parameters.put(key, str);
                         //当获取的 value 为null 时 而注解要求是必填
                     } else if (parameter != null && parameter.required()) {

@@ -73,7 +73,6 @@ public /**final**/ class URL implements Serializable {
 
     private static final long serialVersionUID = -1985165475234910535L;
 
-    //一些属性字段 好像是 拼接在 url上的  在发送到注册中心时 就会将整串 url 传过去 消费者通过解析获取到对应属性
     private final String protocol;
 
     private final String username;
@@ -89,7 +88,7 @@ public /**final**/ class URL implements Serializable {
     private final String path;
 
     /**
-     * 非必要的 属性
+     * 非必要的 属性 就是 url 后面的 &gid=1&pid=3 等属性
      */
     private final Map<String, String> parameters;
 
@@ -177,11 +176,11 @@ public /**final**/ class URL implements Serializable {
     /**
      * Parse url string
      *
+     * 解析域名字符串 并转换成 URL 对象
      * @param url URL string
      * @return URL instance
      * @see URL
      */
-    //通过url 定位到资源
     public static URL valueOf(String url) {
         if (url == null || (url = url.trim()).length() == 0) {
             throw new IllegalArgumentException("url == null");
@@ -202,12 +201,14 @@ public /**final**/ class URL implements Serializable {
                 if (part.length() > 0) {
                     int j = part.indexOf('=');
                     if (j >= 0) {
+                        //把? ** =** &** = ** 转存到容器中
                         parameters.put(part.substring(0, j), part.substring(j + 1));
                     } else {
                         parameters.put(part, part);
                     }
                 }
             }
+            //获取 ? 前面的部分
             url = url.substring(0, i);
         }
         i = url.indexOf("://");
@@ -215,10 +216,14 @@ public /**final**/ class URL implements Serializable {
             if (i == 0) {
                 throw new IllegalStateException("url missing protocol: \"" + url + "\"");
             }
+            //最前面的是 协议
+            //例如 ： dubbo://
             protocol = url.substring(0, i);
+            //域名 不带参数的
             url = url.substring(i + 3);
         } else {
             // case: file:/path/to/file.txt
+            // 代表是文件协议
             i = url.indexOf(":/");
             if (i >= 0) {
                 if (i == 0) {
@@ -228,6 +233,8 @@ public /**final**/ class URL implements Serializable {
                 url = url.substring(i + 1);
             }
         }
+
+        //下面 也是域名解析 没有实际的 例子 先不看
 
         i = url.indexOf("/");
         if (i >= 0) {
@@ -293,6 +300,11 @@ public /**final**/ class URL implements Serializable {
         return protocol;
     }
 
+    /**
+     * 通过给定的 协议创建新的 URL 对象
+     * @param protocol
+     * @return
+     */
     public URL setProtocol(String protocol) {
         return new URL(protocol, username, password, host, port, path, getParameters());
     }
@@ -952,18 +964,26 @@ public /**final**/ class URL implements Serializable {
         return addParameter(key, String.valueOf(value));
     }
 
+    /**
+     * 给URL 字符串追加属性
+     * @param key
+     * @param value
+     * @return
+     */
     public URL addParameter(String key, String value) {
         if (key == null || key.length() == 0
                 || value == null || value.length() == 0) {
             return this;
         }
         // if value doesn't change, return immediately
+        //如果尝试获取的 属性 已经存在就直接返回
         if (value.equals(getParameters().get(key))) { // value != null
             return this;
         }
 
         Map<String, String> map = new HashMap<String, String>(getParameters());
         map.put(key, value);
+        //返回一个 新的 url 对象
         return new URL(protocol, username, password, host, port, path, map);
     }
 
@@ -1194,10 +1214,26 @@ public /**final**/ class URL implements Serializable {
         }
     }
 
+    /**
+     * 构建数据
+     * @param appendUser 默认是true
+     * @param appendParameter 默认是true
+     * @param parameters
+     * @return
+     */
     private String buildString(boolean appendUser, boolean appendParameter, String... parameters) {
         return buildString(appendUser, appendParameter, false, false, parameters);
     }
 
+    /**
+     * 构建数据 就是将url 转换成 字符串格式
+     * @param appendUser 默认是true
+     * @param appendParameter 默认是true
+     * @param useIP 默认是false
+     * @param useService 默认是flase
+     * @param parameters 默认是null
+     * @return
+     */
     private String buildString(boolean appendUser, boolean appendParameter, boolean useIP, boolean useService, String... parameters) {
         StringBuilder buf = new StringBuilder();
         if (protocol != null && protocol.length() > 0) {

@@ -158,6 +158,9 @@ public class RegistryConfig extends AbstractConfig {
     }
 
     @Parameter(excluded = true)
+    /**
+     * 抽取 该类的 属性时  不会抽取这个属性
+     */
     public String getAddress() {
         return address;
     }

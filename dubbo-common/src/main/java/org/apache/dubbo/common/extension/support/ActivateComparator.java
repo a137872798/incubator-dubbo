@@ -24,6 +24,8 @@ import java.util.Comparator;
 
 /**
  * OrderComparator
+ *
+ * 排序对象
  */
 public class ActivateComparator implements Comparator<Object> {
 
@@ -48,14 +50,17 @@ public class ActivateComparator implements Comparator<Object> {
         String[] a1Before, a2Before, a1After, a2After;
         int a1Order, a2Order;
         Class<?> inf = null;
+        //返回该类实现的第一个接口
         if (o1.getClass().getInterfaces().length > 0) {
             inf = o1.getClass().getInterfaces()[0];
 
+            //如果 接口 还实现了其他接口 继续获取 到这层后 等下要获取 该接口的 SPI 注解
             if (inf.getInterfaces().length > 0) {
                 inf = inf.getInterfaces()[0];
             }
         }
 
+        //获取 第一个对象的
         Activate a1 = o1.getClass().getAnnotation(Activate.class);
         if (a1 != null) {
             a1Before = a1.before();
@@ -78,12 +83,15 @@ public class ActivateComparator implements Comparator<Object> {
             a2After = oa2.after();
             a2Order = oa2.order();
         }
+        //还要 比较 before after
         if ((a1Before.length > 0 || a1After.length > 0
                 || a2Before.length > 0 || a2After.length > 0)
                 && inf != null && inf.isAnnotationPresent(SPI.class)) {
+            //获取 接口获取拓展类
             ExtensionLoader<?> extensionLoader = ExtensionLoader.getExtensionLoader(inf);
             if (a1Before.length > 0 || a1After.length > 0) {
                 String n2 = extensionLoader.getExtensionName(o2.getClass());
+                //在 after 和 before 中找对应的拓展名 能找到就能确定大小
                 for (String before : a1Before) {
                     if (before.equals(n2)) {
                         return -1;

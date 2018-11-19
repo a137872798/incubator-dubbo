@@ -25,6 +25,7 @@ import java.util.concurrent.Executor;
 
 /**
  * ThreadPool
+ * SPI 中的内容 代表默认拓展名是 fixed
  */
 @SPI("fixed")
 public interface ThreadPool {
@@ -32,6 +33,10 @@ public interface ThreadPool {
     /**
      * Thread pool
      *
+     * 通过自适应拓展类 机制 会从@Adaptive 中获取key  配置 URL 生成动态方法
+     * ("url.getParameter(\"%s\", \"%s\")", key, defaultExtName)
+     * 通过这行代码 获取到拓展名 再去 ExtensionLoader 获取拓展类
+     * 如果 key 获取不到这里就会使用 默认的 fixed 创建对应的 线程池对象
      * @param url URL contains thread parameter
      * @return thread pool
      */

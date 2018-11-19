@@ -173,7 +173,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     + Version.getVersion()
                     + ", Please add <dubbo:registry address=\"...\" /> to your spring config. If you want unregister, please set <dubbo:service registry=\"N/A\" />");
         }
-        //在系统变量中 加载对应属性 并设置到 注册中心的配置中
+        //在系统变量/xml/properties 中 加载对应属性 并设置到 注册中心的配置中
         for (RegistryConfig registryConfig : registries) {
             appendProperties(registryConfig);
         }
@@ -230,16 +230,17 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 if (address == null || address.length() == 0) {
                     address = Constants.ANYHOST_VALUE;
                 }
-                //获取系统变量 存在就 替换地址
+                //获取系统变量 存在就 替换地址 因为系统变量的优先级是最高的
                 String sysaddress = System.getProperty("dubbo.registry.address");
                 if (sysaddress != null && sysaddress.length() > 0) {
                     address = sysaddress;
                 }
-                //地址 存在 且 不是 N/A
+                //地址 存在 且 不是 N/A  N/A 代表不使用注册中心
                 if (address.length() > 0 && !RegistryConfig.NO_AVAILABLE.equalsIgnoreCase(address)) {
                     //创建 容器并从 application 和 registerconfig 读取响应属性
                     Map<String, String> map = new HashMap<String, String>();
                     appendParameters(map, application);
+                    //注册中心配置的  地址 是 exclude 就是不会加入到 map中
                     appendParameters(map, config);
                     //保存配置
                     map.put("path", RegistryService.class.getName());
@@ -251,6 +252,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     }
                     //设置协议 如果有 remote 的拓展就设置 否则使用默认的协议
                     if (!map.containsKey("protocol")) {
+                        //也就是SPI 中该指定的 接口文件中是否有 以 remote 为key 的 实现类
                         if (ExtensionLoader.getExtensionLoader(RegistryFactory.class).hasExtension("remote")) {
                             map.put("protocol", "remote");
                         } else {
@@ -262,10 +264,12 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     List<URL> urls = UrlUtils.parseURLs(address, map);
                     for (URL url : urls) {
                         //遍历每个 资源对象 设置注册中心协议
+                        //例如：registry：zookeeper
                         url = url.addParameter(Constants.REGISTRY_KEY, url.getProtocol());
                         //将协议修改成registry
+                        //例如：zookeeper：//  ----> registry://
                         url = url.setProtocol(Constants.REGISTRY_PROTOCOL);
-                        //这个应该是一个 校验 提供者对应注册 订阅者对应订阅
+                        //这个应该是一个 校验 提供者对应注册 消费者对应订阅
                         if ((provider && url.getParameter(Constants.REGISTER_KEY, true))
                                 || (!provider && url.getParameter(Constants.SUBSCRIBE_KEY, true))) {
                             registryList.add(url);

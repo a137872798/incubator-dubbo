@@ -31,6 +31,7 @@ public interface Invocation {
     /**
      * get method name.
      *
+     * 获取方法名
      * @return method name.
      * @serial
      */

@@ -22,14 +22,18 @@ import org.apache.dubbo.common.extension.SPI;
 
 /**
  * SpiExtensionFactory
+ * 基于 SPI 实现的  拓展工厂
  */
 public class SpiExtensionFactory implements ExtensionFactory {
 
     @Override
     public <T> T getExtension(Class<T> type, String name) {
+        //如果传入的 属性 是接口类型 并且 携带SPI 注解
         if (type.isInterface() && type.isAnnotationPresent(SPI.class)) {
+            //获取 该类的 拓展类加载器
             ExtensionLoader<T> loader = ExtensionLoader.getExtensionLoader(type);
             if (!loader.getSupportedExtensions().isEmpty()) {
+                //返回 Adaptive 拓展类
                 return loader.getAdaptiveExtension();
             }
         }

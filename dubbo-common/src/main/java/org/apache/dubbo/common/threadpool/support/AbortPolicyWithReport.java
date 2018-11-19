@@ -35,6 +35,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * Abort Policy.
  * Log warn info when abort.
+ * 消费提供者的拒绝策略
  */
 public class AbortPolicyWithReport extends ThreadPoolExecutor.AbortPolicy {
 
@@ -74,6 +75,7 @@ public class AbortPolicyWithReport extends ThreadPoolExecutor.AbortPolicy {
             return;
         }
 
+        //避免多个线程 执行
         if (!guard.tryAcquire()) {
             return;
         }
@@ -81,6 +83,7 @@ public class AbortPolicyWithReport extends ThreadPoolExecutor.AbortPolicy {
         Executors.newSingleThreadExecutor().execute(new Runnable() {
             @Override
             public void run() {
+                //获取 倾倒路径
                 String dumpPath = url.getParameter(Constants.DUMP_DIRECTORY, System.getProperty("user.home"));
 
                 SimpleDateFormat sdf;
@@ -98,6 +101,7 @@ public class AbortPolicyWithReport extends ThreadPoolExecutor.AbortPolicy {
                 FileOutputStream jstackStream = null;
                 try {
                     jstackStream = new FileOutputStream(new File(dumpPath, "Dubbo_JStack.log" + "." + dateStr));
+                    //将线程状态 打印到文件中
                     JVMUtil.jstack(jstackStream);
                 } catch (Throwable t) {
                     logger.error("dump jstack error", t);
