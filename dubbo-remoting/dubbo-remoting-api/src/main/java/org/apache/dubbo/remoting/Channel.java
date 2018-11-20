@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 /**
  * Channel. (API/SPI, Prototype, ThreadSafe)
  *
+ * 继承于 端点 接口 跟netty的 通道概念类似
  * @see org.apache.dubbo.remoting.Client
  * @see org.apache.dubbo.remoting.Server#getChannels()
  * @see org.apache.dubbo.remoting.Server#getChannel(InetSocketAddress)
@@ -29,14 +30,14 @@ public interface Channel extends Endpoint {
 
     /**
      * get remote address.
-     *
+     * 获取远程端地址
      * @return remote address.
      */
     InetSocketAddress getRemoteAddress();
 
     /**
      * is connected.
-     *
+     * 判断连接是否还存在
      * @return connected
      */
     boolean isConnected();
@@ -51,7 +52,7 @@ public interface Channel extends Endpoint {
 
     /**
      * get attribute.
-     *
+     * 获取channel 上绑定的 额外属性
      * @param key key.
      * @return value.
      */

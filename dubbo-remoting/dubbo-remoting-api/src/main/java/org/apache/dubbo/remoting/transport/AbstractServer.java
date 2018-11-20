@@ -36,30 +36,51 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * AbstractServer
+ * 抽象服务类
+ *
+ * server or client 初始化都需要 传入 channelHandler
  */
 public abstract class AbstractServer extends AbstractEndpoint implements Server {
 
     protected static final String SERVER_THREAD_POOL_NAME = "DubboServerHandler";
     private static final Logger logger = LoggerFactory.getLogger(AbstractServer.class);
+    /**
+     * 线程池对象
+     */
     ExecutorService executor;
+    /**
+     *  本地地址 和 绑定地址还能不一样吗???
+     */
     private InetSocketAddress localAddress;
     private InetSocketAddress bindAddress;
+    /**
+     * 服务器 能接受的最大连接次数 应该是做限流的
+     */
     private int accepts;
+    /**
+     * 心跳检测时间
+     */
     private int idleTimeout = 600; //600 seconds
 
     public AbstractServer(URL url, ChannelHandler handler) throws RemotingException {
         super(url, handler);
+        //从url 中 获取地址
         localAddress = getUrl().toInetSocketAddress();
 
+        //获取 端口和ip
         String bindIp = getUrl().getParameter(Constants.BIND_IP_KEY, getUrl().getHost());
         int bindPort = getUrl().getParameter(Constants.BIND_PORT_KEY, getUrl().getPort());
+        //如果 端口无效 或者 url 带有 anyhost  绑定到 0.0.0.0
         if (url.getParameter(Constants.ANYHOST_KEY, false) || NetUtils.isInvalidLocalHost(bindIp)) {
             bindIp = NetUtils.ANYHOST;
         }
+        //创建新的地址对象
         bindAddress = new InetSocketAddress(bindIp, bindPort);
+        //获取连接数和心跳检测时间
         this.accepts = url.getParameter(Constants.ACCEPTS_KEY, Constants.DEFAULT_ACCEPTS);
         this.idleTimeout = url.getParameter(Constants.IDLE_TIMEOUT_KEY, Constants.DEFAULT_IDLE_TIMEOUT);
         try {
+            //执行启动方法 子类实现 服务端是不需要开启重连机制的
             doOpen();
             if (logger.isInfoEnabled()) {
                 logger.info("Start " + getClass().getSimpleName() + " bind " + getBindAddress() + ", export " + getLocalAddress());
@@ -69,6 +90,7 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
                     + " on " + getLocalAddress() + ", cause: " + t.getMessage(), t);
         }
         //fixme replace this with better method
+        //从 dataStore 中 获取线程池对象  这个对象应该还没被初始化吧那么属性是哪里获取的
         DataStore dataStore = ExtensionLoader.getExtensionLoader(DataStore.class).getDefaultExtension();
         executor = (ExecutorService) dataStore.get(Constants.EXECUTOR_SERVICE_COMPONENT_KEY, Integer.toString(url.getPort()));
     }
@@ -77,6 +99,10 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
 
     protected abstract void doClose() throws Throwable;
 
+    /**
+     * 根据 指定的url 重置 服务器
+     * @param url
+     */
     @Override
     public void reset(URL url) {
         if (url == null) {
@@ -129,6 +155,12 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
         super.setUrl(getUrl().addParameters(url.getParameters()));
     }
 
+    /**
+     * 为连接到本地的所有channel 发送消息
+     * @param message
+     * @param sent    already sent to socket?
+     * @throws RemotingException
+     */
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
         Collection<Channel> channels = getChannels();
@@ -139,6 +171,9 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
         }
     }
 
+    /**
+     * 关闭 服务器
+     */
     @Override
     public void close() {
         if (logger.isInfoEnabled()) {
@@ -180,9 +215,15 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
         return idleTimeout;
     }
 
+    /**
+     * 接受 客户端的 连接
+     * @param ch
+     * @throws RemotingException
+     */
     @Override
     public void connected(Channel ch) throws RemotingException {
         // If the server has entered the shutdown process, reject any new connection
+        // 如果当前状态就是关闭 就 关闭 channel
         if (this.isClosing() || this.isClosed()) {
             logger.warn("Close new channel " + ch + ", cause: server is closing or has been closed. For example, receive a new connect request while in shutdown process.");
             ch.close();
@@ -190,20 +231,28 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
         }
 
         Collection<Channel> channels = getChannels();
+        //如果超过 最大连接数
         if (accepts > 0 && channels.size() > accepts) {
             logger.error("Close channel " + ch + ", cause: The server " + ch.getLocalAddress() + " connections greater than max config " + accepts);
             ch.close();
             return;
         }
+        //委托给 父类 连接
         super.connected(ch);
     }
 
+    /**
+     * 断开连接时
+     * @param ch
+     * @throws RemotingException
+     */
     @Override
     public void disconnected(Channel ch) throws RemotingException {
         Collection<Channel> channels = getChannels();
         if (channels.isEmpty()) {
             logger.warn("All clients has discontected from " + ch.getLocalAddress() + ". You can graceful shutdown now.");
         }
+        //委托
         super.disconnected(ch);
     }
 

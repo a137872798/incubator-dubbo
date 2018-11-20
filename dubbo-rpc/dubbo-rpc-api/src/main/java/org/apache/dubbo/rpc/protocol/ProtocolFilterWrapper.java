@@ -119,7 +119,7 @@ public class ProtocolFilterWrapper implements Protocol {
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
 
-        //如果 协议是 registry 就 直接 暴露
+        //如果 协议是 registry 代表是 暴露到 注册中心 就不走调用链
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }

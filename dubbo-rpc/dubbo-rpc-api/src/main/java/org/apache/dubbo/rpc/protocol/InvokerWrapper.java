@@ -24,11 +24,18 @@ import org.apache.dubbo.rpc.RpcException;
 
 /**
  * InvokerWrapper
+ * invoker 的包装对象 基本是 委托
  */
 public class InvokerWrapper<T> implements Invoker<T> {
 
+    /**
+     * 被包装的 invoker 对象
+     */
     private final Invoker<T> invoker;
 
+    /**
+     * 从invoker中 获得 的 url
+     */
     private final URL url;
 
     public InvokerWrapper(Invoker<T> invoker, URL url) {

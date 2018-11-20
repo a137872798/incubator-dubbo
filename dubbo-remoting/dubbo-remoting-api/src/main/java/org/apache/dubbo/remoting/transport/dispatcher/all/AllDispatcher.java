@@ -22,6 +22,8 @@ import org.apache.dubbo.remoting.Dispatcher;
 
 /**
  * default thread pool configure
+ *
+ * 将所有任务都转发到线程池 中
  */
 public class AllDispatcher implements Dispatcher {
 

@@ -491,6 +491,7 @@ public class ExtensionLoader<T> {
 
     /**
      * Return default extension, return <code>null</code> if it's not configured.
+     * 获取默认的拓展对象 也就是SPI("***") 以 *** 作为拓展名
      */
     public T getDefaultExtension() {
         getExtensionClasses();

@@ -263,7 +263,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     //通过地址定位到资源 如果资源中某些属性不存在 就使用容器中的默认属性
                     List<URL> urls = UrlUtils.parseURLs(address, map);
                     for (URL url : urls) {
-                        //遍历每个 资源对象 设置注册中心协议
+                        //遍历每个 资源对象 设置注册中心协议  以及在 registry中设置原本的 协议
                         //例如：registry：zookeeper
                         url = url.addParameter(Constants.REGISTRY_KEY, url.getProtocol());
                         //将协议修改成registry
@@ -282,9 +282,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     /**
-     * 根据 注册中心的 url 返回 关联的 监测中心的 url  监测中心是集群吗???
+     * 根据 注册中心的 url 返回监测中心的 url  监测中心是集群吗???
      */
     protected URL loadMonitor(URL registryURL) {
+        //首先从 系统变量或环境变量获取 属性 找不到就直接返回null
         if (monitor == null) {
             String monitorAddress = ConfigUtils.getProperty("dubbo.monitor.address");
             String monitorProtocol = ConfigUtils.getProperty("dubbo.monitor.protocol");
@@ -292,6 +293,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 return null;
             }
 
+            //创建 监控中心配置类
             monitor = new MonitorConfig();
             if (monitorAddress != null && monitorAddress.length() > 0) {
                 monitor.setAddress(monitorAddress);
@@ -300,8 +302,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 monitor.setProtocol(monitorProtocol);
             }
         }
+        //从系统变量/xml/property 中抽取属性并 赋值给 监测中心
         appendProperties(monitor);
         Map<String, String> map = new HashMap<String, String>();
+        //额外设置 监控中心接口 协议版本 时间戳 pid
         map.put(Constants.INTERFACE_KEY, MonitorService.class.getName());
         map.put("dubbo", Version.getProtocolVersion());
         map.put(Constants.TIMESTAMP_KEY, String.valueOf(System.currentTimeMillis()));
@@ -309,30 +313,40 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
         }
         //set ip
+        //获取 注册中心的 ip
         String hostToRegistry = ConfigUtils.getSystemProperty(Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry == null || hostToRegistry.length() == 0) {
             hostToRegistry = NetUtils.getLocalHost();
         } else if (NetUtils.isInvalidLocalHost(hostToRegistry)) {
             throw new IllegalArgumentException("Specified invalid registry ip from property:" + Constants.DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);
         }
+        //将注册中心的ip 设置到 map中
         map.put(Constants.REGISTER_IP_KEY, hostToRegistry);
+        //从监控中心和 应用配置中获取属性设置到map 上
         appendParameters(map, monitor);
         appendParameters(map, application);
+        //获取监控中心地址
         String address = monitor.getAddress();
         String sysaddress = System.getProperty("dubbo.monitor.address");
+        //系统级别 配置 优先级最高
         if (sysaddress != null && sysaddress.length() > 0) {
             address = sysaddress;
         }
         if (ConfigUtils.isNotEmpty(address)) {
             if (!map.containsKey(Constants.PROTOCOL_KEY)) {
+               //如果 拓展对象中存在 日志统计 就将协议设置成日志统计
                 if (ExtensionLoader.getExtensionLoader(MonitorFactory.class).hasExtension("logstat")) {
                     map.put(Constants.PROTOCOL_KEY, "logstat");
                 } else {
+                    //设置成默认协议 dubbo
                     map.put(Constants.PROTOCOL_KEY, "dubbo");
                 }
             }
+            //解析地址获取 一个 url 对象 没有的属性 从map中获取
             return UrlUtils.parseURL(address, map);
+            //当 监控中心地址为空时  当协议是registry 且 注册中心 地址不为空
         } else if (Constants.REGISTRY_PROTOCOL.equals(monitor.getProtocol()) && registryURL != null) {
+            //返回注册中心地址 作为监控中心地址???
             return registryURL.setProtocol("dubbo").addParameter(Constants.PROTOCOL_KEY, "registry").addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map));
         }
         return null;

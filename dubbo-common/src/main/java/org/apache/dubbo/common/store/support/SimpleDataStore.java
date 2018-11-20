@@ -24,6 +24,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * DataStore 的默认实现
+ */
 public class SimpleDataStore implements DataStore {
 
     // <component name or id, <data-name, data-value>>

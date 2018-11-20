@@ -21,12 +21,16 @@ import java.net.InetSocketAddress;
 /**
  * ReceiveException
  *
+ * dubbo 封装的针对 线程池执行出现的异常  继承 包含了 两端地址的{@link RemotingException}
  * @export
  */
 public class ExecutionException extends RemotingException {
 
     private static final long serialVersionUID = -2531085236111056860L;
 
+    /**
+     * 请求对象
+     */
     private final Object request;
 
     public ExecutionException(Object request, Channel channel, String message, Throwable cause) {

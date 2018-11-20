@@ -25,6 +25,7 @@ import java.net.InetSocketAddress;
 
 /**
  * ChannelDelegate
+ * channel 的 代表类
  */
 public class ChannelDelegate implements Channel {
 

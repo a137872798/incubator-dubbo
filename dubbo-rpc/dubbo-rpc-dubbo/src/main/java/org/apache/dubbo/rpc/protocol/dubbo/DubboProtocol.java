@@ -58,6 +58,7 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * dubbo protocol support.
+ * dubbo 协议的 实现对象
  */
 public class DubboProtocol extends AbstractProtocol {
 
@@ -66,6 +67,11 @@ public class DubboProtocol extends AbstractProtocol {
     public static final int DEFAULT_PORT = 20880;
     private static final String IS_CALLBACK_SERVICE_INVOKE = "_isCallBackServiceInvoke";
     private static DubboProtocol INSTANCE;
+
+    /**
+     * 通信服务器集合
+     * key: 服务器地址 host:port
+     */
     private final Map<String, ExchangeServer> serverMap = new ConcurrentHashMap<String, ExchangeServer>(); // <host:port,Exchanger>
     private final Map<String, ReferenceCountExchangeClient> referenceClientMap = new ConcurrentHashMap<String, ReferenceCountExchangeClient>(); // <host:port,Exchanger>
     private final ConcurrentMap<String, LazyConnectExchangeClient> ghostClientMap = new ConcurrentHashMap<String, LazyConnectExchangeClient>();
@@ -241,19 +247,34 @@ public class DubboProtocol extends AbstractProtocol {
         return DEFAULT_PORT;
     }
 
+    /**
+     * dubbo 协议的 暴露方法
+     * @param invoker Service invoker
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //获取 invoker 对象的url 这个应该就是 注册中心 的 url
         URL url = invoker.getUrl();
 
         // export service.
+        // 通过 url 生成对应的 服务键对象
         String key = serviceKey(url);
+        //创建 暴露者对象
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
+        //将服务键 和 暴露对象保存到容器中
         exporterMap.put(key, exporter);
 
         //export an stub service for dispatching event
+        //获取 一些 参数信息  这块跟 stub 挂钩先不管
         Boolean isStubSupportEvent = url.getParameter(Constants.STUB_EVENT_KEY, Constants.DEFAULT_STUB_EVENT);
         Boolean isCallbackservice = url.getParameter(Constants.IS_CALLBACK_SERVICE, false);
+
+        //如果 支持 stub事件 且 不存在回调  什么意思???
         if (isStubSupportEvent && !isCallbackservice) {
+            //从 参数中 获取 stub 的方法
             String stubServiceMethods = url.getParameter(Constants.STUB_EVENT_METHODS_KEY);
             if (stubServiceMethods == null || stubServiceMethods.length() == 0) {
                 if (logger.isWarnEnabled()) {
@@ -261,15 +282,23 @@ public class DubboProtocol extends AbstractProtocol {
                             "], has set stubproxy support event ,but no stub methods founded."));
                 }
             } else {
+                //在 stub 方法容器中 增加对应键值对
                 stubServiceMethodsMap.put(url.getServiceKey(), stubServiceMethods);
             }
         }
 
+        //启动服务器
         openServer(url);
+
+        //初始化序列化优化器
         optimizeSerialization(url);
         return exporter;
     }
 
+    /**
+     * 启动服务器
+     * @param url
+     */
     private void openServer(URL url) {
         // find server.
         String key = url.getAddress();

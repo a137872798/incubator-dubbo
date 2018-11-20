@@ -55,38 +55,70 @@ import static org.apache.dubbo.common.Constants.VALIDATION_KEY;
 
 /**
  * RegistryProtocol
- *
+ * 注册中心 协议
  */
 public class RegistryProtocol implements Protocol {
 
     private final static Logger logger = LoggerFactory.getLogger(RegistryProtocol.class);
+
+    /**
+     * 单例
+     */
     private static RegistryProtocol INSTANCE;
     private final Map<URL, NotifyListener> overrideListeners = new ConcurrentHashMap<URL, NotifyListener>();
     //To solve the problem of RMI repeated exposure port conflicts, the services that have been exposed are no longer exposed.
     //providerurl <--> exporter
+    /**
+     * 解决 端口重复 暴露的问题
+     */
     private final Map<String, ExporterChangeableWrapper<?>> bounds = new ConcurrentHashMap<String, ExporterChangeableWrapper<?>>();
     private Cluster cluster;
+
+    /**
+     * 协议对象
+     */
     private Protocol protocol;
+
+    /**
+     * 注册中心工厂
+     */
     private RegistryFactory registryFactory;
+
+    /**
+     * 代理工厂
+     */
     private ProxyFactory proxyFactory;
 
     public RegistryProtocol() {
         INSTANCE = this;
     }
 
+    /**
+     * 获取 注册协议对象
+     * @return
+     */
     public static RegistryProtocol getRegistryProtocol() {
         if (INSTANCE == null) {
+            //通过指定名 加载 对应的 拓展类  这里没有做 赋值操作是 怎么做到的???
             ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(Constants.REGISTRY_PROTOCOL); // load
         }
         return INSTANCE;
     }
 
-    //Filter the parameters that do not need to be output in url(Starting with .)
+    /**
+     * Filter the parameters that do not need to be output in url(Starting with .)
+     *
+     * 从 url 中拦截部分不需要输出的属性
+     * @param url
+     * @return
+     */
     private static String[] getFilteredKeys(URL url) {
+        //从 url中 获取 属性集合
         Map<String, String> params = url.getParameters();
         if (params != null && !params.isEmpty()) {
             List<String> filteredKeys = new ArrayList<String>();
             for (Map.Entry<String, String> entry : params.entrySet()) {
+                //筛选出 以 "." 为开头的 属性 代表这些是需要被过滤的
                 if (entry != null && entry.getKey() != null && entry.getKey().startsWith(Constants.HIDE_KEY_PREFIX)) {
                     filteredKeys.add(entry.getKey());
                 }
@@ -127,24 +159,41 @@ public class RegistryProtocol implements Protocol {
         registry.register(registedProviderUrl);
     }
 
+    /**
+     * 服务提供者向 注册中心进行暴露
+     * @param originInvoker
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
         //export invoker
+        //进行本地暴露
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker);
 
+        //通过 invoker 对象获取到注册中心的 url
         URL registryUrl = getRegistryUrl(originInvoker);
 
         //registry provider
+        //通过 invoker 对象 获取到 注册中心 (方法 内部实际获取了 注册中心的url 再去 注册中心工厂获取对象)
         final Registry registry = getRegistry(originInvoker);
+
+        //获取服务提供者 url 从invoker 的url 上 通过 export 的 key 获取到 服务提供者的 url 并过滤掉一部分无用属性
         final URL registeredProviderUrl = getRegisteredProviderUrl(originInvoker);
 
         //to judge to delay publish whether or not
+        //是否 采用 延迟 注册
         boolean register = registeredProviderUrl.getParameter("register", true);
 
+        //向本地注册表注册服务提供者
         ProviderConsumerRegTable.registerProvider(originInvoker, registryUrl, registeredProviderUrl);
 
+        //如果是延迟 注册
         if (register) {
+            //向服务中心提供自己
             register(registryUrl, registeredProviderUrl);
+            //标记 服务注册表 为 已注册
             ProviderConsumerRegTable.getProviderWrapper(originInvoker).setReg(true);
         }
 
@@ -158,16 +207,28 @@ public class RegistryProtocol implements Protocol {
         return new DestroyableExporter<T>(exporter, originInvoker, overrideSubscribeUrl, registeredProviderUrl);
     }
 
+    /**
+     * 在本地 为待暴露的服务做标识 防止重复 暴露
+     * @param originInvoker
+     * @param <T>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private <T> ExporterChangeableWrapper<T> doLocalExport(final Invoker<T> originInvoker) {
+        //先通过 invoker 对象 获取 服务提供者的url 并在 去除部分 属性后 转换成了 域名格式返回
         String key = getCacheKey(originInvoker);
+        //尝试 获取 如果能获取到就不进行重复暴露了
         ExporterChangeableWrapper<T> exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
         if (exporter == null) {
+            //使用内置锁 来避免并发问题
             synchronized (bounds) {
                 exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
                 if (exporter == null) {
+                    //再次 确保 对象没有被创建
                     final Invoker<?> invokerDelegete = new InvokerDelegete<T>(originInvoker, getProviderUrl(originInvoker));
+                    //初始化 一个 暴露服务的 包装对象
                     exporter = new ExporterChangeableWrapper<T>((Exporter<T>) protocol.export(invokerDelegete), originInvoker);
+                    //设置到绑定对象中
                     bounds.put(key, exporter);
                 }
             }
@@ -196,18 +257,42 @@ public class RegistryProtocol implements Protocol {
     /**
      * Get an instance of registry based on the address of invoker
      *
+     * 通过invoker 对象的 信息 获取 到注册中心的 URL
      * @param originInvoker
      * @return
      */
     private Registry getRegistry(final Invoker<?> originInvoker) {
+        //从invoker 对象中获取 url 信息
         URL registryUrl = getRegistryUrl(originInvoker);
+
+        //通过 注册中心的 url 获取对应的 注册中心对象
         return registryFactory.getRegistry(registryUrl);
     }
 
+    /**
+     * 获得 注册中心的URL
+     * @param originInvoker
+     * @return
+     */
     private URL getRegistryUrl(Invoker<?> originInvoker) {
+
+        //------------------- 在获取注册中心地址的 时候 有这样一段代码
+        //遍历每个 资源对象 设置注册中心协议  以及在 registry中设置原本的 协议
+        //例如：registry：zookeeper
+        //url = url.addParameter(Constants.REGISTRY_KEY, url.getProtocol());
+        //将协议修改成registry
+        //例如：zookeeper：//  ----> registry://
+        //url = url.setProtocol(Constants.REGISTRY_PROTOCOL);
+
+
+        //首先从invoker 对象中获取 注册中心的 url
         URL registryUrl = originInvoker.getUrl();
+        //如果 协议类型 是  registry  协议 就是 registry:// --> dubbo://
         if (Constants.REGISTRY_PROTOCOL.equals(registryUrl.getProtocol())) {
+            //从属性容器中获取 registry 对应的value  没有就返回默认的dubbo
             String protocol = registryUrl.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_DIRECTORY);
+            //替换掉原来的registry 协议 同时 移除掉属性中的 registry
+            //那么 当 协议是 registry 时 就是告诉调用者 需要从属性中获取 真正的协议类型
             registryUrl = registryUrl.setProtocol(protocol).removeParameter(Constants.REGISTRY_KEY);
         }
         return registryUrl;
@@ -217,12 +302,16 @@ public class RegistryProtocol implements Protocol {
     /**
      * Return the url that is registered to the registry and filter the url parameter once
      *
+     * 获取 注册到该 注册中心 的 url对象 也就是 服务提供者的 url
      * @param originInvoker
      * @return
      */
     private URL getRegisteredProviderUrl(final Invoker<?> originInvoker) {
+        //获取 服务提供者的 url  在invoker 的 url 中 通过以 export 为key 保存了 服务提供者的 url信息
         URL providerUrl = getProviderUrl(originInvoker);
         //The address you see at the registry
+        //移除掉一些不必要的属性
+        //getFilteredKeys 返回的 是 需要被过滤的 属性
         return providerUrl.removeParameters(getFilteredKeys(providerUrl))
                 .removeParameter(Constants.MONITOR_KEY)
                 .removeParameter(Constants.BIND_IP_KEY)
@@ -243,15 +332,18 @@ public class RegistryProtocol implements Protocol {
     /**
      * Get the address of the providerUrl through the url of the invoker
      *
+     * 通过 invoker 的url 获取到 服务提供者的 url
      * @param origininvoker
      * @return
      */
     private URL getProviderUrl(final Invoker<?> origininvoker) {
+        //以 export 作为 key 获取 数据
         String export = origininvoker.getUrl().getParameterAndDecoded(Constants.EXPORT_KEY);
         if (export == null || export.length() == 0) {
             throw new IllegalArgumentException("The registry export url is null! registry: " + origininvoker.getUrl());
         }
 
+        //转换成url
         URL providerUrl = URL.valueOf(export);
         return providerUrl;
     }
@@ -259,11 +351,15 @@ public class RegistryProtocol implements Protocol {
     /**
      * Get the key cached in bounds by invoker
      *
+     * 查看 当前暴露者 是否有对应的 引用
      * @param originInvoker
      * @return
      */
     private String getCacheKey(final Invoker<?> originInvoker) {
+        //通过 invoker 对象 获取到 providerUrl 就是 解析invoker 的 url 的export 字段
         URL providerUrl = getProviderUrl(originInvoker);
+
+        //在 移除了 指定的 属性标识(key) 后 将 返回的新url 转换成了string
         String key = providerUrl.removeParameters("dynamic", "enabled").toFullString();
         return key;
     }
@@ -324,7 +420,15 @@ public class RegistryProtocol implements Protocol {
         bounds.clear();
     }
 
+    /**
+     * invoker 代理对象
+     * @param <T>
+     */
     public static class InvokerDelegete<T> extends InvokerWrapper<T> {
+
+        /**
+         * 这个 invoker 和 父类的 invoker是一个对象
+         */
         private final Invoker<T> invoker;
 
         /**
@@ -337,6 +441,7 @@ public class RegistryProtocol implements Protocol {
         }
 
         public Invoker<T> getInvoker() {
+            //如果 是delegate 就 返回 .invoker 应该是 这个对象不能直接获取url 所以要获取上层对象
             if (invoker instanceof InvokerDelegete) {
                 return ((InvokerDelegete<T>) invoker).getInvoker();
             } else {

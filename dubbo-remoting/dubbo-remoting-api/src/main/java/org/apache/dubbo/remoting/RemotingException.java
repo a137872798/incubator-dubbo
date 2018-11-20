@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 /**
  * RemotingException. (API, Prototype, ThreadSafe)
  *
+ * 通信异常
  * @export
  * @see org.apache.dubbo.remoting.exchange.ResponseFuture#get()
  * @see org.apache.dubbo.remoting.exchange.ResponseFuture#get(int)
@@ -34,10 +35,21 @@ public class RemotingException extends Exception {
 
     private static final long serialVersionUID = -3160452149606778709L;
 
+    /**
+     * 本地地址
+     */
     private InetSocketAddress localAddress;
 
+    /**
+     * 远程地址
+     */
     private InetSocketAddress remoteAddress;
 
+    /**
+     * 构造函数 通过 从channel 中获取本地地址和远程地址
+     * @param channel
+     * @param msg
+     */
     public RemotingException(Channel channel, String msg) {
         this(channel == null ? null : channel.getLocalAddress(), channel == null ? null : channel.getRemoteAddress(),
                 msg);

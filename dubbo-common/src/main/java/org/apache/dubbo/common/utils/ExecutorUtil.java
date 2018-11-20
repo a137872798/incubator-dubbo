@@ -122,7 +122,7 @@ public class ExecutorUtil {
 
     /**
      * append thread name with url address
-     *
+     * 从url中获取线程名 并补上地址后 重新设置
      * @return new url with updated thread name
      */
     public static URL setThreadName(URL url, String defaultName) {

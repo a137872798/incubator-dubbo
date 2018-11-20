@@ -25,9 +25,13 @@ import java.net.InetSocketAddress;
 
 /**
  * ClientDelegate
+ * client代表类 基本都是委托
  */
 public class ClientDelegate implements Client {
 
+    /**
+     * client 对象
+     */
     private transient Client client;
 
     public ClientDelegate() {
@@ -48,6 +52,10 @@ public class ClientDelegate implements Client {
         this.client = client;
     }
 
+    /**
+     * 重置
+     * @param url
+     */
     @Override
     public void reset(URL url) {
         client.reset(url);

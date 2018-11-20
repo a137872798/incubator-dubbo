@@ -94,6 +94,9 @@ public /**final**/ class URL implements Serializable {
 
     // ==== cache ====
 
+    /**
+     * 二级缓存
+     */
     private volatile transient Map<String, Number> numbers;
 
     private volatile transient Map<String, URL> urls;
@@ -462,12 +465,18 @@ public /**final**/ class URL implements Serializable {
     public String getParameter(String key) {
         String value = parameters.get(key);
         if (value == null || value.length() == 0) {
-            //找不到 就 给key 增加一个前缀
+            //找不到 就 给key 增加一个default前缀 代表获取默认属性
             value = parameters.get(Constants.DEFAULT_KEY_PREFIX + key);
         }
         return value;
     }
 
+    /**
+     * 尝试 从 URL 的属性集合中 获取指定key 对应的值 如果没有就返回默认值  默认值 不设置到 集合中
+     * @param key
+     * @param defaultValue
+     * @return
+     */
     public String getParameter(String key, String defaultValue) {
         String value = getParameter(key);
         if (value == null || value.length() == 0) {
@@ -554,7 +563,14 @@ public /**final**/ class URL implements Serializable {
         return l;
     }
 
+    /**
+     * 从url 中获取属性
+     * @param key
+     * @param defaultValue
+     * @return
+     */
     public int getParameter(String key, int defaultValue) {
+        //这里 怎么有2级缓存???
         Number n = getNumbers().get(key);
         if (n != null) {
             return n.intValue();
@@ -629,6 +645,12 @@ public /**final**/ class URL implements Serializable {
         return value;
     }
 
+    /**
+     * 根据 key 获取url 中的属性 获取不到就 使用默认值
+     * @param key
+     * @param defaultValue
+     * @return
+     */
     public int getPositiveParameter(String key, int defaultValue) {
         if (defaultValue <= 0) {
             throw new IllegalArgumentException("defaultValue <= 0");
@@ -1093,14 +1115,21 @@ public /**final**/ class URL implements Serializable {
         return removeParameters(keys.toArray(new String[0]));
     }
 
+    /**
+     * 从 URL 的 属性集合中 移除掉对应的属性
+     * @param keys
+     * @return
+     */
     public URL removeParameters(String... keys) {
         if (keys == null || keys.length == 0) {
             return this;
         }
         Map<String, String> map = new HashMap<String, String>(getParameters());
+        //遍历 属性 集合 并移除对应的 key
         for (String key : keys) {
             map.remove(key);
         }
+        //如果 没有发生变化 就 返回原对象 否则返回一个新对象
         if (map.size() == getParameters().size()) {
             return this;
         }

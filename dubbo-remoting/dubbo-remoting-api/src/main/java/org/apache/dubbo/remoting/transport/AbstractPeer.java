@@ -28,13 +28,25 @@ import org.apache.dubbo.remoting.RemotingException;
  */
 public abstract class AbstractPeer implements Endpoint, ChannelHandler {
 
+    /**
+     * channel 处理器
+     */
     private final ChannelHandler handler;
 
+    /**
+     * url 对象
+     */
     private volatile URL url;
 
     // closing closed means the process is being closed and close is finished
+    /**
+     * 代表 正在关闭 或者已经关闭完成
+     */
     private volatile boolean closing;
 
+    /**
+     * 关闭是否完成
+     */
     private volatile boolean closed;
 
     public AbstractPeer(URL url, ChannelHandler handler) {
@@ -48,11 +60,20 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
         this.handler = handler;
     }
 
+    /**
+     * 发送消息
+     * @param message
+     * @throws RemotingException
+     */
     @Override
     public void send(Object message) throws RemotingException {
+        //后面的 标识 代表是 sync or async
         send(message, url.getParameter(Constants.SENT_KEY, false));
     }
 
+    /**
+     * 就是 修改标识
+     */
     @Override
     public void close() {
         closed = true;
@@ -63,8 +84,12 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
         close();
     }
 
+    /**
+     * 修改 closing 标识
+     */
     @Override
     public void startClose() {
+        //如果 closed 已经为 true 就直接返回
         if (isClosed()) {
             return;
         }
@@ -83,6 +108,10 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
         this.url = url;
     }
 
+    /**
+     * 如果 是delegate 就不断 递归 获取 实际的handler
+     * @return
+     */
     @Override
     public ChannelHandler getChannelHandler() {
         if (handler instanceof ChannelHandlerDelegate) {
@@ -103,6 +132,7 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
     /**
      * Return the final handler (which may have been wrapped). This method should be distinguished with getChannelHandler() method
      *
+     * 直接返回handler 可能是 被包装的 对象
      * @return ChannelHandler
      */
     public ChannelHandler getDelegateHandler() {
@@ -117,6 +147,8 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
     public boolean isClosing() {
         return closing && !closed;
     }
+
+    //--------------委托实现---------------
 
     @Override
     public void connected(Channel ch) throws RemotingException {

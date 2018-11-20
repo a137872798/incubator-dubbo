@@ -22,7 +22,7 @@ import java.net.InetSocketAddress;
 
 /**
  * Endpoint. (API/SPI, Prototype, ThreadSafe)
- *
+ * client or server 的 抽象
  *
  * @see org.apache.dubbo.remoting.Channel
  * @see org.apache.dubbo.remoting.Client
@@ -32,28 +32,28 @@ public interface Endpoint {
 
     /**
      * get url.
-     *
+     * 获取 端点的 url
      * @return url
      */
     URL getUrl();
 
     /**
      * get channel handler.
-     *
+     * 获取 该channel 的处理对象
      * @return channel handler
      */
     ChannelHandler getChannelHandler();
 
     /**
      * get local address.
-     *
+     * 获取本地地址
      * @return local address.
      */
     InetSocketAddress getLocalAddress();
 
     /**
      * send message.
-     *
+     * 发送消息到远程端
      * @param message
      * @throws RemotingException
      */
@@ -69,11 +69,13 @@ public interface Endpoint {
 
     /**
      * close the channel.
+     * 关闭该channel
      */
     void close();
 
     /**
      * Graceful close the channel.
+     * 在指定时间内 关闭channel
      */
     void close(int timeout);
 

@@ -32,12 +32,21 @@ import org.apache.dubbo.remoting.transport.ChannelHandlerDelegate;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 基本也是 委托给 handler
+ */
 public class WrappedChannelHandler implements ChannelHandlerDelegate {
 
     protected static final Logger logger = LoggerFactory.getLogger(WrappedChannelHandler.class);
 
+    /**
+     * 共享线程池
+     */
     protected static final ExecutorService SHARED_EXECUTOR = Executors.newCachedThreadPool(new NamedThreadFactory("DubboSharedHandler", true));
 
+    /**
+     * 线程池对象
+     */
     protected final ExecutorService executor;
 
     protected final ChannelHandler handler;
@@ -47,13 +56,17 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
     public WrappedChannelHandler(ChannelHandler handler, URL url) {
         this.handler = handler;
         this.url = url;
+        //创建线程池
         executor = (ExecutorService) ExtensionLoader.getExtensionLoader(ThreadPool.class).getAdaptiveExtension().getExecutor(url);
 
+        //获取 组件名
         String componentKey = Constants.EXECUTOR_SERVICE_COMPONENT_KEY;
+        //如果是消费端 更新 组件名
         if (Constants.CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(Constants.SIDE_KEY))) {
             componentKey = Constants.CONSUMER_SIDE;
         }
         DataStore dataStore = ExtensionLoader.getExtensionLoader(DataStore.class).getDefaultExtension();
+        //根据 特定端口号 保存线程池对象
         dataStore.put(componentKey, Integer.toString(url.getPort()), executor);
     }
 
@@ -109,7 +122,12 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
         return url;
     }
 
+    /**
+     * 获取线程池对象
+     * @return
+     */
     public ExecutorService getExecutorService() {
+        //当专有线程池 不存在时 就返回共享线程池
         ExecutorService cexecutor = executor;
         if (cexecutor == null || cexecutor.isShutdown()) {
             cexecutor = SHARED_EXECUTOR;

@@ -21,13 +21,31 @@ import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.remoting.Channel;
 import org.apache.dubbo.remoting.ChannelHandler;
 
+/**
+ * Dispatcher 将任务 设置到线程池中 使用的 包装类
+ */
 public class ChannelEventRunnable implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(ChannelEventRunnable.class);
 
+    /**
+     * channelHandler
+     */
     private final ChannelHandler handler;
+    /**
+     * channel 对象
+     */
     private final Channel channel;
+    /**
+     * channel 的状态
+     */
     private final ChannelState state;
+    /**
+     * 抛出的异常对象
+     */
     private final Throwable exception;
+    /**
+     * 消息对象
+     */
     private final Object message;
 
     public ChannelEventRunnable(Channel channel, ChannelHandler handler, ChannelState state) {
@@ -50,8 +68,12 @@ public class ChannelEventRunnable implements Runnable {
         this.exception = exception;
     }
 
+    /**
+     * 线程池 执行的 具体逻辑
+     */
     @Override
     public void run() {
+        //根据不同的状态 执行不同的逻辑
         if (state == ChannelState.RECEIVED) {
             try {
                 handler.received(channel, message);
@@ -101,7 +123,7 @@ public class ChannelEventRunnable implements Runnable {
     /**
      * ChannelState
      *
-     *
+     * 代表是 基于什么事件触发
      */
     public enum ChannelState {
 

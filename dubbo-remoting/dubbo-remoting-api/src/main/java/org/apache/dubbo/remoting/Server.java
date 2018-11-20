@@ -32,21 +32,21 @@ public interface Server extends Endpoint, Resetable {
 
     /**
      * is bound.
-     *
+     * 服务端是否已经绑定在本机
      * @return bound
      */
     boolean isBound();
 
     /**
      * get channels.
-     *
+     * 获取 连接放到服务器上的所有长连接
      * @return channels
      */
     Collection<Channel> getChannels();
 
     /**
      * get channel.
-     *
+     * 根据某个特定的远程地址 获取channel
      * @param remoteAddress
      * @return channel
      */

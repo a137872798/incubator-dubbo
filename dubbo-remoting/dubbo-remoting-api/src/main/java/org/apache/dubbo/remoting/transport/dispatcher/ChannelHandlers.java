@@ -25,11 +25,20 @@ import org.apache.dubbo.remoting.transport.MultiMessageHandler;
 
 public class ChannelHandlers {
 
+    /**
+     * 单例
+     */
     private static ChannelHandlers INSTANCE = new ChannelHandlers();
 
     protected ChannelHandlers() {
     }
 
+    /**
+     * 为 本 channelHandler 封装成一个新的 channelHandler
+     * @param handler
+     * @param url
+     * @return
+     */
     public static ChannelHandler wrap(ChannelHandler handler, URL url) {
         return ChannelHandlers.getInstance().wrapInternal(handler, url);
     }
@@ -42,7 +51,14 @@ public class ChannelHandlers {
         INSTANCE = instance;
     }
 
+    /**
+     * 包装 channelhandler
+     * @param handler
+     * @param url
+     * @return
+     */
     protected ChannelHandler wrapInternal(ChannelHandler handler, URL url) {
+        //装饰器模式  将从SPI 生成的自适应 Dispatcher对象 包装起来 并将请求 委托给该对象
         return new MultiMessageHandler(new HeartbeatHandler(ExtensionLoader.getExtensionLoader(Dispatcher.class)
                 .getAdaptiveExtension().dispatch(handler, url)));
     }

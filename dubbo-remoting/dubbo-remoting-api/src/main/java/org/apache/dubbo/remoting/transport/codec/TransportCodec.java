@@ -32,11 +32,20 @@ import java.io.OutputStream;
 
 /**
  * TransportCodec
+ * 协议层的 编解码器
  */
 public class TransportCodec extends AbstractCodec {
 
+    /**
+     * 编码
+     * @param channel
+     * @param buffer
+     * @param message
+     * @throws IOException
+     */
     @Override
     public void encode(Channel channel, ChannelBuffer buffer, Object message) throws IOException {
+        //从 channelBuffer 中获取输出流
         OutputStream output = new ChannelBufferOutputStream(buffer);
         ObjectOutput objectOutput = getSerialization(channel).serialize(channel.getUrl(), output);
         encodeData(channel, objectOutput, message);

@@ -21,15 +21,26 @@ import java.net.InetSocketAddress;
 /**
  * TimeoutException. (API, Prototype, ThreadSafe)
  *
+ * 拓展了 {@link RemotingException} 的超时异常
  * @export
  * @see org.apache.dubbo.remoting.exchange.ResponseFuture#get()
  * @see org.apache.dubbo.remoting.exchange.ResponseFuture#get(int)
  */
 public class TimeoutException extends RemotingException {
 
+    /**
+     * 客户端标识
+     */
     public static final int CLIENT_SIDE = 0;
+    /**
+     * 服务器标识
+     */
     public static final int SERVER_SIDE = 1;
     private static final long serialVersionUID = 3122966731958222692L;
+
+    /**
+     * 用这个值来定位 client or server
+     */
     private final int phase;
 
     public TimeoutException(boolean serverSide, Channel channel, String message) {

@@ -20,9 +20,18 @@ package org.apache.dubbo.remoting.buffer;
 import java.io.IOException;
 import java.io.OutputStream;
 
+/**
+ * dubbo 拓展的输出流对象
+ */
 public class ChannelBufferOutputStream extends OutputStream {
 
+    /**
+     * 被写入的 目标buffer
+     */
     private final ChannelBuffer buffer;
+    /**
+     * buffer 的下标
+     */
     private final int startIndex;
 
     public ChannelBufferOutputStream(ChannelBuffer buffer) {
@@ -30,13 +39,25 @@ public class ChannelBufferOutputStream extends OutputStream {
             throw new NullPointerException("buffer");
         }
         this.buffer = buffer;
+        //写指针 作为下标
         startIndex = buffer.writerIndex();
     }
 
+    /**
+     * 代表 自对象创建开始 又写入了多少内容
+     * @return
+     */
     public int writtenBytes() {
         return buffer.writerIndex() - startIndex;
     }
 
+    /**
+     * 写入数据
+     * @param b
+     * @param off
+     * @param len
+     * @throws IOException
+     */
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
         if (len == 0) {

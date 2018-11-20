@@ -21,6 +21,9 @@ import org.apache.dubbo.common.extension.SPI;
 
 import java.util.Map;
 
+/**
+ * 从结构上看 像是一个 Map<String, Map<String, Object>>
+ */
 @SPI("simple")
 public interface DataStore {
 

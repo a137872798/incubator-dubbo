@@ -21,8 +21,14 @@ import org.apache.dubbo.remoting.Channel;
 import org.apache.dubbo.remoting.ChannelHandler;
 import org.apache.dubbo.remoting.RemotingException;
 
+/**
+ * channelHandler 的 代表对象
+ */
 public abstract class AbstractChannelHandlerDelegate implements ChannelHandlerDelegate {
 
+    /**
+     * 包含的 handler对象
+     */
     protected ChannelHandler handler;
 
     protected AbstractChannelHandlerDelegate(ChannelHandler handler) {
@@ -30,6 +36,10 @@ public abstract class AbstractChannelHandlerDelegate implements ChannelHandlerDe
         this.handler = handler;
     }
 
+    /**
+     * 获取handler 对象 如果是 delegate 对象就 继续获取 内部的handler
+     * @return
+     */
     @Override
     public ChannelHandler getHandler() {
         if (handler instanceof ChannelHandlerDelegate) {
@@ -37,6 +47,8 @@ public abstract class AbstractChannelHandlerDelegate implements ChannelHandlerDe
         }
         return handler;
     }
+
+    //----------------------委托---------------------------
 
     @Override
     public void connected(Channel channel) throws RemotingException {

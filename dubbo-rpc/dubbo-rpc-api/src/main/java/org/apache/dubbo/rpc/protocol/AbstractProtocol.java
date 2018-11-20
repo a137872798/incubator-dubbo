@@ -47,13 +47,29 @@ public abstract class AbstractProtocol implements Protocol {
     //TODO SOFEREFENCE
     protected final Set<Invoker<?>> invokers = new ConcurrentHashSet<Invoker<?>>();
 
+    /**
+     * 通过url 对象获取 服务键
+     * @param url
+     * @return
+     */
     protected static String serviceKey(URL url) {
+        //获取 url 上的 绑定端口 默认值为 url.getPort()
         int port = url.getParameter(Constants.BIND_PORT_KEY, url.getPort());
+        //创建服务键对象
         return serviceKey(port, url.getPath(), url.getParameter(Constants.VERSION_KEY),
                 url.getParameter(Constants.GROUP_KEY));
     }
 
+    /**
+     * 创建 服务键对象
+     * @param port 注册中心的 端口号
+     * @param serviceName url的路径
+     * @param serviceVersion 服务的版本
+     * @param serviceGroup 获取 所属的 组
+     * @return
+     */
     protected static String serviceKey(int port, String serviceName, String serviceVersion, String serviceGroup) {
+        //委托给工具类
         return ProtocolUtils.serviceKey(port, serviceName, serviceVersion, serviceGroup);
     }
 

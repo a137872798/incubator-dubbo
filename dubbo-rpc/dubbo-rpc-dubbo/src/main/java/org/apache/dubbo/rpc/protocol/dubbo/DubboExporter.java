@@ -24,6 +24,7 @@ import java.util.Map;
 
 /**
  * DubboExporter
+ * 服务暴露者
  */
 public class DubboExporter<T> extends AbstractExporter<T> {
 

@@ -29,6 +29,14 @@ public class ProtocolUtils {
                 url.getParameter(Constants.GROUP_KEY));
     }
 
+    /**
+     * 创建 服务键对象
+     * @param port 注册中心的 端口号
+     * @param serviceName url的路径
+     * @param serviceVersion 服务的版本
+     * @param serviceGroup 获取 所属的 组
+     * @return
+     */
     public static String serviceKey(int port, String serviceName, String serviceVersion, String serviceGroup) {
         StringBuilder buf = new StringBuilder();
         if (serviceGroup != null && serviceGroup.length() > 0) {

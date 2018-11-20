@@ -23,6 +23,7 @@ import org.apache.dubbo.remoting.RemotingException;
 
 /**
  * AbstractChannel
+ * channel 的抽象类
  */
 public abstract class AbstractChannel extends AbstractPeer implements Channel {
 
@@ -30,6 +31,12 @@ public abstract class AbstractChannel extends AbstractPeer implements Channel {
         super(url, handler);
     }
 
+    /**
+     * 如果 已经关闭了  就不发送消息了
+     * @param message
+     * @param sent    already sent to socket?
+     * @throws RemotingException
+     */
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
         if (isClosed()) {
