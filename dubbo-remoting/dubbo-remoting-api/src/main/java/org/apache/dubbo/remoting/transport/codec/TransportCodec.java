@@ -47,18 +47,31 @@ public class TransportCodec extends AbstractCodec {
     public void encode(Channel channel, ChannelBuffer buffer, Object message) throws IOException {
         //从 channelBuffer 中获取输出流
         OutputStream output = new ChannelBufferOutputStream(buffer);
+        //通过 channel 的 url 获取 序列化实现类 并 调用序列化方法 获取对象流
         ObjectOutput objectOutput = getSerialization(channel).serialize(channel.getUrl(), output);
+        //对获得 的 对象进行编码
         encodeData(channel, objectOutput, message);
         objectOutput.flushBuffer();
+        //释放资源
         if (objectOutput instanceof Cleanable) {
             ((Cleanable) objectOutput).cleanup();
         }
     }
 
+    /**
+     * 解码
+     * @param channel
+     * @param buffer
+     * @return
+     * @throws IOException
+     */
     @Override
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
+        //创建 输入流对象
         InputStream input = new ChannelBufferInputStream(buffer);
+        //获取 对象流
         ObjectInput objectInput = getSerialization(channel).deserialize(channel.getUrl(), input);
+        //解码
         Object object = decodeData(channel, objectInput);
         if (objectInput instanceof Cleanable) {
             ((Cleanable) objectInput).cleanup();
@@ -66,14 +79,34 @@ public class TransportCodec extends AbstractCodec {
         return object;
     }
 
+    /**
+     * 将数据 写入到 ObjectOutput
+     * @param channel
+     * @param output
+     * @param message
+     * @throws IOException
+     */
     protected void encodeData(Channel channel, ObjectOutput output, Object message) throws IOException {
         encodeData(output, message);
     }
 
+    /**
+     * 解码
+     * @param channel
+     * @param input
+     * @return
+     * @throws IOException
+     */
     protected Object decodeData(Channel channel, ObjectInput input) throws IOException {
         return decodeData(input);
     }
 
+    /**
+     * 将 message 写入到 ObjectOutput
+     * @param output
+     * @param message
+     * @throws IOException
+     */
     protected void encodeData(ObjectOutput output, Object message) throws IOException {
         output.writeObject(message);
     }

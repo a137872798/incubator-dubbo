@@ -25,11 +25,16 @@ import org.apache.dubbo.remoting.exchange.Request;
 
 /**
  * HeartbeatTimerTask
+ *
+ * 心跳检测的 定时任务对象
  */
 public class HeartbeatTimerTask extends AbstractTimerTask {
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatTimerTask.class);
 
+    /**
+     * 心跳检测时间
+     */
     private final int heartbeat;
 
     HeartbeatTimerTask(ChannelProvider channelProvider, Long heartbeatTick, int heartbeat) {
@@ -37,16 +42,25 @@ public class HeartbeatTimerTask extends AbstractTimerTask {
         this.heartbeat = heartbeat;
     }
 
+    /**
+     * 父类 在 到时间后会遍历 获取到的 channel 对象 执行 该方法
+     * @param channel
+     */
     @Override
     protected void doTask(Channel channel) {
         try {
+            //加载最后一次read/ write 的 时间
             Long lastRead = lastRead(channel);
             Long lastWrite = lastWrite(channel);
+            //达到了 心跳检测的时间  心跳检测 有2种 触发方式 一种是 写入的 时间是否超过 检测时间  一种 是 读取时间 是否超过检测时间
             if ((lastRead != null && now() - lastRead > heartbeat)
                     || (lastWrite != null && now() - lastWrite > heartbeat)) {
+                //创建心跳检测的请求对象
                 Request req = new Request();
                 req.setVersion(Version.getProtocolVersion());
+                //需要得到响应对象
                 req.setTwoWay(true);
+                //设置请求类型
                 req.setEvent(Request.HEARTBEAT_EVENT);
                 channel.send(req);
                 if (logger.isDebugEnabled()) {

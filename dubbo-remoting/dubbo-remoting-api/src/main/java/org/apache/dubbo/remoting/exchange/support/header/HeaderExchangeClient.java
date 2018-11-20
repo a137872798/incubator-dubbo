@@ -34,36 +34,64 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * DefaultMessageClient
+ *
+ * 协议头的 交换层 客户端抽象
  */
 public class HeaderExchangeClient implements ExchangeClient {
 
+    /**
+     * 实际实现 client功能 的对象
+     */
     private final Client client;
+    /**
+     * 交换层 channel 相比普通的 channel 到了request， response 模型的层面
+     */
     private final ExchangeChannel channel;
     // heartbeat(ms), default value is 0 , won't execute a heartbeat.
+    /**
+     * 心跳检测 的时间 如果是0 就代表不需要
+     */
     private int heartbeat;
+    /**
+     * 心跳检测的超时时间  只要在指定时间内 完成重连就可以
+     */
     private int heartbeatTimeout;
 
+    /**
+     * 定时器对象
+     */
     private HashedWheelTimer heartbeatTimer;
 
     public HeaderExchangeClient(Client client, boolean needHeartbeat) {
         if (client == null) {
             throw new IllegalArgumentException("client == null");
         }
+        //根据 传入参数 初始化
         this.client = client;
         this.channel = new HeaderExchangeChannel(client);
+
+        //获取 dubbo 相关属性
         String dubbo = client.getUrl().getParameter(Constants.DUBBO_VERSION_KEY);
 
+        //如果 dubbo属性存在 且 为 以1.0 开头 就使用默认的  心跳时间
         this.heartbeat = client.getUrl().getParameter(Constants.HEARTBEAT_KEY, dubbo != null &&
                 dubbo.startsWith("1.0.") ? Constants.DEFAULT_HEARTBEAT : 0);
+
+        //默认心跳 检测时间 是 heartbeat 的 3倍
         this.heartbeatTimeout = client.getUrl().getParameter(Constants.HEARTBEAT_TIMEOUT_KEY, heartbeat * 3);
+        //小于 2倍 就是异常情况
         if (heartbeatTimeout < heartbeat * 2) {
             throw new IllegalStateException("heartbeatTimeout < heartbeatInterval * 2");
         }
 
+        //如果需要心跳检测
         if (needHeartbeat) {
+            //计算 心跳检测的时间间隔
             long tickDuration = calculateLeastDuration(heartbeat);
+            //初始化 定时器对象
             heartbeatTimer = new HashedWheelTimer(new NamedThreadFactory("dubbo-client-heartbeat", true), tickDuration,
                     TimeUnit.MILLISECONDS, Constants.TICKS_PER_WHEEL);
+            //开始 心跳检测
             startHeartbeatTimer();
         }
     }
@@ -147,6 +175,10 @@ public class HeaderExchangeClient implements ExchangeClient {
         client.reset(url);
     }
 
+    /**
+     * 增加指定参数后 开始 重置 以弃用
+     * @param parameters
+     */
     @Override
     @Deprecated
     public void reset(org.apache.dubbo.common.Parameters parameters) {
@@ -178,11 +210,18 @@ public class HeaderExchangeClient implements ExchangeClient {
         return channel.hasAttribute(key);
     }
 
+    /**
+     * 开始 心跳检测的 定时器
+     */
     private void startHeartbeatTimer() {
+        //通过传入 本 channel 初始化 channel 提供者 在定时任务中 调用处理逻辑
         AbstractTimerTask.ChannelProvider cp = () -> Collections.singletonList(HeaderExchangeClient.this);
 
+        //计算 心跳 一次滴答的时间
         long heartbeatTick = calculateLeastDuration(heartbeat);
+        //计算 心跳超时 的 滴答时间 只要在超时时间内完成重连就可以
         long heartbeatTimeoutTick = calculateLeastDuration(heartbeatTimeout);
+        //前2个参数 代表第一次启动定时任务的 时间
         HeartbeatTimerTask heartBeatTimerTask = new HeartbeatTimerTask(cp, heartbeatTick, heartbeat);
         ReconnectTimerTask reconnectTimerTask = new ReconnectTimerTask(cp, heartbeatTimeoutTick, heartbeatTimeout);
 
@@ -191,6 +230,9 @@ public class HeaderExchangeClient implements ExchangeClient {
         heartbeatTimer.newTimeout(reconnectTimerTask, heartbeatTimeoutTick, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 停止定时器
+     */
     private void stopHeartbeatTimer() {
         if (heartbeatTimer != null) {
             heartbeatTimer.stop();
@@ -204,11 +246,15 @@ public class HeaderExchangeClient implements ExchangeClient {
 
     /**
      * Each interval cannot be less than 1000ms.
+     * 计算 心跳检测的时间间隔
      */
     private long calculateLeastDuration(int time) {
+        //时间 不满足 一次 滴答
         if (time / Constants.HEARTBEAT_CHECK_TICK <= 0) {
+            //使用最小的时间间隔
             return Constants.LEAST_HEARTBEAT_DURATION;
         } else {
+            //返回时间 / 滴答次数
             return time / Constants.HEARTBEAT_CHECK_TICK;
         }
     }

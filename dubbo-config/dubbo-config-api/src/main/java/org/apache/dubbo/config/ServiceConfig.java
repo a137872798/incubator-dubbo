@@ -609,7 +609,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     /**
      * 本地暴露
      * 这个方法 是 服务提供者调用所有协议类型进行暴露的
-     * @param url 本机url
+     * @param url 本机url【
      */
     private void exportLocal(URL url) {
         //当协议 不是 injvm 时会触发

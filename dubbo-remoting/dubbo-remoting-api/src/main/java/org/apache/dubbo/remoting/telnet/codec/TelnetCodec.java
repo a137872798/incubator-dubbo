@@ -35,6 +35,7 @@ import java.util.List;
 
 /**
  * TelnetCodec
+ * telnet 指令 编解码器
  */
 public class TelnetCodec extends TransportCodec {
 
@@ -84,11 +85,19 @@ public class TelnetCodec extends TransportCodec {
         return Charset.defaultCharset();
     }
 
+    /**
+     * 将 message 按照指定 charset 解码
+     * @param message
+     * @param charset
+     * @return
+     * @throws UnsupportedEncodingException
+     */
     private static String toString(byte[] message, Charset charset) throws UnsupportedEncodingException {
         byte[] copy = new byte[message.length];
         int index = 0;
         for (int i = 0; i < message.length; i++) {
             byte b = message[i];
+            //读到 退格 index 要-1 特殊情况 退2格 还看不懂
             if (b == '\b') { // backspace
                 if (index > 0) {
                     index--;
@@ -98,6 +107,7 @@ public class TelnetCodec extends TransportCodec {
                         index--;
                     }
                 }
+                //读到空格
             } else if (b == 27) { // escape
                 if (i < message.length - 4 && message[i + 4] == 126) {
                     i = i + 4;
@@ -123,6 +133,13 @@ public class TelnetCodec extends TransportCodec {
         return message.length == command.length && endsWith(message, command);
     }
 
+    /**
+     * 从尾部开始 往前比较 是否相等
+     * @param message
+     * @param command
+     * @return
+     * @throws IOException
+     */
     private static boolean endsWith(byte[] message, byte[] command) throws IOException {
         if (message.length < command.length) {
             return false;
@@ -149,27 +166,48 @@ public class TelnetCodec extends TransportCodec {
         }
     }
 
+    /**
+     * 解析 telnet 指令
+     * @param channel
+     * @param buffer
+     * @return
+     * @throws IOException
+     */
     @Override
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
         int readable = buffer.readableBytes();
         byte[] message = new byte[readable];
+        //将消息 读取到 message中
         buffer.readBytes(message);
         return decode(channel, buffer, readable, message);
     }
 
+    /**
+     * 解析 telnet 指令
+     * @param channel
+     * @param buffer
+     * @return
+     * @throws IOException
+     */
     @SuppressWarnings("unchecked")
     protected Object decode(Channel channel, ChannelBuffer buffer, int readable, byte[] message) throws IOException {
+        //可能 客户端 不允许使用 telnet指令 这里输入 直接变成字符串 直接返回了
         if (isClientSide(channel)) {
             return toString(message, getCharset(channel));
         }
+        //检测 可读取数据 是否超过了 最大负荷 会抛出一个 io 异常
         checkPayload(channel, readable);
+        //没有数据 可以 获取
         if (message == null || message.length == 0) {
             return DecodeResult.NEED_MORE_INPUT;
         }
 
+        //如果是 退格
         if (message[message.length - 1] == '\b') { // Windows backspace echo
             try {
+                //32是 空格  8 是退格  这里 能够 知道 是 单 byte 表示 char 还是双byte 表示 char
                 boolean doublechar = message.length >= 3 && message[message.length - 3] < 0; // double byte char
+                //将 空格 + 退格的请求 发送到了 客户端 telnet 就是用这个来表示退格的
                 channel.send(new String(doublechar ? new byte[]{32, 32, 8, 8} : new byte[]{32, 8}, getCharset(channel).name()));
             } catch (RemotingException e) {
                 throw new IOException(StringUtils.toString(e));
@@ -177,7 +215,9 @@ public class TelnetCodec extends TransportCodec {
             return DecodeResult.NEED_MORE_INPUT;
         }
 
+        //解析 关闭指令
         for (Object command : EXIT) {
+            //解析到了 就进行关闭
             if (isEquals(message, (byte[]) command)) {
                 if (logger.isInfoEnabled()) {
                     logger.info(new Exception("Close channel " + channel + " on exit command: " + Arrays.toString((byte[]) command)));
@@ -187,9 +227,11 @@ public class TelnetCodec extends TransportCodec {
             }
         }
 
+        //从后往前 匹配看指令是否是 up or down
         boolean up = endsWith(message, UP);
         boolean down = endsWith(message, DOWN);
         if (up || down) {
+            //上下 就是获取 历史记录
             LinkedList<String> history = (LinkedList<String>) channel.getAttribute(HISTORY_LIST_KEY);
             if (history == null || history.isEmpty()) {
                 return DecodeResult.NEED_MORE_INPUT;

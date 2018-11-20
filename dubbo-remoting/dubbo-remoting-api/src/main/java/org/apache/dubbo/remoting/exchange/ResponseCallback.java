@@ -23,14 +23,14 @@ public interface ResponseCallback {
 
     /**
      * done.
-     *
+     * 在处理请求 完毕后 生成 response对象时 触发的
      * @param response
      */
     void done(Object response);
 
     /**
      * caught exception.
-     *
+     * 当捕获到异常时 触发的
      * @param exception
      */
     void caught(Throwable exception);

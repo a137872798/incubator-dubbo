@@ -39,21 +39,42 @@ public class CodecAdapter implements Codec2 {
         this.codec = codec;
     }
 
+    /**
+     * 编码
+     * @param channel
+     * @param buffer
+     * @param message
+     * @throws IOException
+     */
     @Override
     public void encode(Channel channel, ChannelBuffer buffer, Object message)
             throws IOException {
+        //创建 特殊输出流
         UnsafeByteArrayOutputStream os = new UnsafeByteArrayOutputStream(1024);
+        //编码后 将数据写入到里面
         codec.encode(channel, os, message);
         buffer.writeBytes(os.toByteArray());
     }
 
+    /**
+     * 解码
+     * @param channel
+     * @param buffer
+     * @return
+     * @throws IOException
+     */
     @Override
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
+        //创建 等大 的数组对象
         byte[] bytes = new byte[buffer.readableBytes()];
+        //获取 buffer当前指针
         int savedReaderIndex = buffer.readerIndex();
         buffer.readBytes(bytes);
+        //用读取的数据 创建一个输入流对象
         UnsafeByteArrayInputStream is = new UnsafeByteArrayInputStream(bytes);
+        //解析出结果
         Object result = codec.decode(channel, is);
+        //移动指针
         buffer.readerIndex(savedReaderIndex + is.position());
         return result == Codec.NEED_MORE_INPUT ? DecodeResult.NEED_MORE_INPUT : result;
     }

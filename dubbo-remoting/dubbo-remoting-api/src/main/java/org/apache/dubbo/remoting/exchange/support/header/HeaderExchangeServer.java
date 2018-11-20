@@ -41,17 +41,33 @@ import static java.util.Collections.unmodifiableCollection;
 
 /**
  * ExchangeServerImpl
+ *
  */
 public class HeaderExchangeServer implements ExchangeServer {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+    /**
+     * 关联的 服务器对象 用来实现 server 接口的 功能
+     */
     private final Server server;
     // heartbeat timeout (ms), default value is 0 , won't execute a heartbeat.
+    /**
+     * 也存在心跳检测 是针对 所有客户端的
+     */
     private int heartbeat;
+    /**
+     * 心跳检测的 超时时间
+     */
     private int heartbeatTimeout;
+    /**
+     * 是否被关闭
+     */
     private AtomicBoolean closed = new AtomicBoolean(false);
 
+    /**
+     * 心跳检测 的 定时任务对象
+     */
     private HashedWheelTimer heartbeatTimer;
 
     public HeaderExchangeServer(Server server) {
@@ -59,12 +75,14 @@ public class HeaderExchangeServer implements ExchangeServer {
             throw new IllegalArgumentException("server == null");
         }
         this.server = server;
+        //默认 不开启心跳检测
         this.heartbeat = server.getUrl().getParameter(Constants.HEARTBEAT_KEY, 0);
         this.heartbeatTimeout = server.getUrl().getParameter(Constants.HEARTBEAT_TIMEOUT_KEY, heartbeat * 3);
         if (heartbeatTimeout < heartbeat * 2) {
             throw new IllegalStateException("heartbeatTimeout < heartbeatInterval * 2");
         }
 
+        //开启心跳检测 相关定时任务
         startHeartbeatTimer();
     }
 
@@ -77,6 +95,10 @@ public class HeaderExchangeServer implements ExchangeServer {
         return server.isClosed();
     }
 
+    /**
+     * 判断当前服务器是否处于运行状态 只要有一个 channel是连接着的 就返回true
+     * @return
+     */
     private boolean isRunning() {
         Collection<Channel> channels = getChannels();
         for (Channel channel : channels) {
@@ -99,15 +121,22 @@ public class HeaderExchangeServer implements ExchangeServer {
         server.close();
     }
 
+    /**
+     * 关闭 服务器
+     * @param timeout
+     */
     @Override
     public void close(final int timeout) {
         startClose();
         if (timeout > 0) {
             final long max = (long) timeout;
             final long start = System.currentTimeMillis();
+            //从 url 中 获取相关参数 如果 是 只读
             if (getUrl().getParameter(Constants.CHANNEL_SEND_READONLYEVENT_KEY, true)) {
+                //触发只读事件
                 sendChannelReadOnlyEvent();
             }
+            //在指定的 时间内 如果服务器还在运行中 就等待  那么 channel 是 怎么自己关闭的呢
             while (HeaderExchangeServer.this.isRunning()
                     && System.currentTimeMillis() - start < max) {
                 try {
@@ -117,21 +146,32 @@ public class HeaderExchangeServer implements ExchangeServer {
                 }
             }
         }
+        //真正的关闭逻辑
         doClose();
         server.close(timeout);
     }
 
+    /**
+     * close 之前 要 先 做准备工作
+     */
     @Override
     public void startClose() {
         server.startClose();
     }
 
+    /**
+     * 触发 channel 的 只读事件
+     */
     private void sendChannelReadOnlyEvent() {
+        //创建请求对象
         Request request = new Request();
+        //设置 触发事件为 只读
         request.setEvent(Request.READONLY_EVENT);
+        //oneway 代表不需要 响应
         request.setTwoWay(false);
         request.setVersion(Version.getProtocolVersion());
 
+        //获取 所有channel 并发送 只读 事件请求
         Collection<Channel> channels = getChannels();
         for (Channel channel : channels) {
             try {
@@ -144,36 +184,56 @@ public class HeaderExchangeServer implements ExchangeServer {
         }
     }
 
+    /**
+     * 除了 处理channel 外的其他逻辑
+     */
     private void doClose() {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        //停止心跳定时器
         stopHeartbeatTimer();
     }
 
+    /**
+     * 获取 所有管理的channel
+     * @return
+     */
     @Override
     public Collection<ExchangeChannel> getExchangeChannels() {
         Collection<ExchangeChannel> exchangeChannels = new ArrayList<ExchangeChannel>();
+        //从服务器对象 获取channel 容器
         Collection<Channel> channels = server.getChannels();
         if (channels != null && !channels.isEmpty()) {
             for (Channel channel : channels) {
+                //获取 channel 的同时 尝试为channel 绑定一个 通过channel 自身创建的 HeaderExchangeChannel 对象
                 exchangeChannels.add(HeaderExchangeChannel.getOrAddChannel(channel));
             }
         }
         return exchangeChannels;
     }
 
+    /**
+     * 根据 指定地址获取 channel 并为 这个channel 绑定一个 HeaderExchangeChannel
+     * @param remoteAddress
+     * @return
+     */
     @Override
     public ExchangeChannel getExchangeChannel(InetSocketAddress remoteAddress) {
         Channel channel = server.getChannel(remoteAddress);
         return HeaderExchangeChannel.getOrAddChannel(channel);
     }
 
+    /**
+     * 获取 所有管理的channel 就是从server 对象中获取 连接的 channel
+     * @return
+     */
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Collection<Channel> getChannels() {
         return (Collection) getExchangeChannels();
     }
+
 
     @Override
     public Channel getChannel(InetSocketAddress remoteAddress) {
@@ -200,10 +260,15 @@ public class HeaderExchangeServer implements ExchangeServer {
         return server.getChannelHandler();
     }
 
+    /**
+     * 根据传入的 url 重置属性
+     */
     @Override
     public void reset(URL url) {
+        //保留父类的重置功能
         server.reset(url);
         try {
+            //如果传入的参数中 包含心跳检测的 相关数据
             if (url.hasParameter(Constants.HEARTBEAT_KEY)
                     || url.hasParameter(Constants.HEARTBEAT_TIMEOUT_KEY)) {
                 int h = url.getParameter(Constants.HEARTBEAT_KEY, heartbeat);
@@ -211,6 +276,7 @@ public class HeaderExchangeServer implements ExchangeServer {
                 if (t < h * 2) {
                     throw new IllegalStateException("heartbeatTimeout < heartbeatInterval * 2");
                 }
+                //使用该参数重新进行心跳任务
                 if (h != heartbeat || t != heartbeatTimeout) {
                     heartbeat = h;
                     heartbeatTimeout = t;
@@ -250,6 +316,7 @@ public class HeaderExchangeServer implements ExchangeServer {
 
     /**
      * Each interval cannot be less than 1000ms.
+     * 计算滴答时间
      */
     private long calculateLeastDuration(int time) {
         if (time / Constants.HEARTBEAT_CHECK_TICK <= 0) {
@@ -259,13 +326,20 @@ public class HeaderExchangeServer implements ExchangeServer {
         }
     }
 
+    /**
+     * 开启心跳检测相关定时任务
+     */
     private void startHeartbeatTimer() {
+        //计算滴答时间
         long tickDuration = calculateLeastDuration(heartbeat);
+        //对于定时器 这个滴答时间参数是做什么的???
         heartbeatTimer = new HashedWheelTimer(new NamedThreadFactory("dubbo-server-heartbeat", true), tickDuration,
                 TimeUnit.MILLISECONDS, Constants.TICKS_PER_WHEEL);
 
+        //该 channel 提供者 的实现就是从 服务器中 获取所有 channel 对象
         AbstractTimerTask.ChannelProvider cp = () -> unmodifiableCollection(HeaderExchangeServer.this.getChannels());
 
+        //创建 心跳检测 任务 和 重连任务 并开启定时任务
         long heartbeatTick = calculateLeastDuration(heartbeat);
         long heartbeatTimeoutTick = calculateLeastDuration(heartbeatTimeout);
         HeartbeatTimerTask heartBeatTimerTask = new HeartbeatTimerTask(cp, heartbeatTick, heartbeat);
@@ -276,6 +350,9 @@ public class HeaderExchangeServer implements ExchangeServer {
         heartbeatTimer.newTimeout(reconnectTimerTask, heartbeatTimeoutTick, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 停止定时器 并删除引用
+     */
     private void stopHeartbeatTimer() {
         if (heartbeatTimer != null) {
             heartbeatTimer.stop();

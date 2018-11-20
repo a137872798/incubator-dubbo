@@ -43,10 +43,12 @@ public abstract class AbstractCodec implements Codec2 {
      * @throws IOException
      */
     protected static void checkPayload(Channel channel, long size) throws IOException {
+        //获得 默认 负荷
         int payload = Constants.DEFAULT_PAYLOAD;
         if (channel != null && channel.getUrl() != null) {
             payload = channel.getUrl().getParameter(Constants.PAYLOAD_KEY, Constants.DEFAULT_PAYLOAD);
         }
+        //当 负荷 超过size 的 时候要抛出异常
         if (payload > 0 && size > payload) {
             ExceedPayloadLimitException e = new ExceedPayloadLimitException("Data length too large: " + size + ", max payload: " + payload + ", channel: " + channel);
             logger.error(e);

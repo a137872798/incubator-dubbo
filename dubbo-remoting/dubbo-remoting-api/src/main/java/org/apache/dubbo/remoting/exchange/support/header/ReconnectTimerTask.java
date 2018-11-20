@@ -24,6 +24,7 @@ import org.apache.dubbo.remoting.Client;
 
 /**
  * ReconnectTimerTask
+ * 重连任务
  */
 public class ReconnectTimerTask extends AbstractTimerTask {
 
@@ -46,6 +47,7 @@ public class ReconnectTimerTask extends AbstractTimerTask {
                         + heartbeatTimeout + "ms");
                 if (channel instanceof Client) {
                     try {
+                        //委托 进行重连 应该有一个当前是否处于连接的判断吧
                         ((Client) channel).reconnect();
                     } catch (Exception e) {
                         //do nothing

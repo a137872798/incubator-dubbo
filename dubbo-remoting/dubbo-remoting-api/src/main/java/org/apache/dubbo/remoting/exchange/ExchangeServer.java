@@ -28,14 +28,14 @@ public interface ExchangeServer extends Server {
 
     /**
      * get channels.
-     *
+     * 获取当前连接到本服务器的 所有channel 对象
      * @return channels
      */
     Collection<ExchangeChannel> getExchangeChannels();
 
     /**
      * get channel.
-     *
+     * 根据 指定地址获取对应的exchangechannel 对象 应该是有一个 容器之类的
      * @param remoteAddress
      * @return channel
      */

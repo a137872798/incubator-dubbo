@@ -21,6 +21,7 @@ import org.apache.dubbo.remoting.RemotingException;
 /**
  * Future. (API/SPI, Prototype, ThreadSafe)
  *
+ * 针对 request 的 future对象
  * @see org.apache.dubbo.remoting.exchange.ExchangeChannel#request(Object)
  * @see org.apache.dubbo.remoting.exchange.ExchangeChannel#request(Object, int)
  */

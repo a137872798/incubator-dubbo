@@ -35,15 +35,25 @@ import java.net.InetSocketAddress;
 
 /**
  * ExchangeReceiver
+ * 基于消息头 的信息通信交换类
  */
 final class HeaderExchangeChannel implements ExchangeChannel {
 
     private static final Logger logger = LoggerFactory.getLogger(HeaderExchangeChannel.class);
 
+    /**
+     * key 对象
+     */
     private static final String CHANNEL_KEY = HeaderExchangeChannel.class.getName() + ".CHANNEL";
 
+    /**
+     * channel 接口的功能 通过委托给这个对象实现 exchangeChannel 的功能 由这个类 自己实现
+     */
     private final Channel channel;
 
+    /**
+     * 是否已经被 关闭
+     */
     private volatile boolean closed = false;
 
     HeaderExchangeChannel(Channel channel) {
@@ -53,41 +63,68 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         this.channel = channel;
     }
 
+    /**
+     * 从传入的 channel 身上获取 HeaderExchangeChannel
+     * @param ch
+     * @return
+     */
     static HeaderExchangeChannel getOrAddChannel(Channel ch) {
         if (ch == null) {
             return null;
         }
+        //从 给定的 channel 获取 attribute 属性  并转型成 HeaderExchangeChannel 为什么可以这样获取???
         HeaderExchangeChannel ret = (HeaderExchangeChannel) ch.getAttribute(CHANNEL_KEY);
         if (ret == null) {
+            //如果没有获取到 对应对象  直接用该channel 生成对象
             ret = new HeaderExchangeChannel(ch);
+            //已连接
             if (ch.isConnected()) {
+                //给 该channel 设置 对象
                 ch.setAttribute(CHANNEL_KEY, ret);
             }
         }
         return ret;
     }
 
+    /**
+     * 将给定的 channel 移除 HeaderExchangeChannel 对象  通过 channel_key
+     * @param ch
+     */
     static void removeChannelIfDisconnected(Channel ch) {
         if (ch != null && !ch.isConnected()) {
             ch.removeAttribute(CHANNEL_KEY);
         }
     }
 
+    /**
+     * 发送消息
+     * @param message
+     * @throws RemotingException
+     */
     @Override
     public void send(Object message) throws RemotingException {
         send(message, false);
     }
 
+    /**
+     * 发送消息
+     * @param message
+     * @param sent    already sent to socket?
+     * @throws RemotingException
+     */
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
+        //已经关闭的 情况下就不用发送消息了
         if (closed) {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send message " + message + ", cause: The channel " + this + " is closed!");
         }
+        //当消息是 应答信息 或 请求信息 或 普通的字符串 都委托给channel发送
         if (message instanceof Request
                 || message instanceof Response
                 || message instanceof String) {
             channel.send(message, sent);
         } else {
+            //其余情况 创建一个 request 对象 并设置 版本和 一些属性 发送
             Request request = new Request();
             request.setVersion(Version.getProtocolVersion());
             request.setTwoWay(false);
@@ -96,23 +133,40 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         }
     }
 
+    /**
+     * 发送请求对象
+     * @param request
+     * @return
+     * @throws RemotingException
+     */
     @Override
     public ResponseFuture request(Object request) throws RemotingException {
         return request(request, channel.getUrl().getPositiveParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT));
     }
 
+    /**
+     * 发送请求对象
+     * @param request
+     * @param timeout
+     * @return
+     * @throws RemotingException
+     */
     @Override
     public ResponseFuture request(Object request, int timeout) throws RemotingException {
         if (closed) {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send request " + request + ", cause: The channel " + this + " is closed!");
         }
+
         // create request.
         Request req = new Request();
         req.setVersion(Version.getProtocolVersion());
+        //代表 需要 响应
         req.setTwoWay(true);
         req.setData(request);
+        //创建关联channel的  future 对象
         DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout);
         try {
+            //委托 channel 发送请求
             channel.send(req);
         } catch (RemotingException e) {
             future.cancel();
@@ -135,7 +189,10 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         }
     }
 
-    // graceful close
+    /**
+     * graceful close 也就是 如果 future 对象还没 获取到结果 就不关闭
+     * @param timeout
+     */
     @Override
     public void close(int timeout) {
         if (closed) {
@@ -144,6 +201,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         closed = true;
         if (timeout > 0) {
             long start = System.currentTimeMillis();
+            //如果  该 future 对象还没由完成 就 不 关闭
             while (DefaultFuture.hasFuture(channel)
                     && System.currentTimeMillis() - start < timeout) {
                 try {
