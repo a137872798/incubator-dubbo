@@ -34,22 +34,34 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * NettyChannel.
+ * 实现了 dubbo  的 channel 接口
  */
 final class NettyChannel extends AbstractChannel {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyChannel.class);
 
+    /**
+     * 全局容器类 保存了 channel 和 nettyChannel 的映射关系
+     */
     private static final ConcurrentMap<Channel, NettyChannel> channelMap = new ConcurrentHashMap<Channel, NettyChannel>();
 
+    /**
+     * 该 channel 是 netty 的接口
+     */
     private final Channel channel;
 
+    /**
+     * 属性容器
+     */
     private final Map<String, Object> attributes = new ConcurrentHashMap<String, Object>();
 
     private NettyChannel(Channel channel, URL url, ChannelHandler handler) {
+        //通过url 和 channelHandler 对象 初始化父类接口
         super(url, handler);
         if (channel == null) {
             throw new IllegalArgumentException("netty channel == null;");
         }
+        //设置 netty 的channel对象
         this.channel = channel;
     }
 

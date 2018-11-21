@@ -54,6 +54,8 @@ public abstract class AbstractTimerTask implements TimerTask {
         this.channelProvider = channelProvider;
     }
 
+    //--------- 读写时间 是通过 heartbeatHandler 写入的  因为使用了 装饰器模式 所以每个 handler 其实具备了 各种功能--------
+
     /**
      * 通过 指定的 key 从channel 中获取属性
      * @param channel

@@ -18,30 +18,41 @@ package org.apache.dubbo.remoting.exchange;
 
 /**
  * Response
+ * 请求响应对象
  */
 public class Response {
 
+    /**
+     * 内置的 心跳检测事件
+     */
     public static final String HEARTBEAT_EVENT = null;
 
+    /**
+     * 内置的 只读事件
+     */
     public static final String READONLY_EVENT = "R";
 
     /**
      * ok.
+     * 内置的响应状态
      */
     public static final byte OK = 20;
 
     /**
      * clien side timeout.
+     * 响应结果标识
      */
     public static final byte CLIENT_TIMEOUT = 30;
 
     /**
      * server side timeout.
+     * 响应结果标识
      */
     public static final byte SERVER_TIMEOUT = 31;
 
     /**
      * channel inactive, directly return the unfinished requests.
+     * 响应结果标识
      */
     public static final byte CHANNEL_INACTIVE = 35;
 
@@ -77,9 +88,13 @@ public class Response {
 
     /**
      * server side threadpool exhausted and quick return.
+     * 线程池 繁忙
      */
     public static final byte SERVER_THREADPOOL_EXHAUSTED_ERROR = 100;
 
+    /**
+     * 对应request 的 请求id
+     */
     private long mId = 0;
 
     private String mVersion;

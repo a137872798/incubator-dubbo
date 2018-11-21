@@ -40,21 +40,36 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * NettyClient.
+ * 通过netty 创建的 client 对象
  */
 public class NettyClient extends AbstractClient {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyClient.class);
 
+    /**
+     * netty 的 事件循环组件对象 使用默认的线程数
+     */
     private static final NioEventLoopGroup nioEventLoopGroup = new NioEventLoopGroup(Constants.DEFAULT_IO_THREADS, new DefaultThreadFactory("NettyClientWorker", true));
 
+    /**
+     * netty 的 引导程序对象
+     */
     private Bootstrap bootstrap;
 
+    /**
+     * netty 的 channel 对象
+     */
     private volatile Channel channel; // volatile, please copy reference to use
 
     public NettyClient(final URL url, final ChannelHandler handler) throws RemotingException {
+        //将 url 和 channelHandler 传给 父类 初始化 传入的handler 是包装过的
         super(url, wrapChannelHandler(url, handler));
     }
 
+    /**
+     * 在 client 对象被初始化的时候触发
+     * @throws Throwable
+     */
     @Override
     protected void doOpen() throws Throwable {
         final NettyClientHandler nettyClientHandler = new NettyClientHandler(getUrl(), this);

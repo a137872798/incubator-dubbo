@@ -280,6 +280,8 @@ public interface ChannelBuffer extends Comparable<ChannelBuffer> {
     /**
      * Returns the factory which creates a {@link ChannelBuffer} whose type and
      * default {@link java.nio.ByteOrder} are same with this buffer.
+     *
+     * 返回一个创建默认类型 buffer的 工厂
      */
     ChannelBufferFactory factory();
 

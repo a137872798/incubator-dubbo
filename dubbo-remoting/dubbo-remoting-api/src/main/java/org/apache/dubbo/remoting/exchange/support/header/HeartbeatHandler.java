@@ -27,18 +27,32 @@ import org.apache.dubbo.remoting.exchange.Request;
 import org.apache.dubbo.remoting.exchange.Response;
 import org.apache.dubbo.remoting.transport.AbstractChannelHandlerDelegate;
 
+/**
+ * 心跳检测的 handler对象
+ */
 public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatHandler.class);
 
+    /**
+     * 读的时间戳 key
+     */
     public static String KEY_READ_TIMESTAMP = "READ_TIMESTAMP";
 
+    /**
+     * 写时间戳 key
+     */
     public static String KEY_WRITE_TIMESTAMP = "WRITE_TIMESTAMP";
 
     public HeartbeatHandler(ChannelHandler handler) {
         super(handler);
     }
 
+    /**
+     * 当连接成功时  初始化 读写时间戳
+     * @param channel
+     * @throws RemotingException
+     */
     @Override
     public void connected(Channel channel) throws RemotingException {
         setReadTimestamp(channel);
@@ -46,6 +60,11 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
         handler.connected(channel);
     }
 
+    /**
+     * 断开连接时 清除无效数据
+     * @param channel
+     * @throws RemotingException
+     */
     @Override
     public void disconnected(Channel channel) throws RemotingException {
         clearReadTimestamp(channel);
@@ -53,22 +72,41 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
         handler.disconnected(channel);
     }
 
+    /**
+     * 每次 发送成功 都要 更新写入时间戳
+     * @param channel
+     * @param message
+     * @throws RemotingException
+     */
     @Override
     public void sent(Channel channel, Object message) throws RemotingException {
         setWriteTimestamp(channel);
         handler.sent(channel, message);
     }
 
+    /**
+     * 当接受到 远端发来的消息时
+     * @param channel
+     * @param message
+     * @throws RemotingException
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
+        //更新 读数据的 时间戳
         setReadTimestamp(channel);
+        //检测收到 的是否是 心跳检测请求
         if (isHeartbeatRequest(message)) {
+            //解析成请求对象
             Request req = (Request) message;
+            //如果 需要返回结果
             if (req.isTwoWay()) {
+                //创建心跳包 发送
                 Response res = new Response(req.getId(), req.getVersion());
                 res.setEvent(Response.HEARTBEAT_EVENT);
+                //感觉 在发送的 时候应该会更新写的时间戳的
                 channel.send(res);
                 if (logger.isInfoEnabled()) {
+                    //获得发送了多少次心跳检测
                     int heartbeat = channel.getUrl().getParameter(Constants.HEARTBEAT_KEY, 0);
                     if (logger.isDebugEnabled()) {
                         logger.debug("Received heartbeat from remote channel " + channel.getRemoteAddress()
@@ -77,16 +115,23 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
                     }
                 }
             }
+            //这里 直接返回了  不传递到父类 处理 心跳检测请求 因为 在 exchange 层就能完成 不需要进行序列化等
             return;
         }
+        //如果收到的是 心跳检测 返回的 响应包
         if (isHeartbeatResponse(message)) {
             if (logger.isDebugEnabled()) {
                 logger.debug("Receive heartbeat response in thread " + Thread.currentThread().getName());
             }
+            //也 直接返回 代表本次 心跳检测结束
             return;
         }
+        //代理实现
         handler.received(channel, message);
     }
+
+
+    //---------------- 设置和 移除相关读写 时间戳 ------------------
 
     private void setReadTimestamp(Channel channel) {
         channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());
@@ -104,6 +149,11 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
         channel.removeAttribute(KEY_WRITE_TIMESTAMP);
     }
 
+    /**
+     * 判断收到的请求是不是 心跳检测  也就是 该request 有 mEvent && mData = null
+     * @param message
+     * @return
+     */
     private boolean isHeartbeatRequest(Object message) {
         return message instanceof Request && ((Request) message).isHeartbeat();
     }

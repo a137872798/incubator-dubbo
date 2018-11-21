@@ -27,6 +27,7 @@ import org.apache.dubbo.common.extension.SPI;
  * <a href="http://en.wikipedia.org/wiki/Transport_Layer">Transport Layer</a>
  * <a href="http://en.wikipedia.org/wiki/Client%E2%80%93server_model">Client/Server</a>
  *
+ * 运输层 协议接口 默认使用 netty3 实现通信
  * @see org.apache.dubbo.remoting.Transporters
  */
 @SPI("netty")

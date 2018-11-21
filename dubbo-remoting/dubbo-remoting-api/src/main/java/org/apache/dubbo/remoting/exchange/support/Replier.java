@@ -21,12 +21,13 @@ import org.apache.dubbo.remoting.exchange.ExchangeChannel;
 
 /**
  * Replier. (API, Prototype, ThreadSafe)
+ * 回复对象 使用了泛型 而不是 固定的 request
  */
 public interface Replier<T> {
 
     /**
      * reply.
-     *
+     * 传入参数调用回复 方法 返回结果
      * @param channel
      * @param request
      * @return response

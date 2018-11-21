@@ -22,8 +22,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
+/**
+ * 封装了 java.nio 的 bytebuffer 对象 基本 依靠委托实现 并根据 bytebuffer类型 分为堆内存和直接内存工厂
+ */
 public class ByteBufferBackedChannelBuffer extends AbstractChannelBuffer {
 
+    /**
+     * 内部包含一个 java.nio 的 bytebuffer 对象
+     */
     private final ByteBuffer buffer;
 
     private final int capacity;
@@ -33,17 +39,24 @@ public class ByteBufferBackedChannelBuffer extends AbstractChannelBuffer {
             throw new NullPointerException("buffer");
         }
 
+        //返回  buffer对象的分片对象
         this.buffer = buffer.slice();
         capacity = buffer.remaining();
+        //这样不是变成写满了吗???
         writerIndex(capacity);
     }
 
     public ByteBufferBackedChannelBuffer(ByteBufferBackedChannelBuffer buffer) {
         this.buffer = buffer.buffer;
         capacity = buffer.capacity;
+        //使用 该对象的读写指针
         setIndex(buffer.readerIndex(), buffer.writerIndex());
     }
 
+    /**
+     * 根据当前buffer 的类型 返回 direct or head bytebuffer
+     * @return
+     */
     @Override
     public ChannelBufferFactory factory() {
         if (buffer.isDirect()) {
@@ -60,6 +73,12 @@ public class ByteBufferBackedChannelBuffer extends AbstractChannelBuffer {
     }
 
 
+    /**
+     * 通过给定的 index 和 length 返回副本对象
+     * @param index
+     * @param length
+     * @return
+     */
     @Override
     public ChannelBuffer copy(int index, int length) {
         ByteBuffer src;
@@ -73,6 +92,7 @@ public class ByteBufferBackedChannelBuffer extends AbstractChannelBuffer {
                 ? ByteBuffer.allocateDirect(length)
                 : ByteBuffer.allocate(length);
         dst.put(src);
+        //重置 指针后 返回对象
         dst.clear();
         return new ByteBufferBackedChannelBuffer(dst);
     }

@@ -22,6 +22,7 @@ import org.apache.dubbo.remoting.exchange.ResponseFuture;
 
 /**
  * SimpleFuture
+ * 这个功能 跟 jdk 的future几乎一样
  */
 public class SimpleFuture implements ResponseFuture {
 

@@ -91,7 +91,7 @@ public class DefaultFuture implements ResponseFuture {
      */
     private final long start = System.currentTimeMillis();
     /**
-     * 请求 的发起时间
+     * 请求 的发起时间 这样可以确认 请求究竟有没有发出去
      */
     private volatile long sent;
     /**
@@ -123,7 +123,7 @@ public class DefaultFuture implements ResponseFuture {
     private static void timeoutCheck(DefaultFuture future) {
         //创建一个 定时任务 对象 用来 管理 过时的 future 对象
         TimeoutCheckTask task = new TimeoutCheckTask(future);
-        //触发时间 就是 超时时间
+        //触发时间 就是 超时时间 在任务到时间后 根据是否生成结果 返回响应对象
         TIME_OUT_TIMER.newTimeout(task, future.getTimeout(), TimeUnit.MILLISECONDS);
     }
 
@@ -164,7 +164,7 @@ public class DefaultFuture implements ResponseFuture {
     }
 
     /**
-     * 在请求发送后 调用  通过请求的id 获取到future 对象
+     * 在请求发送后 调用  通过请求的id 获取到future 对象 这个方法是谁来调用的
      * @param channel
      * @param request
      */
@@ -197,6 +197,7 @@ public class DefaultFuture implements ResponseFuture {
                             channel +
                             " is inactive. Directly return the unFinished request : " +
                             future.getRequest());
+                    //将 channel失效的 结果保存到 future中
                     DefaultFuture.received(channel, disconnectResponse);
                 }
             }
@@ -258,7 +259,7 @@ public class DefaultFuture implements ResponseFuture {
                 //避免多个线程 调用 get 通过 condition 实现 条件等待 调用await的线程 会 沉睡 并释放锁 一旦执行完 应该会在一个地方唤醒
                 while (!isDone()) {
                     done.await(timeout, TimeUnit.MILLISECONDS);
-                    //一旦被唤醒 先判断 任务是否完成 或者是否超时  那么 超时应该也会 唤醒线程
+                    //一旦被唤醒 先判断 任务是否完成 或者是否超时  当future 对象被创建的时候已经开启了相关的超时任务 在到时时 触发唤醒线程
                     if (isDone() || System.currentTimeMillis() - start > timeout) {
                         break;
                     }

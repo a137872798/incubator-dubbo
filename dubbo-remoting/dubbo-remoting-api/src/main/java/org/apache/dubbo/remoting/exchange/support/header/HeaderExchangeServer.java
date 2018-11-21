@@ -146,7 +146,7 @@ public class HeaderExchangeServer implements ExchangeServer {
                 }
             }
         }
-        //真正的关闭逻辑
+        //真正的关闭逻辑 也即使关闭 定时器
         doClose();
         server.close(timeout);
     }

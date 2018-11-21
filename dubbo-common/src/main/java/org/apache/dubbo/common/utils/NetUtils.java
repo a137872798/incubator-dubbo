@@ -205,27 +205,42 @@ public class NetUtils {
         return address;
     }
 
+    /**
+     * 获取本地端口
+     * @return
+     */
     public static String getLocalHost() {
         InetAddress address = getLocalAddress();
         return address == null ? LOCALHOST : address.getHostAddress();
     }
 
+    /**
+     * 将域名部分 替换为本地域名
+     * @param host
+     * @return
+     */
     public static String filterLocalHost(String host) {
         if (host == null || host.length() == 0) {
             return host;
         }
+        //如果 是域名类型 转换为 url
         if (host.contains("://")) {
             URL u = URL.valueOf(host);
+            //如果是无效地址
             if (NetUtils.isInvalidLocalHost(u.getHost())) {
+                //将host 设置成本地
                 return u.setHost(NetUtils.getLocalHost()).toFullString();
             }
         } else if (host.contains(":")) {
             int i = host.lastIndexOf(':');
+            //截取 : 前面的内容
             if (NetUtils.isInvalidLocalHost(host.substring(0, i))) {
+                //拼接成本地地址
                 return NetUtils.getLocalHost() + host.substring(i);
             }
         } else {
             if (NetUtils.isInvalidLocalHost(host)) {
+                //直接返回本地地址
                 return NetUtils.getLocalHost();
             }
         }

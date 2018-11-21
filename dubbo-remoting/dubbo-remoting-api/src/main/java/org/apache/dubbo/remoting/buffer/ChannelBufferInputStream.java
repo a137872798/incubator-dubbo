@@ -20,6 +20,9 @@ package org.apache.dubbo.remoting.buffer;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * 实际该输入流还是 通过 channelbuffer实现的
+ */
 public class ChannelBufferInputStream extends InputStream {
 
     private final ChannelBuffer buffer;
@@ -42,8 +45,11 @@ public class ChannelBufferInputStream extends InputStream {
         }
 
         this.buffer = buffer;
+        //记录读指针
         startIndex = buffer.readerIndex();
+        //记录能达到的 指针为止
         endIndex = startIndex + length;
+        //标记当前的 读指针
         buffer.markReaderIndex();
     }
 

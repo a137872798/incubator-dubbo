@@ -22,16 +22,34 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
+/**
+ * 动态 buffer 对象
+ */
 public class DynamicChannelBuffer extends AbstractChannelBuffer {
 
+    /**
+     * 获取 buffer对象的工厂
+     */
     private final ChannelBufferFactory factory;
 
+    /**
+     * 包装的buffer对象
+     */
     private ChannelBuffer buffer;
 
+    /**
+     * 动态buffer对象 默认使用heap工厂
+     * @param estimatedLength
+     */
     public DynamicChannelBuffer(int estimatedLength) {
         this(estimatedLength, HeapChannelBufferFactory.getInstance());
     }
 
+    /**
+     * 传入初始 长度 和 使用的 factory对象
+     * @param estimatedLength
+     * @param factory
+     */
     public DynamicChannelBuffer(int estimatedLength, ChannelBufferFactory factory) {
         if (estimatedLength < 0) {
             throw new IllegalArgumentException("estimatedLength: " + estimatedLength);
@@ -40,11 +58,17 @@ public class DynamicChannelBuffer extends AbstractChannelBuffer {
             throw new NullPointerException("factory");
         }
         this.factory = factory;
+        //buffer 由 工厂创建
         buffer = factory.getBuffer(estimatedLength);
     }
 
+    /**
+     * 确保能写入 传入 的字节数
+     * @param minWritableBytes
+     */
     @Override
     public void ensureWritableBytes(int minWritableBytes) {
+        //小于 当前  capacity() - writerIndex
         if (minWritableBytes <= writableBytes()) {
             return;
         }
@@ -55,11 +79,14 @@ public class DynamicChannelBuffer extends AbstractChannelBuffer {
         } else {
             newCapacity = capacity();
         }
+        //获取 最小容量
         int minNewCapacity = writerIndex() + minWritableBytes;
         while (newCapacity < minNewCapacity) {
+            //一次 大小翻倍
             newCapacity <<= 1;
         }
 
+        //通过工厂创建新的 buffer 对象并将原数据写入
         ChannelBuffer newBuffer = factory().getBuffer(newCapacity);
         newBuffer.writeBytes(buffer, 0, writerIndex());
         buffer = newBuffer;
@@ -72,8 +99,15 @@ public class DynamicChannelBuffer extends AbstractChannelBuffer {
     }
 
 
+    /**
+     * 创建一个副本对象
+     * @param index
+     * @param length
+     * @return
+     */
     @Override
     public ChannelBuffer copy(int index, int length) {
+        //将本对象工厂传入 新对象中
         DynamicChannelBuffer copiedBuffer = new DynamicChannelBuffer(Math.max(length, 64), factory());
         copiedBuffer.buffer = buffer.copy(index, length);
         copiedBuffer.setIndex(0, length);

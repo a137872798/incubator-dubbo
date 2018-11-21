@@ -492,6 +492,8 @@ public final class StringUtils {
     }
 
     /**
+     * 将 异常对象转换成 string 使用了一个可以安全输入的 输出流对象
+     * 这里就看作一个 普通的 输出
      * @param e
      * @return string
      */

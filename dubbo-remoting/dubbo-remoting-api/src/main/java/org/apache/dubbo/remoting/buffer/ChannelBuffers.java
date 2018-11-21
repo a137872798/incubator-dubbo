@@ -19,13 +19,23 @@ package org.apache.dubbo.remoting.buffer;
 
 import java.nio.ByteBuffer;
 
+/**
+ * channelBuffer 工具类
+ */
 public final class ChannelBuffers {
 
+    /**
+     * 空 buffer对象
+     */
     public static final ChannelBuffer EMPTY_BUFFER = new HeapChannelBuffer(0);
 
     private ChannelBuffers() {
     }
 
+    /**
+     * 创建 动态buffer
+     * @return
+     */
     public static ChannelBuffer dynamicBuffer() {
         return dynamicBuffer(256);
     }
@@ -39,6 +49,11 @@ public final class ChannelBuffers {
         return new DynamicChannelBuffer(capacity, factory);
     }
 
+    /**
+     * 默认 返回 heap buffer对象
+     * @param capacity
+     * @return
+     */
     public static ChannelBuffer buffer(int capacity) {
         if (capacity < 0) {
             throw new IllegalArgumentException("capacity can not be negative");
@@ -65,13 +80,20 @@ public final class ChannelBuffers {
         if (array.length == 0) {
             return EMPTY_BUFFER;
         }
+        //创建 dubbo 的 headpbuffer返回
         return new HeapChannelBuffer(array);
     }
 
+    /**
+     * 将 nio 包装后返回
+     * @param buffer
+     * @return
+     */
     public static ChannelBuffer wrappedBuffer(ByteBuffer buffer) {
         if (!buffer.hasRemaining()) {
             return EMPTY_BUFFER;
         }
+        //如果 含有数组 就 创建 heap
         if (buffer.hasArray()) {
             return wrappedBuffer(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
         } else {
@@ -79,6 +101,11 @@ public final class ChannelBuffers {
         }
     }
 
+    /**
+     * 返回一个 直接内存对象 通过java.nio 自带的创建 buffer对象 并包装一层后 返回
+     * @param capacity
+     * @return
+     */
     public static ChannelBuffer directBuffer(int capacity) {
         if (capacity == 0) {
             return EMPTY_BUFFER;

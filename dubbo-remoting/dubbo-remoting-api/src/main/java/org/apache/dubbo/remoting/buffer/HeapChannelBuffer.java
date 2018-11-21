@@ -25,10 +25,15 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
+/**
+ * dubbo 自己实现的 基于 heap 的buffer
+ */
 public class HeapChannelBuffer extends AbstractChannelBuffer {
 
     /**
      * The underlying heap byte array that this buffer is wrapping.
+     *
+     * 该对象的 实体 也就是一个 数组对象
      */
     protected final byte[] array;
 
@@ -98,12 +103,21 @@ public class HeapChannelBuffer extends AbstractChannelBuffer {
     @Override
     public void getBytes(int index, ChannelBuffer dst, int dstIndex, int length) {
         if (dst instanceof HeapChannelBuffer) {
+            //从数组指定下标 获取元素
             getBytes(index, ((HeapChannelBuffer) dst).array, dstIndex, length);
         } else {
+            //将本数组 给定下标的元素设置到 dst
             dst.setBytes(dstIndex, array, index, length);
         }
     }
 
+    /**
+     * 从 array 中 将数据 拷贝到目标数组
+     * @param index
+     * @param dst
+     * @param dstIndex the first index of the destination
+     * @param length   the number of bytes to transfer
+     */
     @Override
     public void getBytes(int index, byte[] dst, int dstIndex, int length) {
         System.arraycopy(array, index, dst, dstIndex, length);
@@ -206,6 +220,10 @@ public class HeapChannelBuffer extends AbstractChannelBuffer {
         return new HeapChannelBuffer(copiedArray);
     }
 
+    /**
+     * 永远是 返回 heap 工厂
+     * @return
+     */
     @Override
     public ChannelBufferFactory factory() {
         return HeapChannelBufferFactory.getInstance();

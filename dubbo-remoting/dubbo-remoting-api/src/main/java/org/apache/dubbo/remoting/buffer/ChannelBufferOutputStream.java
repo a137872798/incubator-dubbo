@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * dubbo 拓展的输出流对象
+ * dubbo 拓展的输出流对象  就是 使用了 channelBuffer 写入数据
  */
 public class ChannelBufferOutputStream extends OutputStream {
 

@@ -22,8 +22,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
+/**
+ * channelBuffer 对象的 骨架类
+ */
 public abstract class AbstractChannelBuffer implements ChannelBuffer {
 
+    //------ 4种 指针 分别对应 读写 mark的读写指针
     private int readerIndex;
 
     private int writerIndex;
@@ -37,6 +41,10 @@ public abstract class AbstractChannelBuffer implements ChannelBuffer {
         return readerIndex;
     }
 
+    /**
+     * 设置读指针
+     * @param readerIndex
+     */
     @Override
     public void readerIndex(int readerIndex) {
         if (readerIndex < 0 || readerIndex > writerIndex) {
@@ -50,6 +58,10 @@ public abstract class AbstractChannelBuffer implements ChannelBuffer {
         return writerIndex;
     }
 
+    /**
+     * 设置写指针
+     * @param writerIndex
+     */
     @Override
     public void writerIndex(int writerIndex) {
         if (writerIndex < readerIndex || writerIndex > capacity()) {
@@ -58,6 +70,11 @@ public abstract class AbstractChannelBuffer implements ChannelBuffer {
         this.writerIndex = writerIndex;
     }
 
+    /**
+     * 设置 读写指针
+     * @param readerIndex
+     * @param writerIndex
+     */
     @Override
     public void setIndex(int readerIndex, int writerIndex) {
         if (readerIndex < 0 || readerIndex > writerIndex || writerIndex > capacity()) {
@@ -112,6 +129,9 @@ public abstract class AbstractChannelBuffer implements ChannelBuffer {
         writerIndex = markedWriterIndex;
     }
 
+    /**
+     * 丢弃 已读的字节
+     */
     @Override
     public void discardReadBytes() {
         if (readerIndex == 0) {
@@ -124,6 +144,10 @@ public abstract class AbstractChannelBuffer implements ChannelBuffer {
         readerIndex = 0;
     }
 
+    /**
+     * 确保能写入数据
+     * @param writableBytes the expected minimum number of writable bytes
+     */
     @Override
     public void ensureWritableBytes(int writableBytes) {
         if (writableBytes > writableBytes()) {
@@ -183,7 +207,9 @@ public abstract class AbstractChannelBuffer implements ChannelBuffer {
         if (length == 0) {
             return ChannelBuffers.EMPTY_BUFFER;
         }
+        //factory 该方法 由子类实现
         ChannelBuffer buf = factory().getBuffer(length);
+        //通过从工厂拿到的 buffer对象 并将数据写入 返回
         buf.writeBytes(this, readerIndex, length);
         readerIndex += length;
         return buf;

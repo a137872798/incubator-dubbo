@@ -28,6 +28,7 @@ import java.util.Collection;
 
 /**
  * ExchangeServerDelegate
+ * 服务器 的 代理类 基本功能都是通过委托实现  这是基本的装饰器模式
  */
 public class ExchangeServerDelegate implements ExchangeServer {
 

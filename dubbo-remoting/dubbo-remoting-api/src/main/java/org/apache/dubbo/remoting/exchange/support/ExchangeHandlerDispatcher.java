@@ -29,15 +29,29 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * ExchangeHandlerDispatcher
+ *
+ * 交换处理 的 请求调度对象
  */
 public class ExchangeHandlerDispatcher implements ExchangeHandler {
 
+    /**
+     * 组合了一个 回复调度对象
+     */
     private final ReplierDispatcher replierDispatcher;
 
+    /**
+     * 组合一个 针对 底层 channel的 调度对象
+     */
     private final ChannelHandlerDispatcher handlerDispatcher;
 
+    /**
+     * telnet 请求处理器
+     */
     private final TelnetHandler telnetHandler;
 
+    /**
+     * 创建该对象时 同时 初始化3个对象
+     */
     public ExchangeHandlerDispatcher() {
         replierDispatcher = new ReplierDispatcher();
         handlerDispatcher = new ChannelHandlerDispatcher();
@@ -85,14 +99,24 @@ public class ExchangeHandlerDispatcher implements ExchangeHandler {
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public CompletableFuture<Object> reply(ExchangeChannel channel, Object request) throws RemotingException {
+        //通过 request 的类型 获取到replierDispatcher 中对应的  replier对象 然后执行reply 方法 返回一个object对象
+        //并设置到 completableFuture对象中 返回
         return CompletableFuture.completedFuture(((Replier) replierDispatcher).reply(channel, request));
     }
 
+    /**
+     * 遍历 handler 中所有channelHandler 对象并 触发 连接后事件
+     * @param channel channel.
+     */
     @Override
     public void connected(Channel channel) {
         handlerDispatcher.connected(channel);
     }
 
+    /**
+     * 将 调开连接 的channel 传入到 调配器 中每个 handler 对象执行相关方法
+     * @param channel channel.
+     */
     @Override
     public void disconnected(Channel channel) {
         handlerDispatcher.disconnected(channel);

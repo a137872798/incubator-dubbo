@@ -42,6 +42,8 @@ public class ReconnectTimerTask extends AbstractTimerTask {
         try {
             Long lastRead = lastRead(channel);
             Long now = now();
+            //超过心跳检测的 超时时间 这个时间 和 heartbeat 是不一样的 heartbeat代表 心跳检测的 时间周期
+            //heartbeatTimeout 代表 心跳检测在这么长时间内 都 无效 就要重连 或关闭channel 了
             if (lastRead != null && now - lastRead > heartbeatTimeout) {
                 logger.warn("Close channel " + channel + ", because heartbeat read idle time out: "
                         + heartbeatTimeout + "ms");

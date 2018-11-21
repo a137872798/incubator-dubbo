@@ -28,21 +28,38 @@ import org.apache.dubbo.remoting.transport.ChannelHandlerAdapter;
 
 /**
  * Exchanger facade. (API, Static, ThreadSafe)
+ *
+ * exchange的门面类
  */
 public class Exchangers {
 
     static {
         // check duplicate jar package
+        // 检查有没有版本冲突
         Version.checkDuplicate(Exchangers.class);
     }
 
     private Exchangers() {
     }
 
+    /**
+     * 绑定 指定url 并返回 server对象
+     * @param url
+     * @param replier
+     * @return
+     * @throws RemotingException
+     */
     public static ExchangeServer bind(String url, Replier<?> replier) throws RemotingException {
         return bind(URL.valueOf(url), replier);
     }
 
+    /**
+     * 创建一个 适配器对象 继续委托调用bind 方法 适配器对象 实现 ChannelHandler 接口
+     * @param url
+     * @param replier
+     * @return
+     * @throws RemotingException
+     */
     public static ExchangeServer bind(URL url, Replier<?> replier) throws RemotingException {
         return bind(url, new ChannelHandlerAdapter(), replier);
     }
@@ -51,6 +68,14 @@ public class Exchangers {
         return bind(URL.valueOf(url), handler, replier);
     }
 
+    /**
+     * 创建 exchangehandler 对象封装 replier 和 handler
+     * @param url
+     * @param handler
+     * @param replier
+     * @return
+     * @throws RemotingException
+     */
     public static ExchangeServer bind(URL url, ChannelHandler handler, Replier<?> replier) throws RemotingException {
         return bind(url, new ExchangeHandlerDispatcher(replier, handler));
     }
@@ -59,6 +84,13 @@ public class Exchangers {
         return bind(URL.valueOf(url), handler);
     }
 
+    /**
+     * 绑定的实际 调用逻辑
+     * @param url
+     * @param handler
+     * @return
+     * @throws RemotingException
+     */
     public static ExchangeServer bind(URL url, ExchangeHandler handler) throws RemotingException {
         if (url == null) {
             throw new IllegalArgumentException("url == null");
@@ -66,7 +98,9 @@ public class Exchangers {
         if (handler == null) {
             throw new IllegalArgumentException("handler == null");
         }
+        //给url 设置 编解码器
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
+        //通过url 中的参数 获取拓展对象 开始绑定
         return getExchanger(url).bind(url, handler);
     }
 
@@ -98,6 +132,13 @@ public class Exchangers {
         return connect(URL.valueOf(url), handler);
     }
 
+    /**
+     * exchanger 实现connect
+     * @param url
+     * @param handler
+     * @return
+     * @throws RemotingException
+     */
     public static ExchangeClient connect(URL url, ExchangeHandler handler) throws RemotingException {
         if (url == null) {
             throw new IllegalArgumentException("url == null");
@@ -105,15 +146,28 @@ public class Exchangers {
         if (handler == null) {
             throw new IllegalArgumentException("handler == null");
         }
+        //给 url 增加一个新的 键值对
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
+        //通过url 的 exchange 属性 获取特定的 拓展对象 调用connect 方法
         return getExchanger(url).connect(url, handler);
     }
 
+    /**
+     * 通过 url 获取 exchanger 的拓展对象
+     * @param url
+     * @return
+     */
     public static Exchanger getExchanger(URL url) {
+        //从参数中解析 exchanger 的实现类型
         String type = url.getParameter(Constants.EXCHANGER_KEY, Constants.DEFAULT_EXCHANGER);
         return getExchanger(type);
     }
 
+    /**
+     * 获取拓展对象
+     * @param type
+     * @return
+     */
     public static Exchanger getExchanger(String type) {
         return ExtensionLoader.getExtensionLoader(Exchanger.class).getExtension(type);
     }

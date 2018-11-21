@@ -28,14 +28,26 @@ import io.netty.channel.ChannelPromise;
 
 /**
  * NettyClientHandler
+ * netty 的 事件处理器对象
  */
 @io.netty.channel.ChannelHandler.Sharable
 public class NettyClientHandler extends ChannelDuplexHandler {
 
+    /**
+     * 保留的 url对象
+     */
     private final URL url;
 
+    /**
+     * dubbo 的 事件处理对象 应该是要将 netty 的事件处理委托到这个对象上
+     */
     private final ChannelHandler handler;
 
+    /**
+     * 根据传入的 参数 初始化对象
+     * @param url
+     * @param handler
+     */
     public NettyClientHandler(URL url, ChannelHandler handler) {
         if (url == null) {
             throw new IllegalArgumentException("url == null");
@@ -48,6 +60,11 @@ public class NettyClientHandler extends ChannelDuplexHandler {
     }
 
 
+    /**
+     * channel 被激活时
+     * @param ctx
+     * @throws Exception
+     */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);

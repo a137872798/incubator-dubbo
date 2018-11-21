@@ -19,6 +19,9 @@ package org.apache.dubbo.remoting.buffer;
 
 import java.nio.ByteBuffer;
 
+/**
+ * 直接内存 buffer 工厂
+ */
 public class DirectChannelBufferFactory implements ChannelBufferFactory {
 
     private static final DirectChannelBufferFactory INSTANCE = new DirectChannelBufferFactory();
@@ -31,14 +34,21 @@ public class DirectChannelBufferFactory implements ChannelBufferFactory {
         return INSTANCE;
     }
 
+    /**
+     * 根据传入的 容量大小返回合适的 对象
+     * @param capacity
+     * @return
+     */
     @Override
     public ChannelBuffer getBuffer(int capacity) {
         if (capacity < 0) {
             throw new IllegalArgumentException("capacity: " + capacity);
         }
         if (capacity == 0) {
+            //返回空对象
             return ChannelBuffers.EMPTY_BUFFER;
         }
+        //底层还是通过 nio 创建
         return ChannelBuffers.directBuffer(capacity);
     }
 
@@ -68,6 +78,7 @@ public class DirectChannelBufferFactory implements ChannelBufferFactory {
             return ChannelBuffers.wrappedBuffer(nioBuffer);
         }
 
+        //只读
         ChannelBuffer buf = getBuffer(nioBuffer.remaining());
         int pos = nioBuffer.position();
         buf.writeBytes(nioBuffer);
