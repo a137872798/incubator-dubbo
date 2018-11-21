@@ -28,6 +28,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
+/**
+ * netty 的  bytebuf 类的 适配器对象 使它能够 兼容 dubbo 框架
+ */
 public class NettyBackedChannelBuffer implements ChannelBuffer {
 
     private ByteBuf buffer;
@@ -49,7 +52,11 @@ public class NettyBackedChannelBuffer implements ChannelBuffer {
         return new NettyBackedChannelBuffer(buffer.copy(index, length));
     }
 
-    //has nothing use
+
+    /**
+     * 拓展 netty bytebuf 的 工厂 不能创建 bytebufe 对象
+     * @return
+     */
     @Override
     public ChannelBufferFactory factory() {
         return null;

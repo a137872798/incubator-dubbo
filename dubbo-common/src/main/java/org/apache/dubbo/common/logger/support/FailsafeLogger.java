@@ -20,6 +20,9 @@ import org.apache.dubbo.common.Version;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.utils.NetUtils;
 
+/**
+ * 捕获 日志类对应的 异常 使得日志类 能安全工作
+ */
 public class FailsafeLogger implements Logger {
 
     private Logger logger;

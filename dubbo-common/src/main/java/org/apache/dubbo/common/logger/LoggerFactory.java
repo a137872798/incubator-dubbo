@@ -83,6 +83,7 @@ public class LoggerFactory {
     /**
      * Set logger provider
      *
+     * 根据传入的 适配器对象 生成合适的 适配器类
      * @param loggerAdapter logger provider
      */
     public static void setLoggerAdapter(LoggerAdapter loggerAdapter) {
@@ -114,6 +115,7 @@ public class LoggerFactory {
     /**
      * Get logger provider
      *
+     * 通过key 获取对应的日志类
      * @param key the returned logger will be named after key
      * @return logger provider
      */

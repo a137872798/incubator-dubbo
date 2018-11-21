@@ -23,15 +23,25 @@ import org.jboss.netty.logging.AbstractInternalLogger;
 import org.jboss.netty.logging.InternalLogger;
 import org.jboss.netty.logging.InternalLoggerFactory;
 
+/**
+ * 辅助类对象
+ */
 final class NettyHelper {
 
+    /**
+     * 生成日志工厂
+     */
     public static void setNettyLoggerFactory() {
         InternalLoggerFactory factory = InternalLoggerFactory.getDefaultFactory();
         if (factory == null || !(factory instanceof DubboLoggerFactory)) {
+            //如果使用 DubboLoggerFactory 这个应该是 适配了 netty 的 日志类
             InternalLoggerFactory.setDefaultFactory(new DubboLoggerFactory());
         }
     }
 
+    /**
+     * 拓展 netty 的日志类
+     */
     static class DubboLoggerFactory extends InternalLoggerFactory {
 
         @Override
@@ -40,6 +50,9 @@ final class NettyHelper {
         }
     }
 
+    /**
+     * 拓展netty 日志组件
+     */
     static class DubboLogger extends AbstractInternalLogger {
 
         private Logger logger;

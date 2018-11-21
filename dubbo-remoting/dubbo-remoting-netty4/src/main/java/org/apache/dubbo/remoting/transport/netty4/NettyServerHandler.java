@@ -31,14 +31,24 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * NettyServerHandler
+ * netty 服务端的 处理器
  */
 @io.netty.channel.ChannelHandler.Sharable
 public class NettyServerHandler extends ChannelDuplexHandler {
 
+    /**
+     * 将 客户端地址 与 对应的dubbo channel 对象 关联起来 因为这是服务端 处理器 每个 过来的 客户端 channel都会保留到这里
+     */
     private final Map<String, Channel> channels = new ConcurrentHashMap<String, Channel>(); // <ip:port, channel>
 
+    /**
+     * 该处理器 包含的url
+     */
     private final URL url;
 
+    /**
+     * 组合了 一个 dubbo 的处理器对象 实际的 处理都是委托给这个对象
+     */
     private final ChannelHandler handler;
 
     public NettyServerHandler(URL url, ChannelHandler handler) {
@@ -56,32 +66,56 @@ public class NettyServerHandler extends ChannelDuplexHandler {
         return channels;
     }
 
+    /**
+     * 当通道活跃时
+     * @param ctx
+     * @throws Exception
+     */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        //将 传入的 channel 与生成的 nettychannel 绑定起来 并返回  也就是在内部 都是通过 包装过的 channel 通信
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         try {
             if (channel != null) {
+                //在 handler 这层 也维护一个 地址 和 channel 关联关系的 容器
                 channels.put(NetUtils.toAddressString((InetSocketAddress) ctx.channel().remoteAddress()), channel);
             }
+            //触发 handler 的回调事件
             handler.connected(channel);
         } finally {
             NettyChannel.removeChannelIfDisconnected(ctx.channel());
         }
     }
 
+    /**
+     * 当 channel 停止 活跃时
+     * @param ctx
+     * @throws Exception
+     */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        //通过 channel 定位 到 dubbo 的channel 对象
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         try {
+            //从容器中 移除 关联
             channels.remove(NetUtils.toAddressString((InetSocketAddress) ctx.channel().remoteAddress()));
+            //断开连接
             handler.disconnected(channel);
         } finally {
+            //从 nettychannel 的容器中 移除关联
             NettyChannel.removeChannelIfDisconnected(ctx.channel());
         }
     }
 
+    /**
+     * 读事件 触发了 received
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        //将 channel 转换成 dubbo 的 channel 然后执行dubbo 的handle  通过 双层委托 封装了 netty本身 组件的交互
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         try {
             handler.received(channel, msg);

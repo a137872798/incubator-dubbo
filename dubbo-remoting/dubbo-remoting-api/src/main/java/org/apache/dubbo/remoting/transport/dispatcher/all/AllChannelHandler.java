@@ -31,7 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * 通过AllDispatcher 创建的对应的  请求处理器
+ * 通过AllDispatcher 创建的对应的  请求处理器  该类 使得处理每个请求 都 使用线程池 通过传入不同的 类型 来区分执行的逻辑
  */
 public class AllChannelHandler extends WrappedChannelHandler {
 

@@ -47,72 +47,100 @@ import java.util.Map;
 
 /**
  * NettyServer
+ * netty4 的 服务端实现
  */
 public class NettyServer extends AbstractServer implements Server {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyServer.class);
 
+    /**
+     * key 是 ip:port  value 是 dubbo的channel 对象 维护了  一系列客户端创建的长连接对象
+     */
     private Map<String, Channel> channels; // <ip:port, channel>
 
     private ServerBootstrap bootstrap;
 
+    /**
+     * 绑定到本地的channel对象
+     */
     private io.netty.channel.Channel channel;
 
+    // 工作线程 和 老板线程
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
 
     public NettyServer(URL url, ChannelHandler handler) throws RemotingException {
+        //将传入的handler 包装 这里 使用了  dispatcher 使得一些操作 会放入线程池中进行
         super(url, ChannelHandlers.wrap(handler, ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME)));
     }
 
+    /**
+     * 服务器 启动逻辑
+     * @throws Throwable
+     */
     @Override
     protected void doOpen() throws Throwable {
         bootstrap = new ServerBootstrap();
 
         bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("NettyServerBoss", true));
+        //从 url 中 获取初始线程数
         workerGroup = new NioEventLoopGroup(getUrl().getPositiveParameter(Constants.IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),
                 new DefaultThreadFactory("NettyServerWorker", true));
 
+        //初始化  服务端处理器对象 这里传入自身作为handler  特点是 执行 io事件 时 使用的handler 是包装过的也就是 会触发dispatcher 方法
         final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this);
+        //获取 处理器对象 的 channel 容器
         channels = nettyServerHandler.getChannels();
 
         bootstrap.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
                 .childOption(ChannelOption.TCP_NODELAY, Boolean.TRUE)
                 .childOption(ChannelOption.SO_REUSEADDR, Boolean.TRUE)
+                //使用 池化对象 保证 内存可以复用
                 .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     @Override
                     protected void initChannel(NioSocketChannel ch) throws Exception {
+                        //创建了一个适配器对象
                         NettyCodecAdapter adapter = new NettyCodecAdapter(getCodec(), getUrl(), NettyServer.this);
+                        //给 pipeline 对象 增加 编解码处理器 和服务端处理器
                         ch.pipeline()//.addLast("logging",new LoggingHandler(LogLevel.INFO))//for debug
                                 .addLast("decoder", adapter.getDecoder())
                                 .addLast("encoder", adapter.getEncoder())
                                 .addLast("handler", nettyServerHandler);
                     }
                 });
-        // bind
+        // bind 绑定到本机地址
         ChannelFuture channelFuture = bootstrap.bind(getBindAddress());
+        //阻塞线程 等待结果
         channelFuture.syncUninterruptibly();
+        //将 绑定到本地后生成的channel 赋值
         channel = channelFuture.channel();
 
     }
 
+    /**
+     * 关闭 服务器对象
+     * @throws Throwable
+     */
     @Override
     protected void doClose() throws Throwable {
         try {
             if (channel != null) {
                 // unbind.
+                //关闭绑定到 本地的 channel 对象
                 channel.close();
             }
         } catch (Throwable e) {
             logger.warn(e.getMessage(), e);
         }
         try {
+            //获取 dubbo 的 channel 对象容器
             Collection<org.apache.dubbo.remoting.Channel> channels = getChannels();
             if (channels != null && channels.size() > 0) {
                 for (org.apache.dubbo.remoting.Channel channel : channels) {
                     try {
+                        //依次 关闭 每个 连接到 客户端的 channel
                         channel.close();
                     } catch (Throwable e) {
                         logger.warn(e.getMessage(), e);
@@ -123,6 +151,7 @@ public class NettyServer extends AbstractServer implements Server {
             logger.warn(e.getMessage(), e);
         }
         try {
+            //关闭 group 对象
             if (bootstrap != null) {
                 bossGroup.shutdownGracefully();
                 workerGroup.shutdownGracefully();
@@ -131,6 +160,7 @@ public class NettyServer extends AbstractServer implements Server {
             logger.warn(e.getMessage(), e);
         }
         try {
+            //清空容器
             if (channels != null) {
                 channels.clear();
             }
@@ -139,19 +169,30 @@ public class NettyServer extends AbstractServer implements Server {
         }
     }
 
+    /**
+     * 返回 一组 连接到 客户端的  dubbo channel 对象
+     * @return
+     */
     @Override
     public Collection<Channel> getChannels() {
         Collection<Channel> chs = new HashSet<Channel>();
         for (Channel channel : this.channels.values()) {
+            //保留 还维持连接状态的 channel 移除 断开连接的 channel
             if (channel.isConnected()) {
                 chs.add(channel);
             } else {
+                //将 远程地址 转换 为 ip:port  定位到channel
                 channels.remove(NetUtils.toAddressString(channel.getRemoteAddress()));
             }
         }
         return chs;
     }
 
+    /**
+     * 通过 指定 地址 获取 channel对象
+     * @param remoteAddress
+     * @return
+     */
     @Override
     public Channel getChannel(InetSocketAddress remoteAddress) {
         return channels.get(NetUtils.toAddressString(remoteAddress));

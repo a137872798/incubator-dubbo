@@ -58,7 +58,7 @@ public class ChannelHandlers {
      * @return
      */
     protected ChannelHandler wrapInternal(ChannelHandler handler, URL url) {
-        //装饰器模式  将从SPI 生成的自适应 Dispatcher对象 包装起来 并将请求 委托给该对象
+        //装饰器模式  获取到 dispatcher拓展对象  调用分发方法后 返回的 也是一个 handlerdelegate 对象 在执行事件时 会委托到线程池 中进行
         return new MultiMessageHandler(new HeartbeatHandler(ExtensionLoader.getExtensionLoader(Dispatcher.class)
                 .getAdaptiveExtension().dispatch(handler, url)));
     }

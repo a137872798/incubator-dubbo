@@ -62,16 +62,17 @@ public class NettyClient extends AbstractClient {
     private volatile Channel channel; // volatile, please copy reference to use
 
     public NettyClient(final URL url, final ChannelHandler handler) throws RemotingException {
-        //将 url 和 channelHandler 传给 父类 初始化 传入的handler 是包装过的
+        //将 handler 包装后 handler 处理相关事件时 会委托给线程池对象 这些 handler对象都会 传递到最上层
         super(url, wrapChannelHandler(url, handler));
     }
 
     /**
-     * 在 client 对象被初始化的时候触发
+     * 在 client 对象被初始化的时候触发  这里还没有 连接到远程地址
      * @throws Throwable
      */
     @Override
     protected void doOpen() throws Throwable {
+        //创建 handler 对象时 传入的 就是被包装过的handler 也就是会在执行时 触发 dispatcher 方法 通过线程池执行逻辑
         final NettyClientHandler nettyClientHandler = new NettyClientHandler(getUrl(), this);
         bootstrap = new Bootstrap();
         bootstrap.group(nioEventLoopGroup)
@@ -81,6 +82,7 @@ public class NettyClient extends AbstractClient {
                 //.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getTimeout())
                 .channel(NioSocketChannel.class);
 
+        //设置 连接超时时间
         if (getConnectTimeout() < 3000) {
             bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000);
         } else {
@@ -100,13 +102,19 @@ public class NettyClient extends AbstractClient {
         });
     }
 
+    /**
+     * 开始 连接到 目标 服务器地址
+     * @throws Throwable
+     */
     @Override
     protected void doConnect() throws Throwable {
         long start = System.currentTimeMillis();
         ChannelFuture future = bootstrap.connect(getConnectAddress());
         try {
+            //等待  连接结果
             boolean ret = future.awaitUninterruptibly(getConnectTimeout(), TimeUnit.MILLISECONDS);
 
+            //当连接成功时
             if (ret && future.isSuccess()) {
                 Channel newChannel = future.channel();
                 try {
@@ -117,23 +125,27 @@ public class NettyClient extends AbstractClient {
                             if (logger.isInfoEnabled()) {
                                 logger.info("Close old netty channel " + oldChannel + " on create new netty channel " + newChannel);
                             }
+                            //如果 存在 旧 的 channel 就 关闭
                             oldChannel.close();
                         } finally {
                             NettyChannel.removeChannelIfDisconnected(oldChannel);
                         }
                     }
                 } finally {
+                    //如果 被关闭了
                     if (NettyClient.this.isClosed()) {
                         try {
                             if (logger.isInfoEnabled()) {
                                 logger.info("Close new netty channel " + newChannel + ", because the client closed.");
                             }
+                            //关闭新的channel
                             newChannel.close();
                         } finally {
                             NettyClient.this.channel = null;
                             NettyChannel.removeChannelIfDisconnected(newChannel);
                         }
                     } else {
+                        //没有被关闭 就 将channel 指向新对象
                         NettyClient.this.channel = newChannel;
                     }
                 }
@@ -153,9 +165,14 @@ public class NettyClient extends AbstractClient {
         }
     }
 
+    /**
+     * 断开连接时触发 在上层 已经 通过 getchannel 获取 并 close 了 channel 所以 doClose 就不需要做动作了
+     * @throws Throwable
+     */
     @Override
     protected void doDisConnect() throws Throwable {
         try {
+            //移除 关联关系
             NettyChannel.removeChannelIfDisconnected(channel);
         } catch (Throwable t) {
             logger.warn(t.getMessage());
@@ -168,6 +185,10 @@ public class NettyClient extends AbstractClient {
         //nioEventLoopGroup.shutdownGracefully();
     }
 
+    /**
+     * 使用 netty channel 生成一个  dubbo channel
+     * @return
+     */
     @Override
     protected org.apache.dubbo.remoting.Channel getChannel() {
         Channel c = channel;

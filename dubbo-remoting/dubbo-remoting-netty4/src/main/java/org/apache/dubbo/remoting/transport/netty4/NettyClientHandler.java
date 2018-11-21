@@ -39,7 +39,7 @@ public class NettyClientHandler extends ChannelDuplexHandler {
     private final URL url;
 
     /**
-     * dubbo 的 事件处理对象 应该是要将 netty 的事件处理委托到这个对象上
+     * dubbo 的 事件处理对象 应该是要将 netty 的事件处理委托到这个对象上  这个 handler 也就是 nettyclient
      */
     private final ChannelHandler handler;
 
@@ -67,8 +67,10 @@ public class NettyClientHandler extends ChannelDuplexHandler {
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        //使用 netty channel 对象 获取 dubbo channel 对象  因为 dubbo 的 handler 对象只能处理 dubbo channel 对象
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         try {
+            //该 handler 已经被 包装过 调用会触发dispatcher 方法
             handler.connected(channel);
         } finally {
             NettyChannel.removeChannelIfDisconnected(ctx.channel());
@@ -104,13 +106,16 @@ public class NettyClientHandler extends ChannelDuplexHandler {
             // if error happens from write, mock a BAD_REQUEST response so that invoker can return immediately without
             // waiting until timeout. FIXME: not sure if this is the right approach, but exceptionCaught doesn't work
             // as expected.
+            // 如果 promise 出现异常 直接 返回响应对象
             if (promise.cause() != null && msg instanceof Request) {
                 Request request = (Request) msg;
                 Response response = new Response(request.getId(), request.getVersion());
                 response.setStatus(Response.BAD_REQUEST);
                 response.setErrorMessage(StringUtils.toString(promise.cause()));
+                //客户端写数据 给服务器失败时 在 客户端直接创建 res 对象并直接调用 received 处理 结果
                 handler.received(channel, response);
             } else {
+                //代表请求已经发出去
                 handler.sent(channel, msg);
             }
         } finally {
