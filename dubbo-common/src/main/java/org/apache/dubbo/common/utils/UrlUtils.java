@@ -378,25 +378,45 @@ public class UrlUtils {
                 + (version == null ? "" : "&" + Constants.VERSION_KEY + "=" + version));
     }
 
+    /**
+     * 比较 2个 字符串是否相同 包含 * 的判断
+     * @param category
+     * @param categories
+     * @return
+     */
     public static boolean isMatchCategory(String category, String categories) {
+        //当 消费者 的 category 为null 时 判断 提供者 的种类是否是 category
         if (categories == null || categories.length() == 0) {
             return Constants.DEFAULT_CATEGORY.equals(category);
+            //如果 消费者 是* 直接返回true
         } else if (categories.contains(Constants.ANY_VALUE)) {
             return true;
+            //如果消费者  携带 移除"-"标识
         } else if (categories.contains(Constants.REMOVE_VALUE_PREFIX)) {
+            //需要 不携带 移除 提供者的 标识
             return !categories.contains(Constants.REMOVE_VALUE_PREFIX + category);
         } else {
+            //判断 2个 字符串 是否 有包含的部分
             return categories.contains(category);
         }
     }
 
+    /**
+     * 判断 消费者 和 提供者 的 url 能否对应
+     * @param consumerUrl
+     * @param providerUrl
+     * @return
+     */
     public static boolean isMatch(URL consumerUrl, URL providerUrl) {
+        //获得  2个 接口
         String consumerInterface = consumerUrl.getServiceInterface();
         String providerInterface = providerUrl.getServiceInterface();
+        //如果 2个 接口不同 返回false
         if (!(Constants.ANY_VALUE.equals(consumerInterface) || StringUtils.isEquals(consumerInterface, providerInterface))) {
             return false;
         }
 
+        //还要对比 category
         if (!isMatchCategory(providerUrl.getParameter(Constants.CATEGORY_KEY, Constants.DEFAULT_CATEGORY),
                 consumerUrl.getParameter(Constants.CATEGORY_KEY, Constants.DEFAULT_CATEGORY))) {
             return false;

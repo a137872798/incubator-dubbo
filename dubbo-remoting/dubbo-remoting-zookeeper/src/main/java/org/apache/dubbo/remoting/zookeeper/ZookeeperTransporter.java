@@ -21,6 +21,9 @@ import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.extension.Adaptive;
 import org.apache.dubbo.common.extension.SPI;
 
+/**
+ * 连接到 zookeeper 的接口类  默认使用 curator 实现
+ */
 @SPI("curator")
 public interface ZookeeperTransporter {
 

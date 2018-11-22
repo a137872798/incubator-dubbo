@@ -36,6 +36,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * dubbo protocol support class.
+ * 应该是 失去部分功能的 client 对象
  */
 @SuppressWarnings("deprecation")
 final class LazyConnectExchangeClient implements ExchangeClient {
@@ -45,22 +46,37 @@ final class LazyConnectExchangeClient implements ExchangeClient {
     private final static Logger logger = LoggerFactory.getLogger(LazyConnectExchangeClient.class);
     protected final boolean requestWithWarning;
     private final URL url;
+    /**
+     * 包装的handler 对象
+     */
     private final ExchangeHandler requestHandler;
     private final Lock connectLock = new ReentrantLock();
     // lazy connect, initial state for connection
+    /**
+     * 连接 还未创建 client == null 时返回的状态
+     */
     private final boolean initialState;
     private volatile ExchangeClient client;
+    /**
+     * 警告次数
+     */
     private AtomicLong warningcount = new AtomicLong(0);
 
     public LazyConnectExchangeClient(URL url, ExchangeHandler requestHandler) {
         // lazy connect, need set send.reconnect = true, to avoid channel bad status.
         this.url = url.addParameter(Constants.SEND_RECONNECT_KEY, Boolean.TRUE.toString());
         this.requestHandler = requestHandler;
+        //通过ReferenceCountExchangeClient 初始化 是false
         this.initialState = url.getParameter(Constants.LAZY_CONNECT_INITIAL_STATE_KEY, Constants.DEFAULT_LAZY_CONNECT_INITIAL_STATE);
+        //是否在请求时要发出警告
         this.requestWithWarning = url.getParameter(REQUEST_WITH_WARNING_KEY, false);
     }
 
 
+    /**
+     * 初始化client 对象
+     * @throws RemotingException
+     */
     private void initClient() throws RemotingException {
         if (client != null) {
             return;
@@ -73,16 +89,24 @@ final class LazyConnectExchangeClient implements ExchangeClient {
             if (client != null) {
                 return;
             }
+            //连接 返回 client 对象
             this.client = Exchangers.connect(url, requestHandler);
         } finally {
             connectLock.unlock();
         }
     }
 
+    /**
+     * 通过 该client 对象发起请求
+     * @param request
+     * @return
+     * @throws RemotingException
+     */
     @Override
     public ResponseFuture request(Object request) throws RemotingException {
         warning(request);
         initClient();
+        //委托 给 初始化的client对象执行request
         return client.request(request);
     }
 
@@ -91,6 +115,10 @@ final class LazyConnectExchangeClient implements ExchangeClient {
         return url;
     }
 
+    /**
+     * 获取远程地址
+     * @return
+     */
     @Override
     public InetSocketAddress getRemoteAddress() {
         if (client == null) {
@@ -110,6 +138,7 @@ final class LazyConnectExchangeClient implements ExchangeClient {
     /**
      * If {@link #REQUEST_WITH_WARNING_KEY} is configured, then warn once every 5000 invocations.
      *
+     * 如果设置了 在发起请求时要 打印 日志就打印
      * @param request
      */
     private void warning(Object request) {
@@ -127,6 +156,10 @@ final class LazyConnectExchangeClient implements ExchangeClient {
         return client.getChannelHandler();
     }
 
+    /**
+     * 判断 当前 是否连接 结果会受到initialState影响
+     * @return
+     */
     @Override
     public boolean isConnected() {
         if (client == null) {
@@ -198,6 +231,10 @@ final class LazyConnectExchangeClient implements ExchangeClient {
         client.reset(url);
     }
 
+    /**
+     * 在 reset 前 将属性保存到 url 中
+     * @param parameters
+     */
     @Override
     @Deprecated
     public void reset(Parameters parameters) {
@@ -240,6 +277,9 @@ final class LazyConnectExchangeClient implements ExchangeClient {
         }
     }
 
+    /**
+     * 检查 client对象是否为null
+     */
     private void checkClient() {
         if (client == null) {
             throw new IllegalStateException(

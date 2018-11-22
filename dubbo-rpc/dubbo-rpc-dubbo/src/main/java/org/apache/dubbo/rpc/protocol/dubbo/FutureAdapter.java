@@ -28,6 +28,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * FutureAdapter
+ * future 的适配器对象 实现了jdk 接口
  */
 public class FutureAdapter<V> extends CompletableFuture<V> {
 

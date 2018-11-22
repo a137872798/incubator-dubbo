@@ -180,11 +180,19 @@ public class RpcUtils {
         return invocation.getParameterTypes();
     }
 
+    /**
+     * 判断是否是异步的
+     * @param url
+     * @param inv
+     * @return
+     */
     public static boolean isAsync(URL url, Invocation inv) {
         boolean isAsync;
+        //通过 获取invoker 上的 标识 判断是否是 异步
         if (Boolean.TRUE.toString().equals(inv.getAttachment(Constants.ASYNC_KEY))) {
             isAsync = true;
         } else {
+            //一级级 查找对应属性
             isAsync = url.getMethodParameter(getMethodName(inv), Constants.ASYNC_KEY, false);
         }
         return isAsync;

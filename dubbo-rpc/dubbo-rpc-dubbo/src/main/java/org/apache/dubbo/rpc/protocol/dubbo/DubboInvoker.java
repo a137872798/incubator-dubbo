@@ -60,6 +60,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
     }
 
     public DubboInvoker(Class<T> serviceType, URL url, ExchangeClient[] clients, Set<Invoker<?>> invokers) {
+        //这些属性会设置到 父类的 attachment上
         super(serviceType, url, new String[]{Constants.INTERFACE_KEY, Constants.GROUP_KEY, Constants.TOKEN_KEY, Constants.TIMEOUT_KEY});
         this.clients = clients;
         // get version.
@@ -83,37 +84,53 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         inv.setAttachment(Constants.VERSION_KEY, version);
 
         ExchangeClient currentClient;
+        //这个应该是 共享client
         if (clients.length == 1) {
             currentClient = clients[0];
         } else {
+            //随机获取一个 client
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
+            //判断当前是 同步还是异步
             boolean isAsync = RpcUtils.isAsync(getUrl(), invocation);
+            //是泛型类 或者是 future 类 就 需要设置 异步future
             boolean isAsyncFuture = RpcUtils.isGeneratedFuture(inv) || RpcUtils.isFutureReturnType(inv);
+            //是否 不需要返回 响应
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
             int timeout = getUrl().getMethodParameter(methodName, Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
             if (isOneway) {
+                //methodName + key 去 查找属性
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
+                //通过client 发送请求
                 currentClient.send(inv, isSent);
+                //学习了 netty 的 threadLocal  将 future 设置为null
                 RpcContext.getContext().setFuture(null);
+                //直接返回请求结果 没有结果和异常对象
                 return new RpcResult();
             } else if (isAsync) {
+                //异步 的 请求方式不同 返回一个future对象
                 ResponseFuture future = currentClient.request(inv, timeout);
                 // For compatibility
                 FutureAdapter<Object> futureAdapter = new FutureAdapter<>(future);
+                //设置结果对象
                 RpcContext.getContext().setFuture(futureAdapter);
 
                 Result result;
+                //如果是异步 结果
                 if (isAsyncFuture) {
                     // register resultCallback, sometimes we need the asyn result being processed by the filter chain.
+                    //创建一个 异步RPC 结果对象
                     result = new AsyncRpcResult(futureAdapter, futureAdapter.getResultFuture(), false);
                 } else {
+                    //创建一个简单对象 相比上面少了 recreate 方法
                     result = new SimpleAsyncRpcResult(futureAdapter, futureAdapter.getResultFuture(), false);
                 }
                 return result;
             } else {
+                //设置 future为null  这里应该是 同步请求方式
                 RpcContext.getContext().setFuture(null);
+                //返回结果对象
                 return (Result) currentClient.request(inv, timeout).get();
             }
         } catch (TimeoutException e) {
@@ -123,11 +140,17 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         }
     }
 
+    /**
+     * 是否可用
+     * @return
+     */
     @Override
     public boolean isAvailable() {
+        //父类不可用
         if (!super.isAvailable()) {
             return false;
         }
+        //只要有一个client 在连接中 且不是只读的就是true
         for (ExchangeClient client : clients) {
             if (client.isConnected() && !client.hasAttribute(Constants.CHANNEL_ATTRIBUTE_READONLY_KEY)) {
                 //cannot write == not Available ?
@@ -137,6 +160,9 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         return false;
     }
 
+    /**
+     * 销毁方法
+     */
     @Override
     public void destroy() {
         // in order to avoid closing a client multiple times, a counter is used in case of connection per jvm, every
@@ -152,11 +178,13 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                     return;
                 }
                 super.destroy();
+                //从 invoker 容器中移除该对象
                 if (invokers != null) {
                     invokers.remove(this);
                 }
                 for (ExchangeClient client : clients) {
                     try {
+                        //将下面的全部client 关闭
                         client.close(ConfigUtils.getServerShutdownTimeout());
                     } catch (Throwable t) {
                         logger.warn(t.getMessage(), t);

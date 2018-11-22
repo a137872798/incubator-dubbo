@@ -376,6 +376,11 @@ public /**final**/ class URL implements Serializable {
         return port <= 0 ? host : host + ":" + port;
     }
 
+    /**
+     * 以 相同的 属性 配上不同的 ip 和 port 后 返回
+     * @param address
+     * @return
+     */
     public URL setAddress(String address) {
         int i = address.lastIndexOf(':');
         String host;
@@ -405,6 +410,10 @@ public /**final**/ class URL implements Serializable {
         return address.toString();
     }
 
+    /**
+     * backup 好像是  多个地址拆分后 以 这个 标识来连接
+     * @return
+     */
     public List<URL> getBackupUrls() {
         List<URL> urls = new ArrayList<URL>();
         urls.add(this);
@@ -713,7 +722,14 @@ public /**final**/ class URL implements Serializable {
         return URL.decode(getMethodParameter(method, key, defaultValue));
     }
 
+    /**
+     * 获取方法参数
+     * @param method
+     * @param key
+     * @return
+     */
     public String getMethodParameter(String method, String key) {
+        //将方法名拼接上 key 作为 参数
         String value = parameters.get(method + "." + key);
         if (value == null || value.length() == 0) {
             return getParameter(key);
@@ -893,7 +909,15 @@ public /**final**/ class URL implements Serializable {
         return value.charAt(0);
     }
 
+    /**
+     * 获取方法参数
+     * @param method
+     * @param key
+     * @param defaultValue
+     * @return
+     */
     public boolean getMethodParameter(String method, String key, boolean defaultValue) {
+        //获取方法参数 没有的 话 返回 默认值
         String value = getMethodParameter(method, key);
         if (value == null || value.length() == 0) {
             return defaultValue;

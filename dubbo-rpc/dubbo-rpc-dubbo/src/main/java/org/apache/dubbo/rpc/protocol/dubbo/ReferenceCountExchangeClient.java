@@ -36,16 +36,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 @SuppressWarnings("deprecation")
 final class ReferenceCountExchangeClient implements ExchangeClient {
 
+    /**
+     * 该client 的 url 对象
+     */
     private final URL url;
+    /**
+     * 引用计数
+     */
     private final AtomicInteger refenceCount = new AtomicInteger(0);
 
-    //    private final ExchangeHandler handler;
+    //    private final ExchangeHandler handler; 这个怎么用???
     private final ConcurrentMap<String, LazyConnectExchangeClient> ghostClientMap;
+
+    /**
+     * 组合一个 client对象 实现 ExchangeClient 接口功能
+     */
     private ExchangeClient client;
 
 
     public ReferenceCountExchangeClient(ExchangeClient client, ConcurrentMap<String, LazyConnectExchangeClient> ghostClientMap) {
         this.client = client;
+        //当对象第一次被创建 计数就是1
         refenceCount.incrementAndGet();
         this.url = client.getUrl();
         if (ghostClientMap == null) {
@@ -147,6 +158,10 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
         close(0);
     }
 
+    /**
+     * 关闭时 必须 引用计数为0 才能真正关闭
+     * @param timeout
+     */
     @Override
     public void close(int timeout) {
         if (refenceCount.decrementAndGet() <= 0) {
@@ -155,6 +170,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
             } else {
                 client.close(timeout);
             }
+            //将 client 替换成 鬼魂客户端 这个鬼魂客户端 可能是不能进行某些操作的
             client = replaceWithLazyClient();
         }
     }
@@ -164,9 +180,15 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
         client.startClose();
     }
 
-    // ghost client
+
+    /**
+     * ghost client
+     *
+     * @return
+     */
     private LazyConnectExchangeClient replaceWithLazyClient() {
         // this is a defensive operation to avoid client is closed by accident, the initial state of the client is false
+        // 为原来的url 追加一堆属性
         URL lazyUrl = url.addParameter(Constants.LAZY_CONNECT_INITIAL_STATE_KEY, Boolean.FALSE)
                 .addParameter(Constants.RECONNECT_KEY, Boolean.FALSE)
                 .addParameter(Constants.SEND_RECONNECT_KEY, Boolean.TRUE.toString())
@@ -174,9 +196,12 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
                 .addParameter(LazyConnectExchangeClient.REQUEST_WITH_WARNING_KEY, true)
                 .addParameter("_client_memo", "referencecounthandler.replacewithlazyclient");
 
+        //获取url 的地址属性
         String key = url.getAddress();
         // in worst case there's only one ghost connection.
+        //从 鬼魂容器中获取client 对象
         LazyConnectExchangeClient gclient = ghostClientMap.get(key);
+        //创建一个新的 鬼魂对象保存
         if (gclient == null || gclient.isClosed()) {
             gclient = new LazyConnectExchangeClient(lazyUrl, client.getExchangeHandler());
             ghostClientMap.put(key, gclient);

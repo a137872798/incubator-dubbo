@@ -24,6 +24,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
+/**
+ * 异步结果对象
+ */
 
 public class AsyncRpcResult extends AbstractResult {
     private static final Logger logger = LoggerFactory.getLogger(AsyncRpcResult.class);

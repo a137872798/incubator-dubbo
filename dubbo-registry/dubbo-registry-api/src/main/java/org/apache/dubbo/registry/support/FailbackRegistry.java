@@ -39,17 +39,30 @@ import java.util.concurrent.TimeUnit;
 /**
  * FailbackRegistry. (SPI, Prototype, ThreadSafe)
  *
+ * 失败重试
  */
 public abstract class FailbackRegistry extends AbstractRegistry {
 
     // Scheduled executor service
+    /**
+     * 定时 重试 线程池
+     */
     private final ScheduledExecutorService retryExecutor = Executors.newScheduledThreadPool(1, new NamedThreadFactory("DubboRegistryFailedRetryTimer", true));
 
     // Timer for failure retry, regular check if there is a request for failure, and if there is, an unlimited retry
+    /**
+     * 每次 定时任务的返回结果
+     */
     private final ScheduledFuture<?> retryFuture;
 
+    /**
+     * 注册失败的 合集
+     */
     private final Set<URL> failedRegistered = new ConcurrentHashSet<URL>();
 
+    /**
+     * 注销失败的 合集
+     */
     private final Set<URL> failedUnregistered = new ConcurrentHashSet<URL>();
 
     private final ConcurrentMap<URL, Set<NotifyListener>> failedSubscribed = new ConcurrentHashMap<URL, Set<NotifyListener>>();

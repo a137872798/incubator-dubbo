@@ -37,27 +37,41 @@ import org.apache.zookeeper.WatchedEvent;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 基于  curator 实现 zookeeper
+ */
 public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatcher> {
 
+    /**
+     * curator 的 框架实体
+     */
     private final CuratorFramework client;
 
     public CuratorZookeeperClient(URL url) {
         super(url);
         try {
             int timeout = url.getParameter(Constants.TIMEOUT_KEY, 5000);
+            //创建 client 对象
             CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder()
+                    //创建地址
                     .connectString(url.getBackupAddress())
+                    //重试策略
                     .retryPolicy(new RetryNTimes(1, 1000))
+                    //连接超时时间
                     .connectionTimeoutMs(timeout);
+            //获取 url 中 用户名 组合 密码
             String authority = url.getAuthority();
             if (authority != null && authority.length() > 0) {
                 builder = builder.authorization("digest", authority.getBytes());
             }
+            //创建client 对象
             client = builder.build();
+            //增加监听器
             client.getConnectionStateListenable().addListener(new ConnectionStateListener() {
                 @Override
                 public void stateChanged(CuratorFramework client, ConnectionState state) {
                     if (state == ConnectionState.LOST) {
+                        //经过适配后 生成dubbo 的 状态
                         CuratorZookeeperClient.this.stateChanged(StateListener.DISCONNECTED);
                     } else if (state == ConnectionState.CONNECTED) {
                         CuratorZookeeperClient.this.stateChanged(StateListener.CONNECTED);
@@ -72,6 +86,10 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
         }
     }
 
+    /**
+     * 创建持久节点
+     * @param path
+     */
     @Override
     public void createPersistent(String path) {
         try {
@@ -82,6 +100,10 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
         }
     }
 
+    /**
+     * 创建临时节点
+     * @param path
+     */
     @Override
     public void createEphemeral(String path) {
         try {
@@ -92,6 +114,10 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
         }
     }
 
+    /**
+     * 删除指定路径的节点
+     * @param path
+     */
     @Override
     public void delete(String path) {
         try {
@@ -138,9 +164,16 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
         return new CuratorWatcherImpl(listener);
     }
 
+    /**
+     * 将 dubbo的 监听器 设置到 zookeeper上
+     * @param path
+     * @param listener
+     * @return
+     */
     @Override
     public List<String> addTargetChildListener(String path, CuratorWatcher listener) {
         try {
+            //将 监视器设置到 子节点中
             return client.getChildren().usingWatcher(listener).forPath(path);
         } catch (NoNodeException e) {
             return null;
@@ -149,11 +182,19 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
         }
     }
 
+    /**
+     * 移除所有监视器
+     * @param path
+     * @param listener
+     */
     @Override
     public void removeTargetChildListener(String path, CuratorWatcher listener) {
         ((CuratorWatcherImpl) listener).unwatch();
     }
 
+    /**
+     * 实现了 zookeeper 接口的同时 具备增加 监听器的功能
+     */
     private class CuratorWatcherImpl implements CuratorWatcher {
 
         private volatile ChildListener listener;
@@ -166,6 +207,11 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
             this.listener = null;
         }
 
+        /**
+         * 触发监听事件
+         * @param event
+         * @throws Exception
+         */
         @Override
         public void process(WatchedEvent event) throws Exception {
             if (listener != null) {

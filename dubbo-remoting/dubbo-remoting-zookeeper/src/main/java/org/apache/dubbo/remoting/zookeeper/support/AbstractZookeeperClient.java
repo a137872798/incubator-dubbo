@@ -29,14 +29,28 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+/**
+ * ZookeeperClient  骨架类
+ * @param <TargetChildListener>
+ */
 public abstract class AbstractZookeeperClient<TargetChildListener> implements ZookeeperClient {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractZookeeperClient.class);
 
+    /**
+     * 注册中心url
+     */
     private final URL url;
 
+    /**
+     * 状态监听器
+     */
     private final Set<StateListener> stateListeners = new CopyOnWriteArraySet<StateListener>();
 
+    /**
+     * 将 监听器对象 与 targetChild 对象关联起来
+     * key1: 节点路径  key2: childListener 对象 value: 具体对象 根据不同 zookeeper 会有不同实现
+     */
     private final ConcurrentMap<String, ConcurrentMap<ChildListener, TargetChildListener>> childListeners = new ConcurrentHashMap<String, ConcurrentMap<ChildListener, TargetChildListener>>();
 
     private volatile boolean closed = false;
@@ -50,20 +64,31 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         return url;
     }
 
+    /**
+     * 创建 节点对象
+     * @param path
+     * @param ephemeral
+     */
     @Override
     public void create(String path, boolean ephemeral) {
+        //是否是临时节点  临时节点可能用的path 就是 随意的 不会重复
         if (!ephemeral) {
+            //查看当前path 是否存在
             if (checkExists(path)) {
                 return;
             }
         }
         int i = path.lastIndexOf('/');
         if (i > 0) {
+            //取 / 前的内容 创建 节点 这里还递归调用了 每个 / 都是一个 划分点 都会调用一次 即使 本次 是 临时节点 递归时创建的都是持久节点
             create(path.substring(0, i), false);
         }
+        //如果是 临时节点
         if (ephemeral) {
+            //创建临时节点
             createEphemeral(path);
         } else {
+            //创建持久节点
             createPersistent(path);
         }
     }
@@ -82,8 +107,15 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         return stateListeners;
     }
 
+    /**
+     * 添加 childListener
+     * @param path
+     * @param listener
+     * @return
+     */
     @Override
     public List<String> addChildListener(String path, final ChildListener listener) {
+        //通过路径 获取到 对应的 map 对象
         ConcurrentMap<ChildListener, TargetChildListener> listeners = childListeners.get(path);
         if (listeners == null) {
             childListeners.putIfAbsent(path, new ConcurrentHashMap<ChildListener, TargetChildListener>());
@@ -91,12 +123,18 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         }
         TargetChildListener targetListener = listeners.get(listener);
         if (targetListener == null) {
+            //以 传入的 childListener 为 key 创建value 对象
             listeners.putIfAbsent(listener, createTargetChildListener(path, listener));
             targetListener = listeners.get(listener);
         }
         return addTargetChildListener(path, targetListener);
     }
 
+    /**
+     * 移除 childListener 对象
+     * @param path
+     * @param listener
+     */
     @Override
     public void removeChildListener(String path, ChildListener listener) {
         ConcurrentMap<ChildListener, TargetChildListener> listeners = childListeners.get(path);
@@ -108,6 +146,10 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         }
     }
 
+    /**
+     * 状态改变时 触发所有 监听器
+     * @param state
+     */
     protected void stateChanged(int state) {
         for (StateListener sessionListener : getSessionListeners()) {
             sessionListener.stateChanged(state);
