@@ -24,12 +24,15 @@ import java.util.Map;
 
 /**
  * DubboExporter
- * 服务暴露者
+ * 服务出口者
  */
 public class DubboExporter<T> extends AbstractExporter<T> {
 
     private final String key;
 
+    /**
+     * 保存所有的 服务键 与 出口对象 的关系
+     */
     private final Map<String, Exporter<?>> exporterMap;
 
     public DubboExporter(Invoker<T> invoker, String key, Map<String, Exporter<?>> exporterMap) {

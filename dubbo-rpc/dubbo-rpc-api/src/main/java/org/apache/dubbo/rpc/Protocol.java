@@ -42,9 +42,9 @@ public interface Protocol {
      * 2. export() must be idempotent, that is, there's no difference between invoking once and invoking twice when
      * export the same URL<br>
      * 3. Invoker instance is passed in by the framework, protocol needs not to care <br>
-     * 暴露服务
+     * 出口服务
      * 1.协议应该要记录请求源的地址
-     * 2.暴露具备幂等性
+     * 2.出口具备幂等性
      * 3.协议不应该在意Invoker是如何创建的
      * @param <T>     Service type
      * @param invoker Service invoker
@@ -82,7 +82,7 @@ public interface Protocol {
      * 3. Protocol can continue to export and refer new service even after it's destroyed.
      * 1.关闭服务时 要关闭 export 和 refer
      * 2.释放所有占用资源 如连接 和 端口等
-     * 3.协议关闭后 要能继续 暴露和 引用新的 服务
+     * 3.协议关闭后 要能继续 出口和 引用新的 服务
      */
     void destroy();
 

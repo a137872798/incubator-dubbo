@@ -671,6 +671,7 @@ public final class StringUtils {
     /**
      * parse key-value pair.
      *
+     * 将 str 解析成键值对
      * @param str           string.
      * @param itemSeparator item separator.
      * @return key-value map;
@@ -679,6 +680,7 @@ public final class StringUtils {
         String[] tmp = str.split(itemSeparator);
         Map<String, String> map = new HashMap<String, String>(tmp.length);
         for (int i = 0; i < tmp.length; i++) {
+            // "=" 号 拆分
             Matcher matcher = KVP_PATTERN.matcher(tmp[i]);
             if (!matcher.matches()) {
                 continue;
@@ -696,6 +698,7 @@ public final class StringUtils {
     /**
      * parse query string to Parameters.
      *
+     * 将传入的 字符串 转换成 map 对象
      * @param qs query string.
      * @return Parameters instance.
      */
@@ -703,6 +706,7 @@ public final class StringUtils {
         if (isEmpty(qs)) {
             return new HashMap<String, String>();
         }
+        //通过& 解析
         return parseKeyValuePair(qs, "\\&");
     }
 

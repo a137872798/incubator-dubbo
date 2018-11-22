@@ -29,11 +29,18 @@ import java.util.Map;
 
 /**
  * InjvmInvoker
+ * 本地 服务提供者 提供的 调用者对象
  */
 class InjvmInvoker<T> extends AbstractInvoker<T> {
 
+    /**
+     * 本 invoker 的 服务键
+     */
     private final String key;
 
+    /**
+     * 本地 所有的 服务出口对象
+     */
     private final Map<String, Exporter<?>> exporterMap;
 
     InjvmInvoker(Class<T> type, URL url, String key, Map<String, Exporter<?>> exporterMap) {

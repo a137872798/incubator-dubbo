@@ -135,11 +135,18 @@ public class RpcUtils {
         }
     }
 
+    /**
+     * 从给定的invoker对象上获取方法名
+     * @param invocation
+     * @return
+     */
     public static String getMethodName(Invocation invocation) {
+        //如果是 动态生成的方法
         if (Constants.$INVOKE.equals(invocation.getMethodName())
                 && invocation.getArguments() != null
                 && invocation.getArguments().length > 0
                 && invocation.getArguments()[0] instanceof String) {
+            //获取第一个参数 作为方法名
             return (String) invocation.getArguments()[0];
         }
         return invocation.getMethodName();

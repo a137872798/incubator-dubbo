@@ -1330,17 +1330,24 @@ public /**final**/ class URL implements Serializable {
         return new InetSocketAddress(host, port);
     }
 
+    /**
+     * 本地服务 生成服务键
+     * @return
+     */
     public String getServiceKey() {
+        //获取接口信息
         String inf = getServiceInterface();
         if (inf == null) {
             return null;
         }
         StringBuilder buf = new StringBuilder();
+        //获取组信息
         String group = getParameter(Constants.GROUP_KEY);
         if (group != null && group.length() > 0) {
             buf.append(group).append("/");
         }
         buf.append(inf);
+        //增加  版本信息
         String version = getParameter(Constants.VERSION_KEY);
         if (version != null && version.length() > 0) {
             buf.append(":").append(version);

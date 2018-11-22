@@ -26,12 +26,19 @@ import java.util.Set;
 
 /**
  * ClusterUtils
+ * 集群工具类
  */
 public class ClusterUtils {
 
     private ClusterUtils() {
     }
 
+    /**
+     * 将 远程属性 与 本地属性做一些整合
+     * @param remoteUrl
+     * @param localMap
+     * @return
+     */
     public static URL mergeUrl(URL remoteUrl, Map<String, String> localMap) {
         Map<String, String> map = new HashMap<String, String>();
         Map<String, String> remoteMap = remoteUrl.getParameters();

@@ -282,7 +282,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     /**
-     * 根据 注册中心的 url 返回监测中心的 url  监测中心是集群吗???
+     * 根据 注册中心的 url 返回监测中心的 url
      */
     protected URL loadMonitor(URL registryURL) {
         //首先从 系统变量或环境变量获取 属性 找不到就直接返回null
@@ -316,6 +316,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         //获取 注册中心的 ip
         String hostToRegistry = ConfigUtils.getSystemProperty(Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry == null || hostToRegistry.length() == 0) {
+            //没有就设置本地ip
             hostToRegistry = NetUtils.getLocalHost();
         } else if (NetUtils.isInvalidLocalHost(hostToRegistry)) {
             throw new IllegalArgumentException("Specified invalid registry ip from property:" + Constants.DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);
@@ -328,10 +329,11 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         //获取监控中心地址
         String address = monitor.getAddress();
         String sysaddress = System.getProperty("dubbo.monitor.address");
-        //系统级别 配置 优先级最高
+        //系统级别 配置 优先级最高 这里是 覆盖之前的 属性
         if (sysaddress != null && sysaddress.length() > 0) {
             address = sysaddress;
         }
+        //如果 不包含协议 就使用默认的  dubbo 协议
         if (ConfigUtils.isNotEmpty(address)) {
             if (!map.containsKey(Constants.PROTOCOL_KEY)) {
                //如果 拓展对象中存在 日志统计 就将协议设置成日志统计
@@ -344,9 +346,9 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             }
             //解析地址获取 一个 url 对象 没有的属性 从map中获取
             return UrlUtils.parseURL(address, map);
-            //当 监控中心地址为空时  当协议是registry 且 注册中心 地址不为空
+            //当 监控中心地址为空时  当协议是registry 且 注册中心url 不为空 代表这个监控中心 要从 注册中心获取
         } else if (Constants.REGISTRY_PROTOCOL.equals(monitor.getProtocol()) && registryURL != null) {
-            //返回注册中心地址 作为监控中心地址???
+            //返回注册中心地址 作为监控中心地址  增加一个 协议属性 增加一个refer 参数 将map 传入
             return registryURL.setProtocol("dubbo").addParameter(Constants.PROTOCOL_KEY, "registry").addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map));
         }
         return null;

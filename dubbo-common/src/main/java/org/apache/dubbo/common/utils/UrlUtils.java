@@ -459,6 +459,12 @@ public class UrlUtils {
         }
     }
 
+    /**
+     * 2个 url 是否匹配
+     * @param pattern
+     * @param value
+     * @return
+     */
     public static boolean isServiceKeyMatch(URL pattern, URL value) {
         return pattern.getParameter(Constants.INTERFACE_KEY).equals(
                 value.getParameter(Constants.INTERFACE_KEY))

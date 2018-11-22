@@ -46,6 +46,9 @@ public abstract class Wrapper {
      * Object 的默认方法
      */
     private static final String[] OBJECT_METHODS = new String[]{"getClass", "hashCode", "toString", "equals"};
+    /**
+     * 被 包装的Object对象
+     */
     private static final Wrapper OBJECT_WRAPPER = new Wrapper() {
         @Override
         public String[] getMethodNames() {
@@ -111,13 +114,11 @@ public abstract class Wrapper {
      * @return Wrapper instance(not null).
      */
     public static Wrapper getWrapper(Class<?> c) {
-        //是否是动态生成的类 通过判断是否 实现了
-        /**
-         * {@link ClassGenerator.DC}
-         */
+
+        //是否是动态生成的类 通过判断是否 实现了  ClassGenerator.DC 接口
         while (ClassGenerator.isDynamicClass(c)) // can not wrapper on dynamic class.
         {
-            //就获取父类
+            //就获取父类 当 c 本身是 ClassGenerator.DC 接口时 会在执行一次 就变成 Object 类
             c = c.getSuperclass();
         }
 

@@ -23,7 +23,7 @@ import org.apache.dubbo.rpc.Invoker;
 
 /**
  * AbstractExporter.
- * 暴露者对象的 骨架类
+ * 出口者对象的 骨架类
  */
 public abstract class AbstractExporter<T> implements Exporter<T> {
 
@@ -35,7 +35,7 @@ public abstract class AbstractExporter<T> implements Exporter<T> {
     private final Invoker<T> invoker;
 
     /**
-     * 是否 取消暴露
+     * 是否 取消出口
      */
     private volatile boolean unexported = false;
 
@@ -58,7 +58,7 @@ public abstract class AbstractExporter<T> implements Exporter<T> {
     }
 
     /**
-     * 取消暴露
+     * 取消出口
      */
     @Override
     public void unexport() {
@@ -66,7 +66,7 @@ public abstract class AbstractExporter<T> implements Exporter<T> {
             return;
         }
         unexported = true;
-        //委托 invoker 对象 destroy
+        //就是 销毁invoker 对象
         getInvoker().destroy();
     }
 

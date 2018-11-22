@@ -24,12 +24,28 @@ import org.apache.dubbo.rpc.RpcException;
 
 /**
  * @date 2017/11/23
+ * 服务提供者包装类对象
  */
 public class ProviderInvokerWrapper<T> implements Invoker {
+    /**
+     * 服务提供者 提供的 可调用对象
+     */
     private Invoker<T> invoker;
+    /**
+     * 未去除过某些属性的 原始 url 对象
+     */
     private URL originUrl;
+    /**
+     * 注册中心的 url 对象
+     */
     private URL registryUrl;
+    /**
+     * 服务提供者的 url 对象
+     */
     private URL providerUrl;
+    /**
+     * 是否已注册
+     */
     private volatile boolean isReg;
 
     public ProviderInvokerWrapper(Invoker<T> invoker,URL registryUrl,URL providerUrl) {
@@ -39,6 +55,10 @@ public class ProviderInvokerWrapper<T> implements Invoker {
         this.providerUrl = providerUrl;
     }
 
+    /**
+     * 获取 该服务提供者 出口的接口
+     * @return
+     */
     @Override
     public Class<T> getInterface() {
         return invoker.getInterface();

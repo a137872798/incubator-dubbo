@@ -41,6 +41,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * DubboInvoker
+ * dubbo 协议层的 invoker 对象
  */
 public class DubboInvoker<T> extends AbstractInvoker<T> {
 
@@ -66,10 +67,18 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         this.invokers = invokers;
     }
 
+    /**
+     * 实现父类的抽象调用方法
+     * @param invocation  初始化完成并设置了一堆参数后
+     * @return
+     * @throws Throwable
+     */
     @Override
     protected Result doInvoke(final Invocation invocation) throws Throwable {
         RpcInvocation inv = (RpcInvocation) invocation;
+        //从该对象上获取方法名
         final String methodName = RpcUtils.getMethodName(invocation);
+        //增加 路径和 版本信息
         inv.setAttachment(Constants.PATH_KEY, getUrl().getPath());
         inv.setAttachment(Constants.VERSION_KEY, version);
 

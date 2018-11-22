@@ -30,11 +30,25 @@ import java.util.concurrent.ConcurrentHashMap;
  * @date 2017/11/23
  */
 public class ProviderConsumerRegTable {
+    /**
+     * 一个 服务键 下的所有出口者对象
+     */
     public static ConcurrentHashMap<String, Set<ProviderInvokerWrapper>> providerInvokers = new ConcurrentHashMap<String, Set<ProviderInvokerWrapper>>();
+    /**
+     * 一个 服务键 下的所有订阅者
+     */
     public static ConcurrentHashMap<String, Set<ConsumerInvokerWrapper>> consumerInvokers = new ConcurrentHashMap<String, Set<ConsumerInvokerWrapper>>();
 
+    /**
+     * 注册服务提供者
+     * @param invoker 服务提供者 提供的 可执行对象
+     * @param registryUrl 注册中心地址
+     * @param providerUrl 服务提供者地址
+     */
     public static void registerProvider(Invoker invoker, URL registryUrl, URL providerUrl) {
+        //生成服务提供者包装类
         ProviderInvokerWrapper wrapperInvoker = new ProviderInvokerWrapper(invoker, registryUrl, providerUrl);
+        //生成服务键
         String serviceUniqueName = providerUrl.getServiceKey();
         Set<ProviderInvokerWrapper> invokers = providerInvokers.get(serviceUniqueName);
         if (invokers == null) {

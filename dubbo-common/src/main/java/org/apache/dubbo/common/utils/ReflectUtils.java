@@ -903,8 +903,10 @@ public final class ReflectUtils {
         } else {
             Class<?>[] types = new Class<?>[parameterTypes.length];
             for (int i = 0; i < parameterTypes.length; i++) {
+                //将参数转换成 class
                 types[i] = ReflectUtils.name2class(parameterTypes[i]);
             }
+            //找寻具有这些参数的 方法
             method = clazz.getMethod(methodName, types);
 
         }

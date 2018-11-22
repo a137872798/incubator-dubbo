@@ -40,7 +40,7 @@ public abstract class AbstractProtocol implements Protocol {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     /**
-     * 该协议下所有的  暴露对象   key: serviceKey(URL) getServiceKey()
+     * 该协议下所有的  出口对象   key: serviceKey(URL) getServiceKey()  key 是服务键对象 通过不同的方式生成
      */
     protected final Map<String, Exporter<?>> exporterMap = new ConcurrentHashMap<String, Exporter<?>>();
 
@@ -73,8 +73,12 @@ public abstract class AbstractProtocol implements Protocol {
         return ProtocolUtils.serviceKey(port, serviceName, serviceVersion, serviceGroup);
     }
 
+    /**
+     * 将管理的 invoker 对象全部销毁
+     */
     @Override
     public void destroy() {
+        //从容器中移除 且 调用销毁方法
         for (Invoker<?> invoker : invokers) {
             if (invoker != null) {
                 invokers.remove(invoker);
@@ -88,6 +92,7 @@ public abstract class AbstractProtocol implements Protocol {
                 }
             }
         }
+        //获取出口对象的 服务键 从维护的 容器中移除 并取消出口
         for (String key : new ArrayList<String>(exporterMap.keySet())) {
             Exporter<?> exporter = exporterMap.remove(key);
             if (exporter != null) {

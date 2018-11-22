@@ -52,7 +52,7 @@ public class ProtocolListenerWrapper implements Protocol {
     }
 
     /**
-     * 在 暴露前后进行监听
+     * 在 出口前后进行监听
      * @param invoker Service invoker
      * @param <T>
      * @return
@@ -64,7 +64,7 @@ public class ProtocolListenerWrapper implements Protocol {
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
-        //创建一个监听对象  协议暴露完后 生成一个暴露者对象 帮助 监听器 完成 监听暴露的功能
+        //创建一个监听对象  协议出口完后 生成一个出口者对象 帮助 监听器 完成 监听出口的功能
         return new ListenerExporterWrapper<T>(protocol.export(invoker),
                 //通过 SPI 返回 监听器实现
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(ExporterListener.class)
@@ -72,7 +72,7 @@ public class ProtocolListenerWrapper implements Protocol {
     }
 
     /**
-     * 查阅
+     * 获取 服务提供者 提供的对象
      * @param type Service class
      * @param url  URL address for the remote service
      * @param <T>

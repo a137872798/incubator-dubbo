@@ -71,12 +71,13 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private static final long serialVersionUID = 3033787999037024738L;
 
     /**
-     * 通过 SPI 拓展机制 获取 自适应@Adaptive 对象  自适应对象 好像是 根据 传入不同的 url 能动态生成不同的类
+     * 通过 SPI 拓展机制 获取 自适应@Adaptive 对象 也就是 自适应对象 该对象在创建的时候不能确定 实际的实现方式
+     * 在 调用对应自适应方法时 通过传入不同的 url 读取其中的属性 能够动态执行合适的逻辑
      */
     private static final Protocol protocol = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
 
     /**
-     * 同上
+     * 这个对象就是 创建 代理对象的 默认使用 javassist实现
      */
     private static final ProxyFactory proxyFactory = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
 
@@ -86,7 +87,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private final List<URL> urls = new ArrayList<URL>();
 
     /**
-     * 服务配置的 暴露对象 根据 scope 生成 可能是 remote + Local 也可能是单个 也可能是0
+     * 服务配置的 出口对象 根据 scope 生成 可能是 remote + Local 也可能是单个 也可能是0
      */
     private final List<Exporter<?>> exporters = new ArrayList<Exporter<?>>();
     // interface type
@@ -106,7 +107,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private String path;
     /**
      * method configuration
-     * 暴露的 方法配置
+     * 出口的 方法配置
      */
     private List<MethodConfig> methods;
     private ProviderConfig provider;
@@ -335,7 +336,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (path == null || path.length() == 0) {
             path = interfaceName;
         }
-        //上诉检查 和加载 对应 资源结束后 开始 执行暴露逻辑
+        //上诉检查 和加载 对应 资源结束后 开始 执行出口逻辑
         doExportUrls();
         ProviderModel providerModel = new ProviderModel(getUniqueServiceName(), ref, interfaceClass);
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
@@ -375,20 +376,20 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     /**
-     * 暴露服务
+     * 出口服务
      */
     private void doExportUrls() {
         //从 系统变量/xml/property 中获取注册中心地址 并 将地址解析成对应的url 对象返回
         List<URL> registryURLs = loadRegistries(true);
         //遍历 协议 列表
         for (ProtocolConfig protocolConfig : protocols) {
-            //根据 一些和 要暴露的 注册中心 进行注册
+            //根据 一些和 要出口的 注册中心 进行注册
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
 
     /**
-     * 使用某个协议 对注册中心进行暴露
+     * 使用某个协议 对注册中心进行出口
      * @param protocolConfig
      * @param registryURLs
      */
@@ -486,7 +487,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             map.put(Constants.GENERIC_KEY, generic);
             map.put(Constants.METHODS_KEY, Constants.ANY_VALUE);
         } else {
-            //获取版本 并设置 jdk自带的方法 暂时看不懂
+            //获取版本号的相关逻辑 暂时看不懂
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
                 map.put("revision", revision);
@@ -498,14 +499,18 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 logger.warn("NO method found in service interface " + interfaceClass.getName());
                 map.put(Constants.METHODS_KEY, Constants.ANY_VALUE);
             } else {
+                //将提供的 所有方法 连起来 出口给注册中心
                 map.put(Constants.METHODS_KEY, StringUtils.join(new HashSet<String>(Arrays.asList(methods)), ","));
             }
         }
         //设置令牌
         if (!ConfigUtils.isEmpty(token)) {
+            //是默认令牌的情况下
             if (ConfigUtils.isDefault(token)) {
+                //生成随机令牌
                 map.put(Constants.TOKEN_KEY, UUID.randomUUID().toString());
             } else {
+                //否则 将 token内保存的值 直接 作为令牌
                 map.put(Constants.TOKEN_KEY, token);
             }
         }
@@ -522,15 +527,14 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             contextPath = provider.getContextpath();
         }
 
-        //从配置中找到 host 和 port
+        //从配置中找到 本机的host 和 port
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
 
-        //根据获取到的 创建URL 对象 这个URL 应该是本机的
+        //根据获取到的 创建URL 对象 这个URL 应该是本机的 这个 name 就是协议 从 Protocol 中获取 或者默认使用dubbo
         URL url = new URL(name, host, port, (contextPath == null || contextPath.length() == 0 ? "" : contextPath + "/") + path, map);
 
-        //获取 配置工厂的 拓展对象 判断有没有 protocol 有的话  传入旧的url  返回新的
-        //这里 还不太清楚
+        //如果 配置工厂中 有 当前url 对应的 协议配置类 那么就使用该配置类 对 url 设置配置 这里的意图不太明白因为2个 url是同一个对象
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
@@ -544,11 +548,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (!Constants.SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
-            //如果 是local 进行本地暴露 传入的参数是本地的 URL
+            //如果 是local 进行本地出口 传入的参数是本地的 URL
             if (!Constants.SCOPE_REMOTE.equalsIgnoreCase(scope)) {
                 exportLocal(url);
             }
-            //远程暴露
+            // 远程出口
             // export to remote if the config is not local (export to local only when config is local)
             // 等价于 == remote
             if (!Constants.SCOPE_LOCAL.equalsIgnoreCase(scope)) {
@@ -558,20 +562,20 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 if (registryURLs != null && !registryURLs.isEmpty()) {
                     //遍历注册中心的 URL 地址
                     for (URL registryURL : registryURLs) {
-                        //给本地 url 增加 dynamic 动态 key  从 远程地址的配置中 获取 动态key
+                        // 从注册中心中获取是否动态注册的信息
                         // "dynamic" ：服务是否动态注册，如果设为false，注册后将显示后disable状态，需人工启用，并且服务提供者停止时，也不会自动取消册，需人工禁用。
                         url = url.addParameterIfAbsent(Constants.DYNAMIC_KEY, registryURL.getParameter(Constants.DYNAMIC_KEY));
                         //获取监控中心 的url
                         URL monitorUrl = loadMonitor(registryURL);
                         if (monitorUrl != null) {
-                            //为 本地url 设置 特殊属性  key: monitor value: 监控中心的 url
+                            //将监控中心的地址设置到 本地出口的url上  key: monitor value: 监控中心的 url
                             url = url.addParameterAndEncoded(Constants.MONITOR_KEY, monitorUrl.toFullString());
                         }
                         if (logger.isInfoEnabled()) {
                             logger.info("Register dubbo service " + interfaceClass.getName() + " url " + url + " to registry " + registryURL);
                         }
 
-                        // 从本地url 中获取代理属性
+                        // 从本地url 中获取代理属性 这个功能还不知道怎么用
                         // For providers, this is used to enable custom proxy to generate invoker
                         String proxy = url.getParameter(Constants.PROXY_KEY);
                         if (StringUtils.isNotEmpty(proxy)) {
@@ -579,21 +583,21 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                             registryURL = registryURL.addParameter(Constants.PROXY_KEY, proxy);
                         }
 
-                        //通过 代理工厂 创建 invoker 对象
-                        //param1: 实际被暴露的对象 param2:被服务提供者实现的目标接口 param3: 注册中心的 url 里面设置了一个 本地url 同时本地url 有一个属性记录了 监测中心的url
+                        //通过 代理工厂 创建 invoker 对象 这里就是创建动态代理的 地方
+                        //param1: 实际被出口的对象 param2:被服务提供者实现的目标接口 param3: 注册中心的 url 里面设置了一个 本地url 同时本地url 有一个属性记录了 监测中心的url
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
 
                         //该对象封装了 invoker 和 serviceConfig  该对象还是 实现invoker接口
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
-                        //暴露 被封装的对象  因为 这个 protocol 是自适应对象 所以根据传入的参数不同就会 调用不同实现类的 方法
+                        //出口 被封装的对象  因为 这个 protocol 是自适应对象 所以根据传入的参数不同就会 调用不同实现类的 方法
                         //远程 协议 默认 protocol 是 dubbo 就会生成 DubboProtocol 协议对象
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
-                        //加入到 该服务提供者的暴露对象中  每个 注册中心地址 对应一个 暴露对象
+                        //加入到 该服务提供者的出口对象中  每个 注册中心地址 对应一个 出口对象
                         exporters.add(exporter);
                     }
                 } else {
-                    //创建的对象不再 包含 监控中心 和 注册中心的url 而是使用 本地url 进行暴露
+                    //创建的对象不再 包含 监控中心 和 注册中心的url 而是使用 本地url 进行出口
                     Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);
                     DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
@@ -607,8 +611,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     /**
-     * 本地暴露
-     * 这个方法 是 服务提供者调用所有协议类型进行暴露的
+     * 本地出口
+     * 这个方法 是 服务提供者调用所有协议类型进行出口的
      * @param url 本机url【
      */
     private void exportLocal(URL url) {
@@ -616,15 +620,16 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (!Constants.LOCAL_PROTOCOL.equalsIgnoreCase(url.getProtocol())) {
             //将本地 url 转换成字符串后 又转换成 对象 并重新设置了协议和 host port
             URL local = URL.valueOf(url.toFullString())
+                    //又把协议设置成了 injvm
                     .setProtocol(Constants.LOCAL_PROTOCOL)
                     .setHost(LOCALHOST)
                     .setPort(0);
-            //委托协议对象 进行暴露 也就是 injvm 在本地还是要进行暴露的
-            //这里是基于 url 实现功能的 能够根据 协议和 方法名 动态实现
+            //委托协议对象 进行出口 也就是 injvm 在本地还是要进行出口的
+            //这里是基于 url 实现功能的 能够根据 协议和 方法名 动态实现 那么这里export 调用的应该是 injvmPorotocol
             Exporter<?> exporter = protocol.export(
                     //param1 服务提供者实现类 param2 接口类型 param3 本地url
                     proxyFactory.getInvoker(ref, (Class) interfaceClass, local));
-            //获得 暴露对象后 保存到容器中
+            //获得 出口对象后 保存到容器中
             exporters.add(exporter);
             logger.info("Export dubbo service " + interfaceClass.getName() + " to local registry");
         }

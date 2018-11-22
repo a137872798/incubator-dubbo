@@ -26,11 +26,17 @@ import org.apache.dubbo.rpc.RpcException;
 /**
  * DeprecatedProtocolFilter
  */
+//在 类上使用该注解 保证了 该接口对象在 初始化时 使用 固定的类
 @Activate(Constants.DEPRECATED_KEY)
 public class DeprecatedInvokerListener extends InvokerListenerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeprecatedInvokerListener.class);
 
+    /**
+     * 在 引用结束 后 打印日志
+     * @param invoker
+     * @throws RpcException
+     */
     @Override
     public void referred(Invoker<?> invoker) throws RpcException {
         if (invoker.getUrl().getParameter(Constants.DEPRECATED_KEY, false)) {

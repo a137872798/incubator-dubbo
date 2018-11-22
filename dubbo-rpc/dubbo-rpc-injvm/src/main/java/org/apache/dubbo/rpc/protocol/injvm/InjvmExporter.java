@@ -24,7 +24,7 @@ import java.util.Map;
 
 /**
  * InjvmExporter
- * 本地服务暴露对象
+ * 本地服务出口对象
  */
 class InjvmExporter<T> extends AbstractExporter<T> {
 
@@ -48,8 +48,9 @@ class InjvmExporter<T> extends AbstractExporter<T> {
 
     @Override
     public void unexport() {
+        //父类会销毁 invoker 对象
         super.unexport();
-        //取消暴露时 移除 服务键
+        //取消出口时 移除 服务键
         exporterMap.remove(key);
     }
 

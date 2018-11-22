@@ -22,6 +22,7 @@ import org.apache.dubbo.rpc.RpcException;
 
 /**
  * InvokerListenerAdapter
+ * 调用者监听器的 适配器对象
  */
 public abstract class InvokerListenerAdapter implements InvokerListener {
 

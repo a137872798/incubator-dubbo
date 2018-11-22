@@ -62,6 +62,7 @@ public class ProtocolFilterWrapper implements Protocol {
             for (int i = filters.size() - 1; i >= 0; i--) {
                 final Filter filter = filters.get(i);
                 //从尾往前创建 每此调用下一个 元素 也就是 正序
+                //通过 这个引用来 保存 临时 对象的 地址 链中每次下一个对象调的都是上一个临时保存的对象
                 final Invoker<T> next = last;
 
                 //全部委托给 invoker 实现
@@ -110,7 +111,7 @@ public class ProtocolFilterWrapper implements Protocol {
     }
 
     /**
-     * 暴露 服务提供者
+     * 获得服务提供者
      * @param invoker Service invoker
      * @param <T>
      * @return
@@ -119,20 +120,30 @@ public class ProtocolFilterWrapper implements Protocol {
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
 
-        //如果 协议是 registry 代表是 暴露到 注册中心 就不走调用链
+        //如果 协议是 registry 代表是 出口到 注册中心 就不走调用链
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
         //通过 service.filter 这个key 返回了  一组拓展对象 并构成一个调用链
-        //还是 委托 给 协议对象 暴露
+        //还是 委托 给 协议对象 出口
         return protocol.export(buildInvokerChain(invoker, Constants.SERVICE_FILTER_KEY, Constants.PROVIDER));
     }
 
+    /**
+     * 引用 服务端提供的对象
+     * @param type Service class
+     * @param url  URL address for the remote service
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        //远程情况 也就是去注册中心 获取
         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return protocol.refer(type, url);
         }
+        //本地 需要构建 filter链
         return buildInvokerChain(protocol.refer(type, url), Constants.REFERENCE_FILTER_KEY, Constants.CONSUMER);
     }
 

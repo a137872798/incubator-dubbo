@@ -39,19 +39,35 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AbstractInvoker.
+ * invoker 的 骨架类
  */
 public abstract class AbstractInvoker<T> implements Invoker<T> {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+    /**
+     * 该服务实现接口类型
+     */
     private final Class<T> type;
 
+    /**
+     * 配置信息
+     */
     private final URL url;
 
+    /**
+     * 附属属性
+     */
     private final Map<String, String> attachment;
 
+    /**
+     * 该 invoker 对象是否可用
+     */
     private volatile boolean available = true;
 
+    /**
+     * 是否被销毁
+     */
     private AtomicBoolean destroyed = new AtomicBoolean(false);
 
     public AbstractInvoker(Class<T> type, URL url) {
@@ -74,6 +90,12 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         this.attachment = attachment == null ? null : Collections.unmodifiableMap(attachment);
     }
 
+    /**
+     * 从url中获取相应属性 并设置到 map 中
+     * @param url
+     * @param keys
+     * @return
+     */
     private static Map<String, String> convertAttachment(URL url, String[] keys) {
         if (keys == null || keys.length == 0) {
             return null;
@@ -124,18 +146,29 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         return getInterface() + " -> " + (getUrl() == null ? "" : getUrl().toString());
     }
 
+    /**
+     * 调用方法
+     * @param inv
+     * @return
+     * @throws RpcException
+     */
     @Override
     public Result invoke(Invocation inv) throws RpcException {
         // if invoker is destroyed due to address refresh from registry, let's allow the current invoke to proceed
+        //该 invoker 对象已经停止运作
         if (destroyed.get()) {
             logger.warn("Invoker for service " + this + " on consumer " + NetUtils.getLocalHost() + " is destroyed, "
                     + ", dubbo version is " + Version.getVersion() + ", this invoker should not be used any longer");
         }
+        //转换成 RPC invocation对象
         RpcInvocation invocation = (RpcInvocation) inv;
+        //内部 组合一个 invoker对象
         invocation.setInvoker(this);
+        //额外属性中有数据 就 提取到 attachment中
         if (attachment != null && attachment.size() > 0) {
             invocation.addAttachmentsIfAbsent(attachment);
         }
+        //获取上下文 对象
         Map<String, String> contextAttachments = RpcContext.getContext().getAttachments();
         if (contextAttachments != null && contextAttachments.size() != 0) {
             /**
