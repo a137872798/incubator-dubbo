@@ -25,8 +25,8 @@ public interface ChildListener {
 
     /**
      * 当子节点发生变化时 触发
-     * @param path
-     * @param children
+     * @param path 父节点路径
+     * @param children 同级所有子节点
      */
     void childChanged(String path, List<String> children);
 

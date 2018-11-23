@@ -34,6 +34,11 @@ public class ExecutorUtil {
             new LinkedBlockingQueue<Runnable>(100),
             new NamedThreadFactory("Close-ExecutorService-Timer", true));
 
+    /**
+     * 判断线程池对象是否已经终止 委托给 jdk 的线程池对象
+     * @param executor
+     * @return
+     */
     public static boolean isTerminated(Executor executor) {
         if (executor instanceof ExecutorService) {
             if (((ExecutorService) executor).isTerminated()) {
@@ -46,6 +51,8 @@ public class ExecutorUtil {
     /**
      * Use the shutdown pattern from:
      *  https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ExecutorService.html
+     *
+     *  优雅关闭线程池对象
      * @param executor the Executor to shutdown
      * @param timeout the timeout in milliseconds before termination
      */
@@ -56,6 +63,7 @@ public class ExecutorUtil {
         final ExecutorService es = (ExecutorService) executor;
         try {
             // Disable new tasks from being submitted
+            // 调用终止方法 shutdown 指不在接受新的 任务对象 shutdownNow 代表 立刻 终止当前的任务 并不在接受新的任务
             es.shutdown();
         } catch (SecurityException ex2) {
             return;
@@ -98,6 +106,10 @@ public class ExecutorUtil {
         }
     }
 
+    /**
+     * 如果 关闭失败时 调用这个方法 开启后台线程 继续 执行关闭的任务 并捕获失败异常 打印日志
+     * @param es
+     */
     private static void newThreadToCloseExecutor(final ExecutorService es) {
         if (!isTerminated(es)) {
             shutdownExecutor.execute(new Runnable() {

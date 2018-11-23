@@ -28,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @date 2017/11/23
+ *
+ * 服务提供者 和 消费者 的管理对象
  */
 public class ProviderConsumerRegTable {
     /**

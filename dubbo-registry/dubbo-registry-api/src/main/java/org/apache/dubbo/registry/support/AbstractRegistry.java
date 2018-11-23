@@ -150,6 +150,9 @@ public abstract class AbstractRegistry implements Registry {
         return urls;
     }
 
+    /**
+     * 返回注册中心的url
+     */
     @Override
     public URL getUrl() {
         return registryUrl;
@@ -277,16 +280,24 @@ public abstract class AbstractRegistry implements Registry {
         }
     }
 
+    /**
+     * 获取 缓存 url  property 在保存 的时候 根据  url 的服务键 作为key
+     * @param url
+     * @return
+     */
     public List<URL> getCacheUrls(URL url) {
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
             String key = (String) entry.getKey();
             String value = (String) entry.getValue();
             if (key != null && key.length() > 0 && key.equals(url.getServiceKey())
+                    //key 必须 以某种 字符作为开头
                     && (Character.isLetter(key.charAt(0)) || key.charAt(0) == '_')
                     && value != null && value.length() > 0) {
+                //去空又使用 \\s+ 来 拆分???
                 String[] arr = value.trim().split(URL_SPLIT);
                 List<URL> urls = new ArrayList<URL>();
                 for (String u : arr) {
+                    //将 url 转换成地址后保存  就当作是 普通的 读取value
                     urls.add(URL.valueOf(u));
                 }
                 return urls;
@@ -360,7 +371,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 未指定 url 添加 监听器
+     * 为指定 url 添加 监听器
      * @param url      订阅条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
      * @param listener 变更事件监听器，不允许为空
      */

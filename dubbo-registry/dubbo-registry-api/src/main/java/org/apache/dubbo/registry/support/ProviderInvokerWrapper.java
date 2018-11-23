@@ -36,7 +36,7 @@ public class ProviderInvokerWrapper<T> implements Invoker {
      */
     private URL originUrl;
     /**
-     * 注册中心的 url 对象
+     * 注册中心的 url 对象 就是该服务提供者 发布的 注册中心url
      */
     private URL registryUrl;
     /**

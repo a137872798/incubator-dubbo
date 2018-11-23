@@ -20,12 +20,16 @@ import org.apache.dubbo.common.extension.SPI;
 
 /**
  * Compiler. (SPI, Singleton, ThreadSafe)
+ *
+ * 动态代理的 包装类  当前有2种实现方式 jdk or javassist
  */
 @SPI("javassist")
 public interface Compiler {
 
     /**
      * Compile java source code.
+     *
+     * 编译 Java 代码字符串
      *
      * @param code        Java source code
      * @param classLoader classloader

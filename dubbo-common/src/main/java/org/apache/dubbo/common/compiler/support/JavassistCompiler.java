@@ -34,8 +34,12 @@ import java.util.regex.Pattern;
 
 /**
  * JavassistCompiler. (SPI, Singleton, ThreadSafe)
+ *
+ * javassist 编译类
  */
 public class JavassistCompiler extends AbstractCompiler {
+
+    //---------- 匹配各种特殊字符的 正则对象 ---------------//
 
     private static final Pattern IMPORT_PATTERN = Pattern.compile("import\\s+([\\w\\.\\*]+);\n");
 
@@ -47,10 +51,19 @@ public class JavassistCompiler extends AbstractCompiler {
 
     private static final Pattern FIELD_PATTERN = Pattern.compile("[^\n]+=[^\n]+;");
 
+    /**
+     * javassist 实现 动态编译
+     * @param name  这里经过上层处理后 只剩下类的全限定名
+     * @param source
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Class<?> doCompile(String name, String source) throws Throwable {
         int i = name.lastIndexOf('.');
+        //获取类名
         String className = i < 0 ? name : name.substring(i + 1);
+        //javassist 的 对象池
         ClassPool pool = new ClassPool(true);
         pool.appendClassPath(new LoaderClassPath(ClassHelper.getCallerClassLoader(getClass())));
         Matcher matcher = IMPORT_PATTERN.matcher(source);

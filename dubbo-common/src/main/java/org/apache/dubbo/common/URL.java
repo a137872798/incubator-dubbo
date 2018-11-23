@@ -288,6 +288,11 @@ public /**final**/ class URL implements Serializable {
         }
     }
 
+    /**
+     * 对给定值 解码
+     * @param value
+     * @return
+     */
     public static String decode(String value) {
         if (value == null || value.length() == 0) {
             return "";
@@ -1061,6 +1066,7 @@ public /**final**/ class URL implements Serializable {
     /**
      * Add parameters to a new url.
      *
+     * 为url 对象增加新的属性
      * @param parameters parameters in key-value pairs
      * @return A new URL
      */
@@ -1071,13 +1077,16 @@ public /**final**/ class URL implements Serializable {
 
         boolean hasAndEqual = true;
         for (Map.Entry<String, String> entry : parameters.entrySet()) {
+            //获取 原url 中 对应的属性
             String value = getParameters().get(entry.getKey());
             if (value == null) {
+                //获取 传入的 属性中是否存在 一旦发现不存在就 就直接返回新对象
                 if (entry.getValue() != null) {
                     hasAndEqual = false;
                     break;
                 }
             } else {
+                //如果 存在但是属性不一样
                 if (!value.equals(entry.getValue())) {
                     hasAndEqual = false;
                     break;
@@ -1089,6 +1098,7 @@ public /**final**/ class URL implements Serializable {
             return this;
         }
 
+        //将属性整合
         Map<String, String> map = new HashMap<String, String>(getParameters());
         map.putAll(parameters);
         return new URL(protocol, username, password, host, port, path, map);

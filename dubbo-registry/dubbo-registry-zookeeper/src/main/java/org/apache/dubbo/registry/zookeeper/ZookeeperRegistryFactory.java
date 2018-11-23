@@ -24,15 +24,28 @@ import org.apache.dubbo.remoting.zookeeper.ZookeeperTransporter;
 /**
  * ZookeeperRegistryFactory.
  *
+ *
  */
 public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
 
+    /**
+     * Zookeeper 工厂对象
+     */
     private ZookeeperTransporter zookeeperTransporter;
 
+    /**
+     * 设置 工厂对象
+     * @param zookeeperTransporter
+     */
     public void setZookeeperTransporter(ZookeeperTransporter zookeeperTransporter) {
         this.zookeeperTransporter = zookeeperTransporter;
     }
 
+    /**
+     * 创建注册中心对象
+     * @param url
+     * @return
+     */
     @Override
     public Registry createRegistry(URL url) {
         return new ZookeeperRegistry(url, zookeeperTransporter);

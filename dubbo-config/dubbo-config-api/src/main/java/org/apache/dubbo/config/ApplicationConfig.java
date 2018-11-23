@@ -227,6 +227,10 @@ public class ApplicationConfig extends AbstractConfig {
         return compiler;
     }
 
+    /**
+     * 在初始化这个属性时 就决定了 动态代理的实现方式
+     * @param compiler
+     */
     public void setCompiler(String compiler) {
         this.compiler = compiler;
         AdaptiveCompiler.setDefaultCompiler(compiler);

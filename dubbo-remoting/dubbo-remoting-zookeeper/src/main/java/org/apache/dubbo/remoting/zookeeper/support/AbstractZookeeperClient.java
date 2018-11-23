@@ -147,7 +147,7 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
     }
 
     /**
-     * 状态改变时 触发所有 监听器
+     * 状态改变时 触发所有 监听器 这个状态改变是通过 zookeeper 自身的 监听器 监听到 事件改变后 转发的
      * @param state
      */
     protected void stateChanged(int state) {

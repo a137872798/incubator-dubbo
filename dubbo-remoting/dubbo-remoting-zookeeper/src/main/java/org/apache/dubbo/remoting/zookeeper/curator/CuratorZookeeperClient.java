@@ -70,6 +70,7 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
             client.getConnectionStateListenable().addListener(new ConnectionStateListener() {
                 @Override
                 public void stateChanged(CuratorFramework client, ConnectionState state) {
+                    //将监听到的状态转发到了 其他监听器上
                     if (state == ConnectionState.LOST) {
                         //经过适配后 生成dubbo 的 状态
                         CuratorZookeeperClient.this.stateChanged(StateListener.DISCONNECTED);

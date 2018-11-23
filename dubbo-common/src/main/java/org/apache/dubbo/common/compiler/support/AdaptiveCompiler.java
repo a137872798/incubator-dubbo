@@ -22,21 +22,35 @@ import org.apache.dubbo.common.extension.ExtensionLoader;
 
 /**
  * AdaptiveCompiler. (SPI, Singleton, ThreadSafe)
+ *
+ * 该类使用了 @Adaptive 那么在 使用SPI 加载的 时候 默认会直接使用这个类
  */
 @Adaptive
 public class AdaptiveCompiler implements Compiler {
 
+    /**
+     * 默认的 编译类型
+     */
     private static volatile String DEFAULT_COMPILER;
 
     public static void setDefaultCompiler(String compiler) {
         DEFAULT_COMPILER = compiler;
     }
 
+    /**
+     * 编译生成 class 对象
+     * @param code        Java source code
+     * @param classLoader classloader
+     * @return
+     */
     @Override
     public Class<?> compile(String code, ClassLoader classLoader) {
         Compiler compiler;
+        //获取 拓展加载器
         ExtensionLoader<Compiler> loader = ExtensionLoader.getExtensionLoader(Compiler.class);
+        //获取 拓展类名
         String name = DEFAULT_COMPILER; // copy reference
+        //根据名字使用不同的拓展实现
         if (name != null && name.length() > 0) {
             compiler = loader.getExtension(name);
         } else {
