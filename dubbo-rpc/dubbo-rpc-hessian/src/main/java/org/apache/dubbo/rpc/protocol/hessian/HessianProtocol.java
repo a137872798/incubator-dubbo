@@ -46,11 +46,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * http rpc support.
+ * 基于 hessian 协议实现
  */
 public class HessianProtocol extends AbstractProxyProtocol {
 
+    /**
+     * 也是服务键 和 server 对象关联
+     */
     private final Map<String, HttpServer> serverMap = new ConcurrentHashMap<String, HttpServer>();
 
+    /**
+     * 地址和 hessian类关联
+     */
     private final Map<String, HessianSkeleton> skeletonMap = new ConcurrentHashMap<String, HessianSkeleton>();
 
     private HttpBinder httpBinder;

@@ -27,15 +27,20 @@ import org.apache.dubbo.rpc.RpcResult;
 
 /**
  * EchoInvokerFilter
+ * 回声过滤链
  */
+//仅限服务提供者
 @Activate(group = Constants.PROVIDER, order = -110000)
 public class EchoFilter implements Filter {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation inv) throws RpcException {
+        //方法名时 echo 且 只有一个参数
         if (inv.getMethodName().equals(Constants.$ECHO) && inv.getArguments() != null && inv.getArguments().length == 1) {
+            //将结果设置到 result中
             return new RpcResult(inv.getArguments()[0]);
         }
+        //走正常调用
         return invoker.invoke(inv);
     }
 

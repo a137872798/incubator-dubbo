@@ -32,23 +32,34 @@ import java.util.concurrent.TimeoutException;
  */
 public class FutureAdapter<V> extends CompletableFuture<V> {
 
+    /**
+     * 实际的 响应对象
+     */
     private final ResponseFuture future;
+    /**
+     * 组合一个 completableFuture
+     */
     private CompletableFuture<Result> resultFuture;
 
     public FutureAdapter(ResponseFuture future) {
+        //初始化 2个 future 对象并设置回调对象
         this.future = future;
         this.resultFuture = new CompletableFuture<>();
         future.setCallback(new ResponseCallback() {
+            //得到future 后
             @Override
             public void done(Object response) {
                 Result result = (Result) response;
+                //这步 应该不影响
                 FutureAdapter.this.resultFuture.complete(result);
                 V value = null;
                 try {
+                    //获取 结果对象是 异常 还是 正常的 结果
                     value = (V) result.recreate();
                 } catch (Throwable t) {
                     FutureAdapter.this.completeExceptionally(t);
                 }
+                //计算结果
                 FutureAdapter.this.complete(value);
             }
 

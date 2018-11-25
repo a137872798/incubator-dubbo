@@ -26,6 +26,8 @@ import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
 
 /**
  * JavaassistRpcProxyFactory
+ *
+ * javassist 实现的 代理工厂
  */
 public class JavassistProxyFactory extends AbstractProxyFactory {
 
@@ -38,8 +40,11 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        // 不能处理带$ 的类名
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
+
         return new AbstractProxyInvoker<T>(proxy, type, url) {
+            //委托包装类 调用 方法
             @Override
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,

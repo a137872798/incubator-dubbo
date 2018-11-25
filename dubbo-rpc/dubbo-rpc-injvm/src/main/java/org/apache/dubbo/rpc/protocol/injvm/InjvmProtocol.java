@@ -83,6 +83,7 @@ public class InjvmProtocol extends AbstractProtocol implements Protocol {
             //如果包含 * 匹配范围会大一点 这样
             if (map != null && !map.isEmpty()) {
                 for (Exporter<?> exporter : map.values()) {
+                    //与每个 export 做对比   需要 interface version group 都相同
                     if (UrlUtils.isServiceKeyMatch(key, exporter.getInvoker().getUrl())) {
                         result = exporter;
                         break;

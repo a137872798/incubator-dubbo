@@ -50,12 +50,23 @@ class CallbackServiceCodec {
     private static final byte CALLBACK_DESTROY = 0x2;
     private static final String INV_ATT_CALLBACK_KEY = "sys_callback_arg-";
 
+    /**
+     * 判断是否是 回调
+     * @param url  invoker url
+     * @param methodName invoker 方法名
+     * @param argIndex  参数下标
+     * @return
+     */
     private static byte isCallBack(URL url, String methodName, int argIndex) {
         // parameter callback rule: method-name.parameter-index(starting from 0).callback
+        // 默认没有 回调
         byte isCallback = CALLBACK_NONE;
         if (url != null) {
+            //从 方法名.下标.callback 中获取 对应的下标属性
             String callback = url.getParameter(methodName + "." + argIndex + ".callback");
+            //回调属性不为空时
             if (callback != null) {
+                //根据 Boolean标识 返回结果
                 if (callback.equalsIgnoreCase("true")) {
                     isCallback = CALLBACK_CREATE;
                 } else if (callback.equalsIgnoreCase("false")) {
@@ -128,21 +139,35 @@ class CallbackServiceCodec {
     /**
      * refer or destroy callback service on server side
      *
+     * 引用或销毁 回调服务
+     * @param channel
      * @param url
+     * @param clazz
+     * @param inv
+     * @param instid  通过invoker 对象中的回调属性配上对应的参数下标作为key 获得
+     * @param isRefer 引用还是销毁
+     * @return
      */
     @SuppressWarnings("unchecked")
     private static Object referOrdestroyCallbackService(Channel channel, URL url, Class<?> clazz, Invocation inv, int instid, boolean isRefer) {
         Object proxy = null;
+        //获取服务端 和 调用端的 缓存key  就是拼接 返回了一个 特殊的字符串
         String invokerCacheKey = getServerSideCallbackInvokerCacheKey(channel, clazz.getName(), instid);
         String proxyCacheKey = getServerSideCallbackServiceCacheKey(channel, clazz.getName(), instid);
+        //通过key 获取代理对象
         proxy = channel.getAttribute(proxyCacheKey);
+        //获取 特殊的key
         String countkey = getServerSideCountKey(channel, clazz.getName());
         if (isRefer) {
             if (proxy == null) {
+                //创建了一个 回调地址
                 URL referurl = URL.valueOf("callback://" + url.getAddress() + "/" + clazz.getName() + "?" + Constants.INTERFACE_KEY + "=" + clazz.getName());
+                //将所有属性传入 并移除了 methods 属性
                 referurl = referurl.addParametersIfAbsent(url.getParameters()).removeParameter(Constants.METHODS_KEY);
+                //如果对象没有超过限制
                 if (!isInstancesOverLimit(channel, referurl, clazz.getName(), instid, true)) {
                     @SuppressWarnings("rawtypes")
+                    //生成 channel 的包装类
                     Invoker<?> invoker = new ChannelWrappedInvoker(clazz, channel, referurl, String.valueOf(instid));
                     proxy = proxyFactory.getProxy(invoker);
                     channel.setAttribute(proxyCacheKey, proxy);
@@ -242,16 +267,28 @@ class CallbackServiceCodec {
         }
     }
 
+    /**
+     * 为 invocation参数 编码
+     * @param channel
+     * @param inv
+     * @param paraIndex
+     * @return
+     * @throws IOException
+     */
     public static Object encodeInvocationArgument(Channel channel, RpcInvocation inv, int paraIndex) throws IOException {
-        // get URL directly
+        // get URL directly  获取invoker 的url 对象
         URL url = inv.getInvoker() == null ? null : inv.getInvoker().getUrl();
+        //判断是否是 回调参数 返回值 0x1 true 0x2 false    就是通过 key：方法名加参数下标加.callback 去param 中拿属性
         byte callbackstatus = isCallBack(url, inv.getMethodName(), paraIndex);
+        //获取参数列表 参数类型
         Object[] args = inv.getArguments();
         Class<?>[] pts = inv.getParameterTypes();
         switch (callbackstatus) {
             case CallbackServiceCodec.CALLBACK_NONE:
+                //返回 原参数
                 return args[paraIndex];
             case CallbackServiceCodec.CALLBACK_CREATE:
+                //增加一个 回调标识 并且 不再返回参数
                 inv.setAttachment(INV_ATT_CALLBACK_KEY + paraIndex, exportOrunexportCallbackService(channel, url, pts[paraIndex], args[paraIndex], true));
                 return null;
             case CallbackServiceCodec.CALLBACK_DESTROY:
@@ -262,11 +299,22 @@ class CallbackServiceCodec {
         }
     }
 
+    /**
+     * 应该是对参数对象做什么处理
+     * @param channel 通道对象
+     * @param inv invoker 对象
+     * @param pts 参数类型
+     * @param paraIndex 第几个参数
+     * @param inObject 参数对象
+     * @return
+     * @throws IOException
+     */
     public static Object decodeInvocationArgument(Channel channel, RpcInvocation inv, Class<?>[] pts, int paraIndex, Object inObject) throws IOException {
         // if it's a callback, create proxy on client side, callback interface on client side can be invoked through channel
         // need get URL from channel and env when decode
         URL url = null;
         try {
+            //获取 url 对象
             url = DubboProtocol.getDubboProtocol().getInvoker(channel, inv).getUrl();
         } catch (RemotingException e) {
             if (logger.isInfoEnabled()) {
@@ -274,17 +322,22 @@ class CallbackServiceCodec {
             }
             return inObject;
         }
+        //通过 查看 url中 有没有 设置回调状态属性返回结果
         byte callbackstatus = isCallBack(url, inv.getMethodName(), paraIndex);
         switch (callbackstatus) {
+            //没有设置回调属性 直接返回原对象
             case CallbackServiceCodec.CALLBACK_NONE:
                 return inObject;
+                //设置了 回调属性
             case CallbackServiceCodec.CALLBACK_CREATE:
                 try {
+                    //引入 or 销毁回调服务  跟下面 只有最后一个参数不一样
                     return referOrdestroyCallbackService(channel, url, pts[paraIndex], inv, Integer.parseInt(inv.getAttachment(INV_ATT_CALLBACK_KEY + paraIndex)), true);
                 } catch (Exception e) {
                     logger.error(e.getMessage(), e);
                     throw new IOException(StringUtils.toString(e));
                 }
+                ///没有设置回调
             case CallbackServiceCodec.CALLBACK_DESTROY:
                 try {
                     return referOrdestroyCallbackService(channel, url, pts[paraIndex], inv, Integer.parseInt(inv.getAttachment(INV_ATT_CALLBACK_KEY + paraIndex)), false);

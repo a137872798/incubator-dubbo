@@ -442,10 +442,11 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     /**
-     * 检验 stub
+     * 检验 stub 检验存根对象
      * @param interfaceClass
      */
     void checkStub(Class<?> interfaceClass) {
+        //local 和 stub 只能实现一个
         if (ConfigUtils.isNotEmpty(local)) {
             //是否为 true||default 是就要将接口名 贴上Local 否则 是直接用local 创建对象
             //相当于用本地类 来实现服务提供

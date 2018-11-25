@@ -36,17 +36,30 @@ import java.net.InetSocketAddress;
 
 /**
  * Wrap the existing invoker on the channel.
+ *
+ * channel 的包装类对象
  */
 class ChannelWrappedInvoker<T> extends AbstractInvoker<T> {
 
+    /**
+     * 通道对象
+     */
     private final Channel channel;
+    /**
+     * 服务键
+     */
     private final String serviceKey;
+    /**
+     * 客户端对象
+     */
     private final ExchangeClient currentClient;
 
     ChannelWrappedInvoker(Class<T> serviceType, Channel channel, URL url, String serviceKey) {
+        //后面的 参数会设置到 invoker 的 attachment 中
         super(serviceType, url, new String[]{Constants.GROUP_KEY, Constants.TOKEN_KEY, Constants.TIMEOUT_KEY});
         this.channel = channel;
         this.serviceKey = serviceKey;
+        //创建 Header客户端
         this.currentClient = new HeaderExchangeClient(new ChannelWrapper(this.channel), false);
     }
 
@@ -89,8 +102,14 @@ class ChannelWrappedInvoker<T> extends AbstractInvoker<T> {
 //        }
     }
 
+    /**
+     * 生成 client 对象
+     */
     public static class ChannelWrapper extends ClientDelegate {
 
+        /**
+         * 通道对象
+         */
         private final Channel channel;
         private final URL url;
 

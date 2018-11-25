@@ -1231,6 +1231,10 @@ public /**final**/ class URL implements Serializable {
         return buildString(false, true, parameters); // no show username and password
     }
 
+    /**
+     * 构造 identity对象
+     * @return
+     */
     public String toIdentityString() {
         if (identity != null) {
             return identity;

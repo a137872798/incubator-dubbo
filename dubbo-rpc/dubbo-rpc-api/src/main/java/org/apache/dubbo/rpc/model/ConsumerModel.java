@@ -25,6 +25,8 @@ import java.util.Optional;
 
 /**
  * Consumer Model which is about subscribed services.
+ *
+ * 消费模型对象
  */
 public class ConsumerModel {
     private final Object proxyObject;

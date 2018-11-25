@@ -41,6 +41,9 @@ public abstract class Wrapper {
      * 类和 对应包装对象的映射
      */
     private static final Map<Class<?>, Wrapper> WRAPPER_MAP = new ConcurrentHashMap<Class<?>, Wrapper>(); //class wrapper map
+    /**
+     * 空数组对象
+     */
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
     /**
      * Object 的默认方法
@@ -85,6 +88,15 @@ public abstract class Wrapper {
             return false;
         }
 
+        /**
+         * Object 对象的 包装类 不允许调用 object 之外的其他方法
+         * @param instance instance.
+         * @param mn       method name.
+         * @param types
+         * @param args     argument array.
+         * @return
+         * @throws NoSuchMethodException
+         */
         @Override
         public Object invokeMethod(Object instance, String mn, Class<?>[] types, Object[] args) throws NoSuchMethodException {
             if ("getClass".equals(mn)) {
@@ -105,6 +117,10 @@ public abstract class Wrapper {
             throw new NoSuchMethodException("Method [" + mn + "] not found.");
         }
     };
+
+    /**
+     * 包装类 计数器
+     */
     private static AtomicLong WRAPPER_CLASS_COUNTER = new AtomicLong(0);
 
     /**
@@ -115,14 +131,14 @@ public abstract class Wrapper {
      */
     public static Wrapper getWrapper(Class<?> c) {
 
-        //是否是动态生成的类 通过判断是否 实现了  ClassGenerator.DC 接口
+        //是否是动态生成的类 通过判断是否 实现了  ClassGenerator.DC 接口  动态生成的类 是一定实现这个接口的
         while (ClassGenerator.isDynamicClass(c)) // can not wrapper on dynamic class.
         {
-            //就获取父类 当 c 本身是 ClassGenerator.DC 接口时 会在执行一次 就变成 Object 类
+            //重新变成Wrapper
             c = c.getSuperclass();
         }
 
-        //如果变成Object 就返回 Object 的包装对象
+        //如果变成Object 就返回 Object 的包装对象 这代表传入的 class 没有父类
         if (c == Object.class) {
             return OBJECT_WRAPPER;
         }
@@ -138,7 +154,7 @@ public abstract class Wrapper {
     }
 
     /**
-     * 生成包装类
+     * 生成包装类  给原class对象动态添加一些方法
      * @param c
      * @return
      */
@@ -152,25 +168,55 @@ public abstract class Wrapper {
         String name = c.getName();
         ClassLoader cl = ClassHelper.getClassLoader(c);
 
+        //这些方法都是需要实现的 因为生成的 类是 这个类的 子类
         //生成方法的 字符串
-        //给这个对象增加3个方法
+        //给这个对象增加3个方法  第一步都是 转换 传入的 第一个参数
+        //public void setPropertyValue(Object o, String n, Object v){
+        // ClassName w;
+        // try{
+        //     w = ((ClassName) $1 );}  $1 就是占位符代表第一个参数 这个应该是 javassist 的规则
+        // catch(Throwable e) { throw new IllegalArgumentException(e); }
+        // if ( $2.equals(属性名1){ w.属性名1=(属性的类型1)$3; return;}
+        //if ( $2.equals(属性名2){ w.属性名2=(属性的类型2)$3; return;}
+        //if ( $2.equals(属性名3){ w.属性名3=(属性的类型3)$3; return;}  这里是 遍历找到那个能设置的 属性  get方法类似 每个 属性equal 相同就返回
+        //throw new **** 没找到 对应属性就抛出异常
         StringBuilder c1 = new StringBuilder("public void setPropertyValue(Object o, String n, Object v){ ");
+        //public Object getPropertyValue(Object o, String n){
         StringBuilder c2 = new StringBuilder("public Object getPropertyValue(Object o, String n){ ");
+        //public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws {  也就是外部调用该类的方法 是通过这个方法做入口
+        // ClassName w;
+        // try{
+        //     w = ((ClassName) $1 );}  $1 就是占位符代表第一个参数 这个应该是 javassist 的规则
+        // catch(Throwable e) { throw new IllegalArgumentException(e); }
+        // try{
+        //     方法名相同 且 参数数目相同
+        //    if(methodname.equals($2)) && 参数数量 == $3.length 根据有没有同名方法增加判断条件 && $3[0].getName.equals(该方法的参数类型)...){
+        //     w.methodname(param1,...); return null;}   Void 就是在 是否有返回值 无法确定时  通过判断 Void 是否为null 确定是否要返回对象
+        //     return (目标类型)w.methodname(param1...);}
+        //  catch(Throwable e) {  throw new java.lang.reflect.InvocationTargetException(e);}
+        //  上面都没执行代表没找到合适方法 就直接抛出异常
+        // throw new **** 没找到 对应方法的异常
         StringBuilder c3 = new StringBuilder("public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws " + InvocationTargetException.class.getName() + "{ ");
 
         c1.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
         c2.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
         c3.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
 
+        //属性 容器 key 是 属性名 value 是对应类型
         Map<String, Class<?>> pts = new HashMap<String, Class<?>>(); // <property name, property types>
+        //key 是方法描述 value 是 方法实体
         Map<String, Method> ms = new LinkedHashMap<String, Method>(); // <method desc, Method instance>
+        //方法名  class.getMethods 只返回 所有public 修饰的 方法
         List<String> mns = new ArrayList<String>(); // method names.
+        //定义的方法名  返回所有定义的方法
         List<String> dmns = new ArrayList<String>(); // declaring method names.
 
         // get all public field.
         // 遍历所有属性
         for (Field f : c.getFields()) {
+            //获取 属性名
             String fn = f.getName();
+            //属性类型
             Class<?> ft = f.getType();
             //不包含 static 和 transient
             if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers())) {
@@ -180,11 +226,11 @@ public abstract class Wrapper {
             // 修饰setPropertyVlaue 和 getPropertyValue
             c1.append(" if( $2.equals(\"").append(fn).append("\") ){ w.").append(fn).append("=").append(arg(ft, "$3")).append("; return; }");
             c2.append(" if( $2.equals(\"").append(fn).append("\") ){ return ($w)w.").append(fn).append("; }");
-            //将新的方法中包含的字段设置到 容器中
+            //将获取到的 属性设置到容器中
             pts.put(fn, ft);
         }
 
-        //获取对象的所有方法
+        //获取对象的所有方法 getMethods 只返回public 方法
         Method[] methods = c.getMethods();
         // get all public method.
         boolean hasMethod = hasMethods(methods);
@@ -204,7 +250,7 @@ public abstract class Wrapper {
             int len = m.getParameterTypes().length;
             c3.append(" && ").append(" $3.length == ").append(len);
 
-            //如果 被 重写过
+            //存在同名方法 有就判断参数的 必要了
             boolean override = false;
             for (Method m2 : methods) {
                 if (m != m2 && m.getName().equals(m2.getName())) {
@@ -212,6 +258,7 @@ public abstract class Wrapper {
                     break;
                 }
             }
+            //增加方法类型的判断
             if (override) {
                 if (len > 0) {
                     for (int l = 0; l < len; l++) {
@@ -223,6 +270,7 @@ public abstract class Wrapper {
 
             c3.append(" ) { ");
 
+            //如果没有返回值
             if (m.getReturnType() == Void.TYPE) {
                 c3.append(" w.").append(mn).append('(').append(args(m.getParameterTypes(), "$4")).append(");").append(" return null;");
             } else {
@@ -231,12 +279,16 @@ public abstract class Wrapper {
 
             c3.append(" }");
 
+            //将添加的 方法保存到 容器中
             mns.add(mn);
+            //不属于 Object的方法也加入到下面的 容器
             if (m.getDeclaringClass() == c) {
                 dmns.add(mn);
             }
+            //将方法描述 和 方法 对象 的 关联信息保存
             ms.put(ReflectUtils.getDesc(m), m);
         }
+        //如果 有方法
         if (hasMethod) {
             c3.append(" } catch(Throwable e) { ");
             c3.append("     throw new java.lang.reflect.InvocationTargetException(e); ");
@@ -247,38 +299,53 @@ public abstract class Wrapper {
 
         // deal with get/set method.
         Matcher matcher;
+        //遍历 包含的  方法描述 和 方法体
         for (Map.Entry<String, Method> entry : ms.entrySet()) {
+            //获取方法描述信息
             String md = entry.getKey();
             Method method = (Method) entry.getValue();
+            //匹配到 方法是 get方法时 要在 getProperty 中增加相关的 字符
             if ((matcher = ReflectUtils.GETTER_METHOD_DESC_PATTERN.matcher(md)).matches()) {
+                //将 getXxx 的 Xxx 部分变成 xxx
                 String pn = propertyName(matcher.group(1));
                 c2.append(" if( $2.equals(\"").append(pn).append("\") ){ return ($w)w.").append(method.getName()).append("(); }");
                 pts.put(pn, method.getReturnType());
+                //获取 boolean 属性
             } else if ((matcher = ReflectUtils.IS_HAS_CAN_METHOD_DESC_PATTERN.matcher(md)).matches()) {
                 String pn = propertyName(matcher.group(1));
+                //添加 getProperty 属性
                 c2.append(" if( $2.equals(\"").append(pn).append("\") ){ return ($w)w.").append(method.getName()).append("(); }");
                 pts.put(pn, method.getReturnType());
+                //将 setXxx方法 的关联属性添加到 setProperty 的逻辑判断中
             } else if ((matcher = ReflectUtils.SETTER_METHOD_DESC_PATTERN.matcher(md)).matches()) {
+                //set 的属性类型
                 Class<?> pt = method.getParameterTypes()[0];
                 String pn = propertyName(matcher.group(1));
                 c1.append(" if( $2.equals(\"").append(pn).append("\") ){ w.").append(method.getName()).append("(").append(arg(pt, "$3")).append("); return; }");
                 pts.put(pn, pt);
             }
         }
+
+        //pts 中存在了 存在的属性名 和类型的关联信息 这里 get set 方法没有做 异常捕获和 throws 声明 怎么能这样写
+
         c1.append(" throw new " + NoSuchPropertyException.class.getName() + "(\"Not found property \\\"\"+$2+\"\\\" filed or setter method in class " + c.getName() + ".\"); }");
         c2.append(" throw new " + NoSuchPropertyException.class.getName() + "(\"Not found property \\\"\"+$2+\"\\\" filed or setter method in class " + c.getName() + ".\"); }");
 
         // make class
+        //代表要生成一个包装类
         long id = WRAPPER_CLASS_COUNTER.getAndIncrement();
+        //通过传入的类加载器 生成 classGenerator对象
         ClassGenerator cc = ClassGenerator.newInstance(cl);
         cc.setClassName((Modifier.isPublic(c.getModifiers()) ? Wrapper.class.getName() : c.getName() + "$sw") + id);
         cc.setSuperClass(Wrapper.class);
 
         cc.addDefaultConstructor();
+        //保存了 下面所有方法涉及到的 所有属性 方法 等
         cc.addField("public static String[] pns;"); // property name array.
         cc.addField("public static " + Map.class.getName() + " pts;"); // property type map.
         cc.addField("public static String[] mns;"); // all method name array.
         cc.addField("public static String[] dmns;"); // declared method name array.
+        //根据 方法 描述 为每个方法 都创建一个 参数的类型数组 每个数组代表每个方法的 每个参数是什么类型
         for (int i = 0, len = ms.size(); i < len; i++) {
             cc.addField("public static Class[] mts" + i + ";");
         }
@@ -295,20 +362,24 @@ public abstract class Wrapper {
         try {
             Class<?> wc = cc.toClass();
             // setup static field.
+            //设置静态属性
             wc.getField("pts").set(null, pts);
             wc.getField("pns").set(null, pts.keySet().toArray(new String[0]));
             wc.getField("mns").set(null, mns.toArray(new String[0]));
             wc.getField("dmns").set(null, dmns.toArray(new String[0]));
             int ix = 0;
             for (Method m : ms.values()) {
+                //获取每个 方法对应的 参数类型数组 并设置
                 wc.getField("mts" + ix++).set(null, m.getParameterTypes());
             }
+            //创建包装对象
             return (Wrapper) wc.newInstance();
         } catch (RuntimeException e) {
             throw e;
         } catch (Throwable e) {
             throw new RuntimeException(e.getMessage(), e);
         } finally {
+            //清理工作
             cc.release();
             ms.clear();
             mns.clear();
@@ -347,6 +418,12 @@ public abstract class Wrapper {
         return "(" + ReflectUtils.getName(cl) + ")" + name;
     }
 
+    /**
+     * 将多个参数 组合
+     * @param cs
+     * @param name
+     * @return
+     */
     private static String args(Class<?>[] cs, String name) {
         int len = cs.length;
         if (len == 0) {
@@ -362,6 +439,11 @@ public abstract class Wrapper {
         return sb.toString();
     }
 
+    /**
+     * 传入的是 getXxx 的 Xxx 部分 转换成  xxx
+     * @param pn
+     * @return
+     */
     private static String propertyName(String pn) {
         return pn.length() == 1 || Character.isLowerCase(pn.charAt(1)) ? Character.toLowerCase(pn.charAt(0)) + pn.substring(1) : pn;
     }
@@ -382,6 +464,10 @@ public abstract class Wrapper {
         }
         return false;
     }
+
+
+    //在生成包装类时  需要实现下面的方法
+
 
     /**
      * get property name array.

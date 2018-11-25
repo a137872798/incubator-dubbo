@@ -333,6 +333,7 @@ public class NetUtils {
     }
 
     /**
+     * 获取 host
      * @param hostName
      * @return ip address or hostName if UnknownHostException
      */

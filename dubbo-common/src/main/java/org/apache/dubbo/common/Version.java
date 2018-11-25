@@ -73,22 +73,37 @@ public final class Version {
         return VERSION;
     }
 
+    /**
+     *
+     * @param version dubbo版本信息
+     * @return
+     */
     public static boolean isSupportResponseAttatchment(String version) {
         if (version == null || version.length() == 0) {
             return false;
         }
         // for previous dubbo version(2.0.10/020010~2.6.2/020602), this version is the jar's version, so they need to be ignore
+        // 将版本变成int
         int iVersion = getIntVersion(version);
+        //这个返回内 都不行
         if (iVersion >= 20010 && iVersion <= 20602) {
             return false;
         }
 
+        //大于某个 版本
         return iVersion >= LOWEST_VERSION_FOR_RESPONSE_ATTATCHMENT;
     }
 
+    /**
+     * 将 dubbo 版本信息进行转换
+     * @param version
+     * @return
+     */
     public static int getIntVersion(String version) {
+        //能找到 版本号对应的 int值 就直接返回
         Integer v = VERSION2INT.get(version);
         if (v == null) {
+            //不存在就创建并保存
             v = parseInt(version);
             VERSION2INT.put(version, v);
         }

@@ -33,14 +33,25 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * InvokerWrapper
+ *
+ * invoker 的包装类
  */
 public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     Logger logger = LoggerFactory.getLogger(AbstractProxyInvoker.class);
 
+    /**
+     * 内部包含了 代理对象
+     */
     private final T proxy;
 
+    /**
+     * 服务端接口类型
+     */
     private final Class<T> type;
 
+    /**
+     * 服务提供者 的 url
+     */
     private final URL url;
 
     public AbstractProxyInvoker(T proxy, Class<T> type, URL url) {
@@ -50,6 +61,7 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
         if (type == null) {
             throw new IllegalArgumentException("interface == null");
         }
+        //代理类 如果没有实现该接口 抛出异常
         if (!type.isInstance(proxy)) {
             throw new IllegalArgumentException(proxy.getClass().getName() + " not implement interface " + type);
         }
@@ -80,18 +92,25 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     // TODO Unified to AsyncResult?
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
+        //从本地线程中获取上下文对象
         RpcContext rpcContext = RpcContext.getContext();
         try {
+            //由子类实现
             Object obj = doInvoke(proxy, invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments());
+            //如果返回值实现了  Compatable 接口 创建异步对象
             if (RpcUtils.isFutureReturnType(invocation)) {
                 return new AsyncRpcResult((CompletableFuture<Object>) obj);
+                //如果异步上下文 处于启动状态???
             } else if (rpcContext.isAsyncStarted()) { // ignore obj in case of RpcContext.startAsync()? always rely on user to write back.
                 return new AsyncRpcResult(rpcContext.getAsyncContext().getInternalFuture());
             } else {
+                //返回普通对象
                 return new RpcResult(obj);
             }
+            //这个 异常是 method.invoke 找不到 合适的异常时 抛出
         } catch (InvocationTargetException e) {
             // TODO async throw exception before async thread write back, should stop asyncContext
+            //出现异常时 异步状态无法关闭
             if (rpcContext.isAsyncStarted() && !rpcContext.stopAsync()) {
                 logger.error("Provider async started, but got an exception from the original method, cannot write the exception back to consumer because an async result may have returned the new thread.", e);
             }

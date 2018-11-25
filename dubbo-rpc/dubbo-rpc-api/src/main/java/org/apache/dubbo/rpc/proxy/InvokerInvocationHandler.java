@@ -26,19 +26,29 @@ import java.lang.reflect.Method;
 
 /**
  * InvokerHandler
+ *
+ * invoker 的 处理器对象 这个 就是实现了 jdk 的那个接口
  */
 public class InvokerInvocationHandler implements InvocationHandler {
 
+    /**
+     * 处理器对象
+     */
     private final Invoker<?> invoker;
 
     public InvokerInvocationHandler(Invoker<?> handler) {
         this.invoker = handler;
     }
 
+    /**
+     * 调用方法
+     */
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        //获取 方法名和 该方法需要的参数
         String methodName = method.getName();
         Class<?>[] parameterTypes = method.getParameterTypes();
+        //如果 是 Object 的方法  传入的 执行对象是 invoker
         if (method.getDeclaringClass() == Object.class) {
             return method.invoke(invoker, args);
         }
@@ -52,21 +62,30 @@ public class InvokerInvocationHandler implements InvocationHandler {
             return invoker.equals(args[0]);
         }
 
+        //创建 RPC 调用对象
         RpcInvocation invocation;
+        //是否是异步
         if (RpcUtils.hasGeneratedFuture(method)) {
             Class<?> clazz = method.getDeclaringClass();
+            //获取同步方法的长度 因为异步方法在最后会加 异步标识
             String syncMethodName = methodName.substring(0, methodName.length() - Constants.ASYNC_SUFFIX.length());
+            //获取同步方法版本
             Method syncMethod = clazz.getMethod(syncMethodName, method.getParameterTypes());
+            //创建 RPC invoker 对象
             invocation = new RpcInvocation(syncMethod, args);
+            //携带代表是 future 和 async 的标识
             invocation.setAttachment(Constants.FUTURE_GENERATED_KEY, "true");
             invocation.setAttachment(Constants.ASYNC_KEY, "true");
         } else {
+            //创建 RPC invoker 对象
             invocation = new RpcInvocation(method, args);
+            //返回值是否 实现了 CompletableFuture 接口 是就 携带 async 和 future 标识
             if (RpcUtils.hasFutureReturnType(method)) {
                 invocation.setAttachment(Constants.FUTURE_RETURNTYPE_KEY, "true");
                 invocation.setAttachment(Constants.ASYNC_KEY, "true");
             }
         }
+        //根据 future 返回不同结果 异常 or 正常结果
         return invoker.invoke(invocation).recreate();
     }
 

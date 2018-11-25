@@ -66,16 +66,31 @@ public class ProtocolUtils {
                 || Constants.GENERIC_SERIALIZATION_BEAN.equalsIgnoreCase(generic));
     }
 
+    /**
+     * 是否是默认的 序列化方式
+     * @param generic
+     * @return
+     */
     public static boolean isDefaultGenericSerialization(String generic) {
         return isGeneric(generic)
                 && Constants.GENERIC_SERIALIZATION_DEFAULT.equalsIgnoreCase(generic);
     }
 
+    /**
+     * 是否是 nativejava的序列化方式
+     * @param generic
+     * @return
+     */
     public static boolean isJavaGenericSerialization(String generic) {
         return isGeneric(generic)
                 && Constants.GENERIC_SERIALIZATION_NATIVE_JAVA.equalsIgnoreCase(generic);
     }
 
+    /**
+     * 是否是 bean 的 序列化方式
+     * @param generic
+     * @return
+     */
     public static boolean isBeanGenericSerialization(String generic) {
         return isGeneric(generic) && Constants.GENERIC_SERIALIZATION_BEAN.equals(generic);
     }

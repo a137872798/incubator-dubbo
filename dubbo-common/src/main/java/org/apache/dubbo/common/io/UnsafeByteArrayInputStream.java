@@ -21,10 +21,18 @@ import java.io.InputStream;
 
 /**
  * UnsafeByteArrayInputStrem.
+ *
+ * 创建 输入流对象
  */
 public class UnsafeByteArrayInputStream extends InputStream {
+    /**
+     * 数据的 载体
+     */
     protected byte mData[];
 
+    /**
+     * 各个标识  对应当前指针 最大指针  标记指针
+     */
     protected int mPosition, mLimit, mMark = 0;
 
     public UnsafeByteArrayInputStream(byte buf[]) {
@@ -46,6 +54,13 @@ public class UnsafeByteArrayInputStream extends InputStream {
         return (mPosition < mLimit) ? (mData[mPosition++] & 0xff) : -1;
     }
 
+    /**
+     * 将数据 读取到 b[]中
+     * @param b
+     * @param off
+     * @param len
+     * @return
+     */
     @Override
     public int read(byte b[], int off, int len) {
         if (b == null) {

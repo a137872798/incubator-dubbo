@@ -179,6 +179,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
              */
             invocation.addAttachments(contextAttachments);
         }
+        //方法名 拼接 async 作为key 获取对应属性 如果是异步的就设置到 invocation 中
         if (getUrl().getMethodParameter(invocation.getMethodName(), Constants.ASYNC_KEY, false)) {
             invocation.setAttachment(Constants.ASYNC_KEY, Boolean.TRUE.toString());
         }
@@ -186,8 +187,11 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
 
 
         try {
+            //执行的实际逻辑
             return doInvoke(invocation);
+            //biz 异常先不管
         } catch (InvocationTargetException e) { // biz exception
+            //获取 未包装的异常
             Throwable te = e.getTargetException();
             if (te == null) {
                 return new RpcResult(e);

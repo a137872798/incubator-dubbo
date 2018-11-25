@@ -416,6 +416,7 @@ public final class ReflectUtils {
      * get constructor desc.
      * "()V", "(Ljava/lang/String;I)V"
      *
+     * 创建构造函数的 描述信息
      * @param c constructor.
      * @return desc
      */
@@ -441,8 +442,10 @@ public final class ReflectUtils {
         ret.append('(');
         Class<?>[] parameterTypes = m.getParameterTypes();
         for (int i = 0; i < parameterTypes.length; i++) {
+            //获取每个参数的 描述符
             ret.append(getDesc(parameterTypes[i]));
         }
+        //获取返回值 描述符
         ret.append(')').append(getDesc(m.getReturnType()));
         return ret.toString();
     }
@@ -828,6 +831,7 @@ public final class ReflectUtils {
     /**
      * get class array instance.
      *
+     * 通过方法描述生成方法的参数列表
      * @param desc desc.
      * @return Class class array.
      * @throws ClassNotFoundException
@@ -839,7 +843,7 @@ public final class ReflectUtils {
 
     /**
      * get class array instance.
-     *
+     * 通过方法描述获取方法的参数列表
      * @param cl   ClassLoader instance.
      * @param desc desc.
      * @return Class[] class array.
@@ -852,6 +856,7 @@ public final class ReflectUtils {
 
         List<Class<?>> cs = new ArrayList<Class<?>>();
         Matcher m = DESC_PATTERN.matcher(desc);
+        //将描述拆分后 获取对应的类对象
         while (m.find()) {
             cs.add(desc2class(cl, m.group()));
         }
@@ -922,7 +927,7 @@ public final class ReflectUtils {
     }
 
     /**
-     * 寻找 clazz 对象使用 后面参数生成对象的构造器
+     * 寻找 clazz 对象中  使用后面参数生成对象的构造器
      * @param clazz 服务提供者 实现类
      * @param paramType 服务提供者接口
      * @return

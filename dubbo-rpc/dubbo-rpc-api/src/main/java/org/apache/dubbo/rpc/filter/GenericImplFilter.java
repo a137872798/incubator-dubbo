@@ -41,34 +41,56 @@ import java.lang.reflect.Method;
 
 /**
  * GenericImplInvokerFilter
+ *
+ * 泛化调用链
  */
+//只针对消费者
 @Activate(group = Constants.CONSUMER, value = Constants.GENERIC_KEY, order = 20000)
 public class GenericImplFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(GenericImplFilter.class);
 
+    /**
+     * generic 的 参数类型
+     */
     private static final Class<?>[] GENERIC_PARAMETER_TYPES = new Class<?>[]{String.class, String[].class, Object[].class};
 
+    /**
+     * 调用链的实际逻辑
+     * @param invoker    service
+     * @param invocation invocation.
+     * @return
+     * @throws RpcException
+     */
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //获取 generic 的 值 可能是 nativejava true bean
         String generic = invoker.getUrl().getParameter(Constants.GENERIC_KEY);
         if (ProtocolUtils.isGeneric(generic)
                 && !Constants.$INVOKE.equals(invocation.getMethodName())
+                //invocation 一定要是 RPCinvocation???
                 && invocation instanceof RpcInvocation) {
             RpcInvocation invocation2 = (RpcInvocation) invocation;
+            //转型获取方法名
             String methodName = invocation2.getMethodName();
+            //参数列表和参数类型
             Class<?>[] parameterTypes = invocation2.getParameterTypes();
             Object[] arguments = invocation2.getArguments();
 
+            //存放参数类型名
             String[] types = new String[parameterTypes.length];
             for (int i = 0; i < parameterTypes.length; i++) {
+                //java.lang.Object[][].class => "java.lang.Object[][]" 处理数组名
                 types[i] = ReflectUtils.getName(parameterTypes[i]);
             }
 
             Object[] args;
+            //如果是bean 的序列化方式
             if (ProtocolUtils.isBeanGenericSerialization(generic)) {
+                //设置参数列表
                 args = new Object[arguments.length];
                 for (int i = 0; i < arguments.length; i++) {
+                    //每个参数都进行序列化
                     args[i] = JavaBeanSerializeUtil.serialize(arguments[i], JavaBeanAccessor.METHOD);
                 }
             } else {

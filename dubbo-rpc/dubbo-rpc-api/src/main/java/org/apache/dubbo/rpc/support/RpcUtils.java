@@ -66,24 +66,39 @@ public class RpcUtils {
     }
 
     // TODO why not get return type when initialize Invocation?
+
+    /**
+     * 根据 传入的 invocation 返回 invoker 服务方法的 返回值类型  这里看不懂 只知道返回2个 关于 返回值的 类型 一般2个值应该是相同的
+     * 当出现泛型时一个是 Object 一个是 T
+     * @param invocation
+     * @return
+     */
     public static Type[] getReturnTypes(Invocation invocation) {
         try {
             if (invocation != null && invocation.getInvoker() != null
                     && invocation.getInvoker().getUrl() != null
                     && !invocation.getMethodName().startsWith("$")) {
+                //获取接口名
                 String service = invocation.getInvoker().getUrl().getServiceInterface();
                 if (service != null && service.length() > 0) {
+                    //获取 接口类型
                     Class<?> invokerInterface = invocation.getInvoker().getInterface();
+                    //获取 接口实例对象
                     Class<?> cls = invokerInterface != null ? ReflectUtils.forName(invokerInterface.getClassLoader(), service)
                             : ReflectUtils.forName(service);
+                    //获取 指定方法
                     Method method = cls.getMethod(invocation.getMethodName(), invocation.getParameterTypes());
                     if (method.getReturnType() == void.class) {
                         return null;
                     }
+                    //获取返回值类型  一般情况下 2个 返回的是一样的 当出现泛型时 returnType 会变成Object genericReturnType 是 T
                     Class<?> returnType = method.getReturnType();
                     Type genericReturnType = method.getGenericReturnType();
+                    //如果 返回值是 Future 的 子类 这时 genericReturnType 也应该是 Future
                     if (Future.class.isAssignableFrom(returnType)) {
+                        //如果 泛化返回值类型 属于 ParameterizedType
                         if (genericReturnType instanceof ParameterizedType) {
+                            //获取 参数类型
                             Type actualArgType = ((ParameterizedType) genericReturnType).getActualTypeArguments()[0];
                             if (actualArgType instanceof ParameterizedType) {
                                 returnType = (Class<?>) ((ParameterizedType) actualArgType).getRawType();
@@ -106,6 +121,11 @@ public class RpcUtils {
         return null;
     }
 
+    /**
+     * 获取 invoker 上绑定的 id属性
+     * @param inv
+     * @return
+     */
     public static Long getInvocationId(Invocation inv) {
         String id = inv.getAttachment(Constants.ID_KEY);
         return id == null ? null : new Long(id);
@@ -113,20 +133,31 @@ public class RpcUtils {
 
     /**
      * Idempotent operation: invocation id will be added in async operation by default
+     * 为 异步invocation 设置 id 属性
      *
      * @param url
      * @param inv
      */
     public static void attachInvocationIdIfAsync(URL url, Invocation inv) {
+        //isAttach 判断是否 是 异步的  getInvocationId 获取 id 属性
         if (isAttachInvocationId(url, inv) && getInvocationId(inv) == null && inv instanceof RpcInvocation) {
+            //设置 id 属性
             ((RpcInvocation) inv).setAttachment(Constants.ID_KEY, String.valueOf(INVOKE_ID.getAndIncrement()));
         }
     }
 
+    /**
+     * 判断是否自动关联
+     * @param url
+     * @param invocation
+     * @return
+     */
     private static boolean isAttachInvocationId(URL url, Invocation invocation) {
+        //通过方法名拼接上 autoattach 获取参数
         String value = url.getMethodParameter(invocation.getMethodName(), Constants.AUTO_ATTACH_INVOCATIONID_KEY);
         if (value == null) {
             // add invocationid in async operation by default
+            //判断是否是异步
             return isAsync(url, invocation);
         } else if (Boolean.TRUE.toString().equalsIgnoreCase(value)) {
             return true;
@@ -141,7 +172,7 @@ public class RpcUtils {
      * @return
      */
     public static String getMethodName(Invocation invocation) {
-        //如果是 动态生成的方法
+        //泛化调用，第一个参数为方法名
         if (Constants.$INVOKE.equals(invocation.getMethodName())
                 && invocation.getArguments() != null
                 && invocation.getArguments().length > 0
@@ -202,6 +233,11 @@ public class RpcUtils {
         return Boolean.TRUE.toString().equals(inv.getAttachment(Constants.FUTURE_GENERATED_KEY));
     }
 
+    /**
+     * 判断 该方法属于的类上有没有 AsyncFor 注解 且方法名 以async 结尾 且 返回值 实现了 CompletableFuture接口
+     * @param method
+     * @return
+     */
     public static boolean hasGeneratedFuture(Method method) {
         Class<?> clazz = method.getDeclaringClass();
         return clazz.isAnnotationPresent(AsyncFor.class) && method.getName().endsWith(Constants.ASYNC_SUFFIX) && hasFutureReturnType(method);
@@ -225,8 +261,13 @@ public class RpcUtils {
         return isOneway;
     }
 
+    /**
+     * 获取必须的 attachment  (移除异步信息)
+     */
     public static Map<String, String> getNecessaryAttachments(Invocation inv) {
+        //获取 inv 的attach 容器
         Map<String, String> attachments = new HashMap<>(inv.getAttachments());
+        //移除异步相关的 属性后返回
         attachments.remove(Constants.ASYNC_KEY);
         attachments.remove(Constants.FUTURE_GENERATED_KEY);
         return attachments;

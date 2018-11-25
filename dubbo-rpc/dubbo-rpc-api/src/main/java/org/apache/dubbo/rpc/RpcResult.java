@@ -19,6 +19,7 @@ package org.apache.dubbo.rpc;
 /**
  * RPC Result.
  *
+ * RPC 结果对象
  * @serial Don't change the class name and properties.
  */
 public class RpcResult extends AbstractResult {
@@ -36,6 +37,11 @@ public class RpcResult extends AbstractResult {
         this.exception = exception;
     }
 
+    /**
+     * 根据 结果类型返回结果  throw Exception or return result
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object recreate() throws Throwable {
         if (exception != null) {

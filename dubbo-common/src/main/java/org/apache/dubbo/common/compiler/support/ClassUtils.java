@@ -54,10 +54,18 @@ public class ClassUtils {
         }
     }
 
+    /**
+     * 通过 导入的 包 和 类的 简化名 找到全限定名
+     * @param packages
+     * @param className
+     * @return
+     */
     public static Class<?> forName(String[] packages, String className) {
         try {
+            //尝试直接用类名生成对象
             return _forName(className);
         } catch (ClassNotFoundException e) {
+            //如果没有找到 遍历每个 包 通过 全限定名 查找类
             if (packages != null && packages.length > 0) {
                 for (String pkg : packages) {
                     try {
@@ -78,6 +86,9 @@ public class ClassUtils {
         }
     }
 
+    /**
+     * 判断是不是基本类型 以及基本类型的数组
+     */
     public static Class<?> _forName(String className) throws ClassNotFoundException {
         switch(className){
             case "boolean":
@@ -128,8 +139,15 @@ public class ClassUtils {
         }
     }
 
+    /**
+     * 以该类名 创建 class 对象 如果是 数组类型 会 转换成 jvm 能识别的 字节码
+     * @param className
+     * @return
+     * @throws ClassNotFoundException
+     */
     private static Class<?> arrayForName(String className) throws ClassNotFoundException {
         return Class.forName(className.endsWith("[]")
+                //是数组类型就 转换为 jvm 能识别的 数组类型
                 ? "[L" + className.substring(0, className.length() - 2) + ";"
                 : className, true, Thread.currentThread().getContextClassLoader());
     }

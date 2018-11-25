@@ -115,8 +115,9 @@ public class CodecSupport {
      * @throws IOException
      */
     public static ObjectInput deserialize(URL url, InputStream is, byte proto) throws IOException {
+        //这里顺带进行了校验 url 中的 序列化方式 与 proto 是否相符合
         Serialization s = getSerialization(url, proto);
-        //反序列化
+        //反序列化  返回一个 dubbo 的对象流
         return s.deserialize(url, is);
     }
 }

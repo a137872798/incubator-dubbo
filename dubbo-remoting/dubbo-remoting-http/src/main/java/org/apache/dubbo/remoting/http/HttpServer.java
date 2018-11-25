@@ -21,11 +21,15 @@ import org.apache.dubbo.common.URL;
 
 import java.net.InetSocketAddress;
 
+/**
+ * http 服务端
+ */
 public interface HttpServer extends Resetable {
 
     /**
      * get http handler.
      *
+     * 获取 http处理器
      * @return http handler.
      */
     HttpHandler getHttpHandler();
@@ -33,6 +37,7 @@ public interface HttpServer extends Resetable {
     /**
      * get url.
      *
+     * 获取url
      * @return url
      */
     URL getUrl();
@@ -40,6 +45,7 @@ public interface HttpServer extends Resetable {
     /**
      * get local address.
      *
+     * 获取本地地址
      * @return local address.
      */
     InetSocketAddress getLocalAddress();

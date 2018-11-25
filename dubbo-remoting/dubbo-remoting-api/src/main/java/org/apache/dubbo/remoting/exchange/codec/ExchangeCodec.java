@@ -268,11 +268,18 @@ public class ExchangeCodec extends TelnetCodec {
         }
     }
 
+    /**
+     * 根据请求id 获取对应的结果对象
+     * @param id
+     * @return
+     */
     protected Object getRequestData(long id) {
+        //内部有一个 请求id 与 future 的对应关系
         DefaultFuture future = DefaultFuture.getFuture(id);
         if (future == null) {
             return null;
         }
+        //获取 future 绑定的请求对象 从请求对象中获取数据
         Request req = future.getRequest();
         if (req == null) {
             return null;
@@ -553,9 +560,17 @@ public class ExchangeCodec extends TelnetCodec {
         }
     }
 
+    /**
+     * 为心跳包解码  ObjectInput 是dubbo 封装过的 而不是jdk 原生的对象流
+     * @param channel
+     * @param in
+     * @return
+     * @throws IOException
+     */
     @Deprecated
     protected Object decodeHeartbeatData(Channel channel, ObjectInput in) throws IOException {
         try {
+            //直接使用ObjectInput 进行读取
             return in.readObject();
         } catch (ClassNotFoundException e) {
             throw new IOException(StringUtils.toString("Read object failed.", e));

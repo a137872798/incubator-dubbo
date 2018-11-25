@@ -27,15 +27,27 @@ import java.lang.reflect.Proxy;
 
 /**
  * JavaassistRpcProxyFactory
+ *
+ * jdk 动态代理工厂
  */
 public class JdkProxyFactory extends AbstractProxyFactory {
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
+        //将传入的 invoker 封装成 handler 这个handler 实现了 jdk 的 代理接口
+        //也就是 调用获取代理对象的时候 就是 创建了一个 RpcInvocation 就是在远程调用 然后创建的invoker对象 可以执行这个对象 完成代理
         return (T) Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), interfaces, new InvokerInvocationHandler(invoker));
     }
 
+    /**
+     * 这里应该是 为 proxy 对象多封装了 一层  通过操作 invoker 来间接操纵 proxy对象
+     * @param proxy 服务提供者 实现类
+     * @param type 被提供的 接口
+     * @param url 出口的目标 url
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         return new AbstractProxyInvoker<T>(proxy, type, url) {
@@ -43,6 +55,7 @@ public class JdkProxyFactory extends AbstractProxyFactory {
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
+                //这个就是 jdk 的反射调用
                 Method method = proxy.getClass().getMethod(methodName, parameterTypes);
                 return method.invoke(proxy, arguments);
             }

@@ -14,28 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.dubbo.remoting.http;
+package org.apache.dubbo.demo.consumer;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
+import org.apache.dubbo.demo.DemoService;
+import org.apache.dubbo.rpc.RpcContext;
 
-/**
- * http invocation handler.
- *
- * http处理器
- */
-public interface HttpHandler {
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
-    /**
-     * invoke.
-     *
-     * @param request  request.
-     * @param response response.
-     * @throws IOException
-     * @throws ServletException
-     */
-    void handle(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException;
+public class DemoServiceImpl implements DemoService {
+
+    @Override
+    public String sayHello(String name) {
+        System.out.println("[" + new SimpleDateFormat("HH:mm:ss").format(new Date()) + "] Hello " + name + ", request from consumer: " + RpcContext.getContext().getRemoteAddress());
+        return "Hello " + name + ", response from provider: " + RpcContext.getContext().getLocalAddress();
+    }
 
 }

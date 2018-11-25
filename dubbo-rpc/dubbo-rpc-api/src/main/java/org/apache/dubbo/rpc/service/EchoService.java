@@ -18,6 +18,8 @@ package org.apache.dubbo.rpc.service;
 
 /**
  * Echo service.
+ * 回声测试
+ * 在动态代理生成的类中 会默认实现该接口 为了进行回声测试
  * @export
  */
 public interface EchoService {

@@ -57,6 +57,11 @@ public class ApplicationModel {
         return providedServices.get(serviceName);
     }
 
+    /**
+     * 通过服务键找到 消费模型对象
+     * @param serviceName
+     * @return
+     */
     public static ConsumerModel getConsumerModel(String serviceName) {
         return consumedServices.get(serviceName);
     }

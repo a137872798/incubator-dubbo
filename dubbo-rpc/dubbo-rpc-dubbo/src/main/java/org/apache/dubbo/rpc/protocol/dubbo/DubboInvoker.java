@@ -45,14 +45,26 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class DubboInvoker<T> extends AbstractInvoker<T> {
 
+    /**
+     * 客户端对象 应该是 使用这个invoker 对象的所有 client
+     */
     private final ExchangeClient[] clients;
 
+    /**
+     * 一个原子的计数器类
+     */
     private final AtomicPositiveInteger index = new AtomicPositiveInteger();
 
+    /**
+     * 版本
+     */
     private final String version;
 
     private final ReentrantLock destroyLock = new ReentrantLock();
 
+    /**
+     * invoker 容器
+     */
     private final Set<Invoker<?>> invokers;
 
     public DubboInvoker(Class<T> serviceType, URL url, ExchangeClient[] clients) {
@@ -92,7 +104,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
-            //判断当前是 同步还是异步
+            //通过url 上的 属性标识判断当前是 同步还是异步
             boolean isAsync = RpcUtils.isAsync(getUrl(), invocation);
             //是泛型类 或者是 future 类 就 需要设置 异步future
             boolean isAsyncFuture = RpcUtils.isGeneratedFuture(inv) || RpcUtils.isFutureReturnType(inv);
@@ -104,7 +116,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
                 //通过client 发送请求
                 currentClient.send(inv, isSent);
-                //学习了 netty 的 threadLocal  将 future 设置为null
+                //学习了 netty 的 threadLocal  将 future 设置为null 因为 oneway 不需要返回结果就不需要future
                 RpcContext.getContext().setFuture(null);
                 //直接返回请求结果 没有结果和异常对象
                 return new RpcResult();
@@ -112,8 +124,9 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 //异步 的 请求方式不同 返回一个future对象
                 ResponseFuture future = currentClient.request(inv, timeout);
                 // For compatibility
+                // future 适配器对象
                 FutureAdapter<Object> futureAdapter = new FutureAdapter<>(future);
-                //设置结果对象
+                //设置结果对象  这里设置的 是适配器对象
                 RpcContext.getContext().setFuture(futureAdapter);
 
                 Result result;
@@ -123,7 +136,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                     //创建一个 异步RPC 结果对象
                     result = new AsyncRpcResult(futureAdapter, futureAdapter.getResultFuture(), false);
                 } else {
-                    //创建一个简单对象 相比上面少了 recreate 方法
+                    //创建一个简单对象 继承于上面那个类相比少了 recreate 方法
                     result = new SimpleAsyncRpcResult(futureAdapter, futureAdapter.getResultFuture(), false);
                 }
                 return result;

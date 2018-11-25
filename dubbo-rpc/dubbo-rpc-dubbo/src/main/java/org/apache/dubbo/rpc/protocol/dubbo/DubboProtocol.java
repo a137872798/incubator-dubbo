@@ -91,28 +91,48 @@ public class DubboProtocol extends AbstractProtocol {
     //consumer side export a stub service for dispatching event
     //servicekey-stubmethods
     private final ConcurrentMap<String, String> stubServiceMethodsMap = new ConcurrentHashMap<String, String>();
+
+    /**
+     * 处理请求对象
+     */
     private ExchangeHandler requestHandler = new ExchangeHandlerAdapter() {
 
+        /**
+         * 回复
+         * @param channel
+         * @param message
+         * @return
+         * @throws RemotingException
+         */
         @Override
         public CompletableFuture<Object> reply(ExchangeChannel channel, Object message) throws RemotingException {
+            //如果 传入的数据是 invocation 类型
             if (message instanceof Invocation) {
+                //转换
                 Invocation inv = (Invocation) message;
+                //获取 invoker 对象
                 Invoker<?> invoker = getInvoker(channel, inv);
                 // need to consider backward-compatibility if it's a callback
+                //判断是否是回调 需要考虑向后兼容性
                 if (Boolean.TRUE.toString().equals(inv.getAttachments().get(IS_CALLBACK_SERVICE_INVOKE))) {
+                    //获取方法名
                     String methodsStr = invoker.getUrl().getParameters().get("methods");
                     boolean hasMethod = false;
                     if (methodsStr == null || !methodsStr.contains(",")) {
+                        //如果 invoker 的 方法名和 获取到的一样 没有也是 true???
                         hasMethod = inv.getMethodName().equals(methodsStr);
                     } else {
+                        //拆分 获取 方法数组
                         String[] methods = methodsStr.split(",");
                         for (String method : methods) {
+                            //找到一个对应方法就是 hashMethod
                             if (inv.getMethodName().equals(method)) {
                                 hasMethod = true;
                                 break;
                             }
                         }
                     }
+                    //没有找到 对应方法就抛出异常
                     if (!hasMethod) {
                         logger.warn(new IllegalStateException("The methodName " + inv.getMethodName()
                                 + " not found in callback service interface ,invoke will be ignored."
@@ -121,18 +141,26 @@ public class DubboProtocol extends AbstractProtocol {
                         return null;
                     }
                 }
+                //获取上下文对象
                 RpcContext rpcContext = RpcContext.getContext();
+                //判断是否是异步
                 boolean supportServerAsync = invoker.getUrl().getMethodParameter(inv.getMethodName(), Constants.ASYNC_KEY, false);
                 if (supportServerAsync) {
+                    //创建异步对象并保存到上下文中
                     CompletableFuture<Object> future = new CompletableFuture<>();
                     rpcContext.setAsyncContext(new AsyncContextImpl(future));
                 }
+                //设置远程地址
                 rpcContext.setRemoteAddress(channel.getRemoteAddress());
                 Result result = invoker.invoke(inv);
 
+                /**
+                 * 如果是异步 结果
+                 */
                 if (result instanceof AsyncRpcResult) {
                     return ((AsyncRpcResult) result).getResultFuture().thenApply(r -> (Object) r);
                 } else {
+                    //计算结果
                     return CompletableFuture.completedFuture(result);
                 }
             }
@@ -141,17 +169,26 @@ public class DubboProtocol extends AbstractProtocol {
                     + ", channel: consumer: " + channel.getRemoteAddress() + " --> provider: " + channel.getLocalAddress());
         }
 
+        /**
+         * 接受到请求后
+         * @param channel
+         * @param message
+         * @throws RemotingException
+         */
         @Override
         public void received(Channel channel, Object message) throws RemotingException {
             if (message instanceof Invocation) {
+                //是invocation 就直接处理
                 reply((ExchangeChannel) channel, message);
             } else {
+                //否则委托给父类
                 super.received(channel, message);
             }
         }
 
         @Override
         public void connected(Channel channel) throws RemotingException {
+            //传入 指定的key 来执行对应任务
             invoke(channel, Constants.ON_CONNECT_KEY);
         }
 
@@ -163,6 +200,11 @@ public class DubboProtocol extends AbstractProtocol {
             invoke(channel, Constants.ON_DISCONNECT_KEY);
         }
 
+        /**
+         * 根据指定的key 执行不同的逻辑
+         * @param channel
+         * @param methodKey
+         */
         private void invoke(Channel channel, String methodKey) {
             Invocation invocation = createInvocation(channel, channel.getUrl(), methodKey);
             if (invocation != null) {
@@ -174,7 +216,15 @@ public class DubboProtocol extends AbstractProtocol {
             }
         }
 
+        /**
+         * 创建invoker 对象
+         * @param channel
+         * @param url
+         * @param methodKey
+         * @return
+         */
         private Invocation createInvocation(Channel channel, URL url, String methodKey) {
+            //通过 对应配置获取属性 一般情况 connect 和disconnect 都是不设置的  这个应该是 连接或断开连接触发的 方法
             String method = url.getParameter(methodKey);
             if (method == null || method.length() == 0) {
                 return null;
@@ -214,38 +264,62 @@ public class DubboProtocol extends AbstractProtocol {
         return exporterMap;
     }
 
+    /**
+     * 判断是否是客户端 方
+     * @param channel
+     * @return
+     */
     private boolean isClientSide(Channel channel) {
+        //获取远程地址
         InetSocketAddress address = channel.getRemoteAddress();
+        //获取url 对象
         URL url = channel.getUrl();
+        //如果 url 的 端口和 远程地址的 端口相同
         return url.getPort() == address.getPort() &&
                 NetUtils.filterLocalHost(channel.getUrl().getIp())
                         .equals(NetUtils.filterLocalHost(address.getAddress().getHostAddress()));
     }
 
+    /**
+     * 从 invocation 中获取invoker 对象
+     * @param channel
+     * @param inv
+     * @return
+     * @throws RemotingException
+     */
     Invoker<?> getInvoker(Channel channel, Invocation inv) throws RemotingException {
         boolean isCallBackServiceInvoke = false;
         boolean isStubServiceInvoke = false;
+        //获取端口和 地址
         int port = channel.getLocalAddress().getPort();
         String path = inv.getAttachments().get(Constants.PATH_KEY);
         // if it's callback service on client side
+        //如果是 存根类型
         isStubServiceInvoke = Boolean.TRUE.toString().equals(inv.getAttachments().get(Constants.STUB_EVENT_KEY));
         if (isStubServiceInvoke) {
+            //使用远程端口
             port = channel.getRemoteAddress().getPort();
         }
         //callback
+        //判断是否是 回调
         isCallBackServiceInvoke = isClientSide(channel) && !isStubServiceInvoke;
         if (isCallBackServiceInvoke) {
+            //获取回调路径
             path = inv.getAttachments().get(Constants.PATH_KEY) + "." + inv.getAttachments().get(Constants.CALLBACK_SERVICE_KEY);
+            //设置 代表开启回调的 标识
             inv.getAttachments().put(IS_CALLBACK_SERVICE_INVOKE, Boolean.TRUE.toString());
         }
+        //拼接传入的参数生成 服务键
         String serviceKey = serviceKey(port, path, inv.getAttachments().get(Constants.VERSION_KEY), inv.getAttachments().get(Constants.GROUP_KEY));
 
+        //通过服务键获取 export 对象
         DubboExporter<?> exporter = (DubboExporter<?>) exporterMap.get(serviceKey);
 
         if (exporter == null) {
             throw new RemotingException(channel, "Not found exported service: " + serviceKey + " in " + exporterMap.keySet() + ", may be version or group mismatch " + ", channel: consumer: " + channel.getRemoteAddress() + " --> provider: " + channel.getLocalAddress() + ", message:" + inv);
         }
 
+        //从出口对象获取invoker
         return exporter.getInvoker();
     }
 

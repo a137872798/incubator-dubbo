@@ -28,7 +28,7 @@ public class Consumer {
      * before running your application.
      */
     public static void main(String[] args) {
-        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(new String[]{"META-INF/spring/dubbo-demo-consumer.xml"});
+        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(new String[]{"META-INF/spring/dubbo-demo-injvm.xml"});
         context.start();
         DemoService demoService = (DemoService) context.getBean("demoService"); // get remote service proxy
         while (true) {

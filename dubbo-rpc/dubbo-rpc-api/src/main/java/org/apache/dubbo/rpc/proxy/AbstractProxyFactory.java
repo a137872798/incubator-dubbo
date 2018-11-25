@@ -27,9 +27,18 @@ import com.alibaba.dubbo.rpc.service.EchoService;
 
 /**
  * AbstractProxyFactory
+ *
+ * 代理工厂的 骨架类
  */
 public abstract class AbstractProxyFactory implements ProxyFactory {
 
+    /**
+     * 默认 非 泛化模式
+     * @param invoker
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> T getProxy(Invoker<T> invoker) throws RpcException {
         return getProxy(invoker, false);
@@ -37,12 +46,17 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
 
     @Override
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
+        //生成 接口数组
         Class<?>[] interfaces = null;
+        //获取 需要生成的 接口类型
         String config = invoker.getUrl().getParameter(Constants.INTERFACES);
         if (config != null && config.length() > 0) {
+            //多个接口 用 "," 拼接
             String[] types = Constants.COMMA_SPLIT_PATTERN.split(config);
             if (types != null && types.length > 0) {
                 interfaces = new Class<?>[types.length + 2];
+                //多设置了 2个 接口 一个是 invoker本身接口 一个 是 echoService 接口
+                //实现 回声接口是为了方便测试是否可用
                 interfaces[0] = invoker.getInterface();
                 interfaces[1] = EchoService.class;
                 for (int i = 0; i < types.length; i++) {
@@ -52,9 +66,11 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
             }
         }
         if (interfaces == null) {
+            //默认 也会设置这 2个 接口
             interfaces = new Class<?>[]{invoker.getInterface(), EchoService.class};
         }
 
+        //如果 不是 泛化接口 且  泛化标识为true
         if (!GenericService.class.isAssignableFrom(invoker.getInterface()) && generic) {
             int len = interfaces.length;
             Class<?>[] temp = interfaces;
@@ -66,6 +82,13 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
         return getProxy(invoker, interfaces);
     }
 
+    /**
+     * 真正的 代理逻辑 由子类实现
+     * @param invoker
+     * @param types
+     * @param <T>
+     * @return
+     */
     public abstract <T> T getProxy(Invoker<T> invoker, Class<?>[] types);
 
 }

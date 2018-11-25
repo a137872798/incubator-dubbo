@@ -63,6 +63,10 @@ public class ConsumerMethodModel {
         return returnClass;
     }
 
+    /**
+     * 获取消费模型中的 异步信息
+     * @return
+     */
     public AsyncMethodInfo getAsyncInfo() {
         return asyncInfo;
     }

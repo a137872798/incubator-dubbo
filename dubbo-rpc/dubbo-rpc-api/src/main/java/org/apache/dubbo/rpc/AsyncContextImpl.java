@@ -22,12 +22,18 @@ import org.apache.dubbo.common.logger.LoggerFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * 异步上下文对象
+ */
 public class AsyncContextImpl implements AsyncContext {
     private static final Logger logger = LoggerFactory.getLogger(AsyncContextImpl.class);
 
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final AtomicBoolean stoped = new AtomicBoolean(false);
 
+    /**
+     * 上下文的结果对象
+     */
     private CompletableFuture<Object> future;
 
     private RpcContext storedContext;

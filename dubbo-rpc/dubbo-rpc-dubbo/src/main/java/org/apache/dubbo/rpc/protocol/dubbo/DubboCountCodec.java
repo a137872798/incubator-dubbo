@@ -29,31 +29,60 @@ import org.apache.dubbo.rpc.RpcResult;
 
 import java.io.IOException;
 
+/**
+ * dubbo 的 计数器 编解码对象
+ */
 public final class DubboCountCodec implements Codec2 {
 
+    /**
+     * 编解码对象
+     */
     private DubboCodec codec = new DubboCodec();
 
+    /**
+     * 编码方法
+     * @param channel
+     * @param buffer
+     * @param msg
+     * @throws IOException
+     */
     @Override
     public void encode(Channel channel, ChannelBuffer buffer, Object msg) throws IOException {
+        //委托 codec 实现编码
         codec.encode(channel, buffer, msg);
     }
 
+    /**
+     * 解码
+     * @param channel
+     * @param buffer
+     * @return
+     * @throws IOException
+     */
     @Override
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
+        //获取 buffer 读指针
         int save = buffer.readerIndex();
+        //创建 复合消息  就是一个 List<Message>
         MultiMessage result = MultiMessage.create();
         do {
+            //委托 解码
             Object obj = codec.decode(channel, buffer);
+            //无法解码时
             if (Codec2.DecodeResult.NEED_MORE_INPUT == obj) {
+                //还原指针
                 buffer.readerIndex(save);
                 break;
             } else {
+                //将结果保存到 result中 同时 更新 读指针
                 result.addMessage(obj);
+                //为每个 解码后产生的对象设置长度
                 logMessageLength(obj, buffer.readerIndex() - save);
                 save = buffer.readerIndex();
             }
         } while (true);
         if (result.isEmpty()) {
+            //没有解析到数据 需要更多输入
             return Codec2.DecodeResult.NEED_MORE_INPUT;
         }
         if (result.size() == 1) {
@@ -62,17 +91,25 @@ public final class DubboCountCodec implements Codec2 {
         return result;
     }
 
+    /**
+     * 记录消息长度
+     * @param result
+     * @param bytes
+     */
     private void logMessageLength(Object result, int bytes) {
         if (bytes <= 0) {
             return;
         }
+        //是请求类型
         if (result instanceof Request) {
             try {
+                // 将长度 保存到 input 中
                 ((RpcInvocation) ((Request) result).getData()).setAttachment(
                         Constants.INPUT_KEY, String.valueOf(bytes));
             } catch (Throwable e) {
                 /* ignore */
             }
+            //响应类型  保存 output 的长度
         } else if (result instanceof Response) {
             try {
                 ((RpcResult) ((Response) result).getResult()).setAttachment(
