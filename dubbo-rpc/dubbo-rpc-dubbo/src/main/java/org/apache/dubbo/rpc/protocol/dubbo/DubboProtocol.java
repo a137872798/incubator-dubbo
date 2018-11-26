@@ -87,6 +87,9 @@ public class DubboProtocol extends AbstractProtocol {
      */
     private final ConcurrentMap<String, LazyConnectExchangeClient> ghostClientMap = new ConcurrentHashMap<String, LazyConnectExchangeClient>();
     private final ConcurrentMap<String, Object> locks = new ConcurrentHashMap<String, Object>();
+    /**
+     * 序列化优化器容器
+     */
     private final Set<String> optimizers = new ConcurrentHashSet<String>();
     //consumer side export a stub service for dispatching event
     //servicekey-stubmethods
@@ -447,8 +450,15 @@ public class DubboProtocol extends AbstractProtocol {
         return server;
     }
 
+    /**
+     * 初始化 序列化优化器
+     * @param url
+     * @throws RpcException
+     */
     private void optimizeSerialization(URL url) throws RpcException {
+        //获取 url 中的 optimize 属性
         String className = url.getParameter(Constants.OPTIMIZER_KEY, "");
+        //如果 该优化器已经存在 获取没有 设置 就直接返回
         if (StringUtils.isEmpty(className) || optimizers.contains(className)) {
             return;
         }
@@ -456,21 +466,27 @@ public class DubboProtocol extends AbstractProtocol {
         logger.info("Optimizing the serialization process for Kryo, FST, etc...");
 
         try {
+            //通过当前线程类加载器加载 指定的 序列化优化器
             Class clazz = Thread.currentThread().getContextClassLoader().loadClass(className);
+            //如果该类 没有实现 序列化优化器接口 抛出异常
             if (!SerializationOptimizer.class.isAssignableFrom(clazz)) {
                 throw new RpcException("The serialization optimizer " + className + " isn't an instance of " + SerializationOptimizer.class.getName());
             }
 
+            //创建 优化器实例
             SerializationOptimizer optimizer = (SerializationOptimizer) clazz.newInstance();
 
+            //没有获取到 序列化类对象直接返回
             if (optimizer.getSerializableClasses() == null) {
                 return;
             }
 
+            //遍历每个 在 注册中心进行注册
             for (Class c : optimizer.getSerializableClasses()) {
                 SerializableClassRegistry.registerClass(c);
             }
 
+            //优化器 保存到 容器中
             optimizers.add(className);
         } catch (ClassNotFoundException e) {
             throw new RpcException("Cannot find the serialization optimizer class: " + className, e);

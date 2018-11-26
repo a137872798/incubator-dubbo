@@ -460,7 +460,7 @@ public class RegistryProtocol implements Protocol {
                         + "," + Constants.CONFIGURATORS_CATEGORY
                         + "," + Constants.ROUTERS_CATEGORY));
 
-        //创建invoker 对象
+        //创建invoker 对象 这里通过集群调用 返回了一个合适的invoker 对象
         Invoker invoker = cluster.join(directory);
         //给全局 表中 设置消费者
         ProviderConsumerRegTable.registerConsumer(invoker, url, subscribeUrl, directory);

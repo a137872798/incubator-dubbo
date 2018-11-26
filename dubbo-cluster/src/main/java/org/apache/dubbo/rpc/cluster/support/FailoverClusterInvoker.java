@@ -41,6 +41,7 @@ import java.util.Set;
  * <p>
  * <a href="http://en.wikipedia.org/wiki/Failover">Failover</a>
  *
+ * 失败重试集群对象
  */
 public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
 

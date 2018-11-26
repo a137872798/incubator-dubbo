@@ -20,12 +20,13 @@ import java.io.IOException;
 
 /**
  * Data output.
+ * 输出流对象
  */
 public interface DataOutput {
 
     /**
      * Write boolean.
-     *
+     * 输出boolean 数据
      * @param v value.
      * @throws IOException
      */

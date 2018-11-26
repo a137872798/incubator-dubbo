@@ -16,7 +16,13 @@
  */
 package org.apache.dubbo.common.serialize;
 
+/**
+ * 序列化后 做清理工作的 抽象
+ */
 public interface Cleanable {
 
+    /**
+     * 清理工作
+     */
     void cleanup();
 }

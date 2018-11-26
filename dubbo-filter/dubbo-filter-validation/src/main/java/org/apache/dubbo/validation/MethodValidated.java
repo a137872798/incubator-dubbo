@@ -31,6 +31,11 @@ import java.lang.annotation.Target;
  * </pre>
  * It means both Save group and Update group are needed to check when method relatedQuery is invoked.
  * </p>
+ *
+ * dubbo 内部的 方法级别过滤注解
+ *
+ * @MethodValidated({Save.class, Update.class})  代表该方法 需要同时 被2个 过滤器过滤
+ * void relatedQuery(ValidationParameter parameter);
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

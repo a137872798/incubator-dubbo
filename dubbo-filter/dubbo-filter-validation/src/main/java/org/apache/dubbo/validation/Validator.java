@@ -18,6 +18,7 @@ package org.apache.dubbo.validation;
 
 /**
  * Validator
+ * 过滤器对象
  */
 public interface Validator {
 

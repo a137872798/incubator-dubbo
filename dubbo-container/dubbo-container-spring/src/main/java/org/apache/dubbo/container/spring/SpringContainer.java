@@ -28,9 +28,19 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  */
 public class SpringContainer implements Container {
 
+    /**
+     * spring 的配置文件信息
+     */
     public static final String SPRING_CONFIG = "dubbo.spring.config";
+    /**
+     * spring 默认配置地址
+     */
     public static final String DEFAULT_SPRING_CONFIG = "classpath*:META-INF/spring/*.xml";
     private static final Logger logger = LoggerFactory.getLogger(SpringContainer.class);
+
+    /**
+     * spring的上下文对象 静态对象 全局唯一
+     */
     static ClassPathXmlApplicationContext context;
 
     public static ClassPathXmlApplicationContext getContext() {
@@ -39,10 +49,15 @@ public class SpringContainer implements Container {
 
     @Override
     public void start() {
+        //获取spring配置文件的地址
+        //【高】JVM 启动参数：-Ddubbo.spring.config=自定义 XML 路径 。
+        //【低】Dubbo Properties 配置文件：dubbo.spring.config=自定义 XML 路径 。
         String configPath = ConfigUtils.getProperty(SPRING_CONFIG);
         if (configPath == null || configPath.length() == 0) {
+            //一般是 无法从 dubbo默认配置中获取spring配置地址信息的 就使用 默认的 spring 地址
             configPath = DEFAULT_SPRING_CONFIG;
         }
+        //通过指定路径获取了 上下文对象 并启动
         context = new ClassPathXmlApplicationContext(configPath.split("[,\\s]+"));
         context.start();
     }
@@ -50,6 +65,7 @@ public class SpringContainer implements Container {
     @Override
     public void stop() {
         try {
+            //如果上下文 对象存在就关闭
             if (context != null) {
                 context.stop();
                 context.close();

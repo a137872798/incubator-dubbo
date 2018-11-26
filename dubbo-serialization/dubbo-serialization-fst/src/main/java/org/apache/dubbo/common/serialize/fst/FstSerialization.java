@@ -27,6 +27,10 @@ import java.io.OutputStream;
 
 public class FstSerialization implements Serialization {
 
+    /**
+     * 内容类型id 写死
+     * @return
+     */
     @Override
     public byte getContentTypeId() {
         return 9;
@@ -37,6 +41,13 @@ public class FstSerialization implements Serialization {
         return "x-application/fst";
     }
 
+    /**
+     * 下面返回的对象包装了 FSTObjectOutput  注意和下面的不是一个类  通过代理模式 将实际调用转到这个对象上
+     * @param url
+     * @param out
+     * @return
+     * @throws IOException
+     */
     @Override
     public ObjectOutput serialize(URL url, OutputStream out) throws IOException {
         return new FstObjectOutput(out);

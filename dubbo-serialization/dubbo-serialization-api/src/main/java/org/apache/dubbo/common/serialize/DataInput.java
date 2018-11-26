@@ -20,12 +20,15 @@ import java.io.IOException;
 
 /**
  * Data input.
+ *
+ * 数据输入流的抽象
  */
 public interface DataInput {
 
     /**
      * Read boolean.
      *
+     * 读取Boolean 类型
      * @return boolean.
      * @throws IOException
      */
@@ -34,6 +37,7 @@ public interface DataInput {
     /**
      * Read byte.
      *
+     * 读取Byte数据
      * @return byte value.
      * @throws IOException
      */
@@ -42,6 +46,7 @@ public interface DataInput {
     /**
      * Read short integer.
      *
+     * 获取short 类型数据
      * @return short.
      * @throws IOException
      */
@@ -50,6 +55,7 @@ public interface DataInput {
     /**
      * Read integer.
      *
+     * 读取int 数据
      * @return integer.
      * @throws IOException
      */
@@ -82,6 +88,7 @@ public interface DataInput {
     /**
      * Read UTF-8 string.
      *
+     * 获取UTF-8数据
      * @return string.
      * @throws IOException
      */

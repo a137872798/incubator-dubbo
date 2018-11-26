@@ -23,6 +23,7 @@ import org.apache.dubbo.common.extension.SPI;
 
 /**
  * Validation
+ * 过滤器工厂
  */
 @SPI("jvalidation")
 public interface Validation {

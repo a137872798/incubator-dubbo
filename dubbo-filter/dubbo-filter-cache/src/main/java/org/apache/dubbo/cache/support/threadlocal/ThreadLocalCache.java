@@ -24,9 +24,14 @@ import java.util.Map;
 
 /**
  * ThreadLocalCache
+ *
+ * 基于 本地线程的实现 不会清除旧的缓存
  */
 public class ThreadLocalCache implements Cache {
 
+    /**
+     * 通过 本地线程变量 维护一个map 对象解决了并发问题
+     */
     private final ThreadLocal<Map<Object, Object>> store;
 
     public ThreadLocalCache(URL url) {

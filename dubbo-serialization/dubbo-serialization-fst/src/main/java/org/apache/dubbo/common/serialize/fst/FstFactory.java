@@ -25,10 +25,19 @@ import org.nustaq.serialization.FSTObjectOutput;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/**
+ * jdk 原生的 序列化对象
+ */
 public class FstFactory {
 
+    /**
+     * 单例对象
+     */
     private static final FstFactory factory = new FstFactory();
 
+    /**
+     * 配置对象
+     */
     private final FSTConfiguration conf = FSTConfiguration.createDefaultConfiguration();
 
 
@@ -37,9 +46,15 @@ public class FstFactory {
     }
 
     public FstFactory() {
+        //对每个对象进行注册  委托到一个 第三方对象
         SerializableClassRegistry.getRegisteredClasses().keySet().forEach(conf::registerClass);
     }
 
+    /**
+     * 都是委托给第三方类 完成序列化的
+     * @param outputStream
+     * @return
+     */
     public FSTObjectOutput getObjectOutput(OutputStream outputStream) {
         return conf.getObjectOutput(outputStream);
     }

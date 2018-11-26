@@ -21,13 +21,20 @@ import com.esotericsoftware.kryo.Serializer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * 序列化类注册中心
+ */
 public abstract class SerializableClassRegistry {
 
-
+    /**
+     * 容器对象
+     * key 被注册的对象 value 序列化对象
+     */
     private static final Map<Class, Object> registrations = new LinkedHashMap<>();
 
     /**
      * only supposed to be called at startup time
+     * 注册类对象
      */
     public static void registerClass(Class clazz) {
         registerClass(clazz, null);
@@ -35,6 +42,7 @@ public abstract class SerializableClassRegistry {
 
     /**
      * only supposed to be called at startup time
+     * 注册类对象
      */
     public static void registerClass(Class clazz, Serializer serializer) {
         if (clazz == null) {
@@ -43,6 +51,10 @@ public abstract class SerializableClassRegistry {
         registrations.put(clazz, serializer);
     }
 
+    /**
+     * 返回注册中心的 类容器
+     * @return
+     */
     public static Map<Class, Object> getRegisteredClasses() {
         return registrations;
     }

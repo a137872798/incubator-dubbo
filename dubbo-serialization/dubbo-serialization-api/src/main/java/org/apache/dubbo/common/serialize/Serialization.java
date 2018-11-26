@@ -26,6 +26,8 @@ import java.io.OutputStream;
 
 /**
  * Serialization. (SPI, Singleton, ThreadSafe)
+ *
+ * 序列化接口
  */
 @SPI("hessian2")
 public interface Serialization {
@@ -33,6 +35,7 @@ public interface Serialization {
     /**
      * get content type id
      *
+     * 获得 内容类型id
      * @return content type id
      */
     byte getContentTypeId();
@@ -40,6 +43,7 @@ public interface Serialization {
     /**
      * get content type
      *
+     * 获得 内容类型
      * @return content type
      */
     String getContentType();
@@ -47,6 +51,7 @@ public interface Serialization {
     /**
      * create serializer
      *
+     * 通过输出流创建序列化对象流
      * @param url
      * @param output
      * @return serializer
@@ -58,6 +63,7 @@ public interface Serialization {
     /**
      * create deserializer
      *
+     * 通过输入流创建反序列化对象流
      * @param url
      * @param input
      * @return deserializer

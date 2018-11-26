@@ -22,6 +22,7 @@ import org.apache.dubbo.common.URL;
 
 /**
  * ThreadLocalCacheFactory
+ * 通过本地线程变量实现缓存 就是返回一个 ThreadLocalCache对象
  */
 public class ThreadLocalCacheFactory extends AbstractCacheFactory {
 

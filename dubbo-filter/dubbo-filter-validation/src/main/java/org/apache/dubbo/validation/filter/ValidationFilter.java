@@ -30,10 +30,16 @@ import org.apache.dubbo.validation.Validator;
 
 /**
  * ValidationFilter
+ *
+ * 参数过滤器
  */
+//同时针对消费者 和 提供者
 @Activate(group = {Constants.CONSUMER, Constants.PROVIDER}, value = Constants.VALIDATION_KEY, order = 10000)
 public class ValidationFilter implements Filter {
 
+    /**
+     * 过滤器工厂
+     */
     private Validation validation;
 
     public void setValidation(Validation validation) {
@@ -42,11 +48,14 @@ public class ValidationFilter implements Filter {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //泛化 调用 是不能触发 过滤器的 且要有 过滤器的 属性  validation="true"
         if (validation != null && !invocation.getMethodName().startsWith("$")
                 && ConfigUtils.isNotEmpty(invoker.getUrl().getMethodParameter(invocation.getMethodName(), Constants.VALIDATION_KEY))) {
             try {
+                //根据传入的 url 获取过滤对象
                 Validator validator = validation.getValidator(invoker.getUrl());
                 if (validator != null) {
+                    //进行验证  验证失败会抛出异常
                     validator.validate(invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments());
                 }
             } catch (RpcException e) {
@@ -55,6 +64,7 @@ public class ValidationFilter implements Filter {
                 return new RpcResult(t);
             }
         }
+        //没有抛出异常就会进入到下一层调用链
         return invoker.invoke(invocation);
     }
 

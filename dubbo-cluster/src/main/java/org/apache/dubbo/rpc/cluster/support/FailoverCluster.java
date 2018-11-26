@@ -24,11 +24,22 @@ import org.apache.dubbo.rpc.cluster.Directory;
 /**
  * {@link FailoverClusterInvoker}
  *
+ * 失败重试集群对象
  */
 public class FailoverCluster implements Cluster {
 
+    /**
+     * 该集群策略名
+     */
     public final static String NAME = "failover";
 
+    /**
+     * 从directory中寻找合适的 invoker 对象 并包装成 集群invoker对象返回
+     * @param directory
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Invoker<T> join(Directory<T> directory) throws RpcException {
         return new FailoverClusterInvoker<T>(directory);

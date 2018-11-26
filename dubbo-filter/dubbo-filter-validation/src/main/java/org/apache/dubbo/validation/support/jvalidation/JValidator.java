@@ -69,64 +69,104 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * JValidator
+ *
+ * javax 自带 的 过滤器对象
  */
 public class JValidator implements Validator {
 
     private static final Logger logger = LoggerFactory.getLogger(JValidator.class);
 
+    /**
+     * 要过滤的目标服务接口
+     */
     private final Class<?> clazz;
 
     private final Map<String, Class> methodClassMap;
 
+    /**
+     * 过滤器对象
+     */
     private final javax.validation.Validator validator;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public JValidator(URL url) {
         this.clazz = ReflectUtils.forName(url.getServiceInterface());
+        //查看有没有相关配置信息  这个应该是过滤器工厂类的全限定名
         String jvalidation = url.getParameter("jvalidation");
         ValidatorFactory factory;
         if (jvalidation != null && jvalidation.length() > 0) {
+            //这里是 javax的 实现 大体就是根据传入的全限定名生成 过滤器工厂后 构建对象
             factory = Validation.byProvider((Class) ReflectUtils.forName(jvalidation)).configure().buildValidatorFactory();
         } else {
+            //没有设置就使用默认的 过滤器工厂
             factory = Validation.buildDefaultValidatorFactory();
         }
+        //获取 过滤器对象 真正的过滤动作委托给了这个对象
         this.validator = factory.getValidator();
         this.methodClassMap = new ConcurrentHashMap<String, Class>();
     }
 
+    /**
+     * 判断给定class 是否是数组对象
+     * @param cls
+     * @return
+     */
     private static boolean isPrimitives(Class<?> cls) {
         if (cls.isArray()) {
+            //如果是数组对象 就先变成获取 单个元素 然后再判断是否是原始类型
             return isPrimitive(cls.getComponentType());
         }
         return isPrimitive(cls);
     }
 
+    /**
+     * 判断是否是原始类型
+     * @param cls
+     * @return
+     */
     private static boolean isPrimitive(Class<?> cls) {
         return cls.isPrimitive() || cls == String.class || cls == Boolean.class || cls == Character.class
                 || Number.class.isAssignableFrom(cls) || Date.class.isAssignableFrom(cls);
     }
 
+    /**
+     *
+     * @param clazz 服务接口类型
+     * @param method 服务方法
+     * @param args 该方法需要的参数
+     * @return
+     */
     private static Object getMethodParameterBean(Class<?> clazz, Method method, Object[] args) {
+        //判断 方法中每个参数是否有 COnstraint 注解
         if (!hasConstraintParameter(method)) {
             return null;
         }
         try {
+            //获取 类名 方法名参数列表拼接后的字符串
             String parameterClassName = generateMethodParameterClassName(clazz, method);
             Class<?> parameterClass;
             try {
+                //反射创建的类
                 parameterClass = (Class<?>) Class.forName(parameterClassName, true, clazz.getClassLoader());
             } catch (ClassNotFoundException e) {
+                //没有找到 该对象 通过  javassist 创建动态类对象
                 ClassPool pool = ClassGenerator.getClassPool(clazz.getClassLoader());
+                //创建对应类名的对象
                 CtClass ctClass = pool.makeClass(parameterClassName);
                 ClassFile classFile = ctClass.getClassFile();
                 classFile.setVersionToJava5();
+                //添加默认构造器
                 ctClass.addConstructor(CtNewConstructor.defaultConstructor(pool.getCtClass(parameterClassName)));
-                // parameter fields
+                // parameter fields  获取方法的参数信息
                 Class<?>[] parameterTypes = method.getParameterTypes();
+                //获取方法的 所有参数的注解
                 Annotation[][] parameterAnnotations = method.getParameterAnnotations();
                 for (int i = 0; i < parameterTypes.length; i++) {
+                    //参数类型
                     Class<?> type = parameterTypes[i];
+                    //参数对应的 注解数组
                     Annotation[] annotations = parameterAnnotations[i];
+                    //javassist 的类 应该是 构建 注解的
                     AnnotationsAttribute attribute = new AnnotationsAttribute(classFile.getConstPool(), AnnotationsAttribute.visibleTag);
                     for (Annotation annotation : annotations) {
                         if (annotation.annotationType().isAnnotationPresent(Constraint.class)) {
@@ -167,6 +207,12 @@ public class JValidator implements Validator {
         }
     }
 
+    /**
+     * 构建类名_方法名_参数列表的  字符串
+     * @param clazz
+     * @param method
+     * @return
+     */
     private static String generateMethodParameterClassName(Class<?> clazz, Method method) {
         StringBuilder builder = new StringBuilder().append(clazz.getName())
                 .append("_")
@@ -181,9 +227,16 @@ public class JValidator implements Validator {
         return builder.toString();
     }
 
+    /**
+     * 获取 服务方调用的方法对象
+     * @param method
+     * @return
+     */
     private static boolean hasConstraintParameter(Method method) {
+        //获取该方法的每个参数 的注解
         Annotation[][] parameterAnnotations = method.getParameterAnnotations();
         if (parameterAnnotations != null && parameterAnnotations.length > 0) {
+            //二层循环 判断 每个参数 是否有 Constraint 注解  这个注解是 javax 自带的
             for (Annotation[] annotations : parameterAnnotations) {
                 for (Annotation annotation : annotations) {
                     if (annotation.annotationType().isAnnotationPresent(Constraint.class)) {
@@ -195,6 +248,11 @@ public class JValidator implements Validator {
         return false;
     }
 
+    /**
+     * 将方法首字母大写
+     * @param methodName
+     * @return
+     */
     private static String toUpperMethoName(String methodName) {
         return methodName.substring(0, 1).toUpperCase() + methodName.substring(1);
     }
@@ -238,27 +296,41 @@ public class JValidator implements Validator {
         return memberValue;
     }
 
+    /**
+     * 过滤的 核心逻辑
+     * @param methodName
+     * @param parameterTypes
+     * @param arguments
+     * @throws Exception
+     */
     @Override
     public void validate(String methodName, Class<?>[] parameterTypes, Object[] arguments) throws Exception {
         List<Class<?>> groups = new ArrayList<Class<?>>();
+        //根据方法名 获取 拓展对象
         Class<?> methodClass = methodClass(methodName);
         if (methodClass != null) {
+            //添加到容器中
             groups.add(methodClass);
         }
         Set<ConstraintViolation<?>> violations = new HashSet<ConstraintViolation<?>>();
+        //获取指定方法
         Method method = clazz.getMethod(methodName, parameterTypes);
         Class<?>[] methodClasses = null;
+        //获取方法上的 methodValidate 注解
         if (method.isAnnotationPresent(MethodValidated.class)){
             methodClasses = method.getAnnotation(MethodValidated.class).value();
+            //这里代表需要被哪些过滤组过滤  @MethodValidated({Save.class, Update.class})
             groups.addAll(Arrays.asList(methodClasses));
         }
-        // add into default group
+        // add into default group  添加 默认的过滤组
+        //这个是 javax 的接口  这个指定下标的添加 不会删除掉旧的元素
         groups.add(0, Default.class);
         groups.add(1, clazz);
 
         // convert list to array
         Class<?>[] classgroups = groups.toArray(new Class[0]);
 
+        //通过 服务接口类 调用的方法 和参数 创建了一个特殊的类 因为涉及到 javassist 实现的动态代理就先不看了 反正返回了可以被 校验的 对象
         Object parameterBean = getMethodParameterBean(clazz, method, arguments);
         if (parameterBean != null) {
             violations.addAll(validator.validate(parameterBean, classgroups ));
@@ -274,14 +346,23 @@ public class JValidator implements Validator {
         }
     }
 
+    /**
+     * 传入方法名获取 拓展的 类名$方法名  的类对象
+     * @param methodName
+     * @return
+     */
     private Class methodClass(String methodName) {
         Class<?> methodClass = null;
+        //获取 服务接口类名 拼接上方法名
         String methodClassName = clazz.getName() + "$" + toUpperMethoName(methodName);
+        //从容器中获取对应类对象
         Class cached = methodClassMap.get(methodClassName);
         if (cached != null) {
+            //如果是接口类自身就 返回null
             return cached == clazz ? null : cached;
         }
         try {
+            //反射创建对应的类并保存到容器中
             methodClass = Class.forName(methodClassName, false, Thread.currentThread().getContextClassLoader());
             methodClassMap.put(methodClassName, methodClass);
         } catch (ClassNotFoundException e) {
@@ -290,6 +371,12 @@ public class JValidator implements Validator {
         return methodClass;
     }
 
+    /**
+     * 这里对对象进行校验
+     * @param violations
+     * @param arg 被过滤的参数对象
+     * @param groups
+     */
     private void validate(Set<ConstraintViolation<?>> violations, Object arg, Class<?>... groups) {
         if (arg != null && !isPrimitives(arg.getClass())) {
             if (Object[].class.isInstance(arg)) {

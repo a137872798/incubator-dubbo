@@ -21,8 +21,13 @@ import java.util.Collection;
 /**
  * This class can be replaced with the contents in config file, but for now I think the class is easier to write
  *
+ * 序列化 优化器
  */
 public interface SerializationOptimizer {
 
+    /**
+     * 获取需要优化的类的集合
+     * @return
+     */
     Collection<Class> getSerializableClasses();
 }

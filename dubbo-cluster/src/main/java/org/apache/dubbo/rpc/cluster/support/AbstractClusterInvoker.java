@@ -41,11 +41,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AbstractClusterInvoker
+ *
+ * 集群invoker 的 抽象类
  */
 public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
 
     private static final Logger logger = LoggerFactory
             .getLogger(AbstractClusterInvoker.class);
+
+    /**
+     * 能够选择的所有invoker对象目录
+     */
     protected final Directory<T> directory;
 
     protected final boolean availablecheck;

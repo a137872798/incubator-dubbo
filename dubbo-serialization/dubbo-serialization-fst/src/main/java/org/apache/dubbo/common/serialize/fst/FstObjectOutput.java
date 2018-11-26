@@ -28,6 +28,10 @@ public class FstObjectOutput implements ObjectOutput {
 
     private FSTObjectOutput output;
 
+    /**
+     * 构造函数 将原始的输出流包装成 fst输出流在返回
+     * @param outputStream
+     */
     public FstObjectOutput(OutputStream outputStream) {
         output = FstFactory.getDefaultFactory().getObjectOutput(outputStream);
     }

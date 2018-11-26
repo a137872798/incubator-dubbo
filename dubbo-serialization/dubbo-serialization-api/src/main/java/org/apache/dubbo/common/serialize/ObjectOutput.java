@@ -20,12 +20,15 @@ import java.io.IOException;
 
 /**
  * Object output.
+ *
+ * 对象输出流
  */
 public interface ObjectOutput extends DataOutput {
 
     /**
      * write object.
      *
+     * 写出对象
      * @param obj object.
      */
     void writeObject(Object obj) throws IOException;
