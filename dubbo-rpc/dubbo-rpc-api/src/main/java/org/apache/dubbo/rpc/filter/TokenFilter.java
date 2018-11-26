@@ -30,6 +30,8 @@ import java.util.Map;
 
 /**
  * TokenInvokerFilter
+ *
+ * Token 过滤器
  */
 @Activate(group = Constants.PROVIDER, value = Constants.TOKEN_KEY)
 public class TokenFilter implements Filter {
@@ -37,15 +39,19 @@ public class TokenFilter implements Filter {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation inv)
             throws RpcException {
+        //获取url 信息中的 token
         String token = invoker.getUrl().getParameter(Constants.TOKEN_KEY);
         if (ConfigUtils.isNotEmpty(token)) {
             Class<?> serviceType = invoker.getInterface();
+            //获取invoker对象并从attachment中获取 token
             Map<String, String> attachments = inv.getAttachments();
             String remoteToken = attachments == null ? null : attachments.get(Constants.TOKEN_KEY);
+            //token 不同就抛出异常
             if (!token.equals(remoteToken)) {
                 throw new RpcException("Invalid token! Forbid invoke remote service " + serviceType + " method " + inv.getMethodName() + "() from consumer " + RpcContext.getContext().getRemoteHost() + " to provider " + RpcContext.getContext().getLocalHost());
             }
         }
+        //没有token 就进入调用链下一层
         return invoker.invoke(inv);
     }
 

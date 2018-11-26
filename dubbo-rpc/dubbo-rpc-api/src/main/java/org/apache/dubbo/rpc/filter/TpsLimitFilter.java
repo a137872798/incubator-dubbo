@@ -29,15 +29,21 @@ import org.apache.dubbo.rpc.filter.tps.TPSLimiter;
 
 /**
  * Limit TPS for either service or service's particular method
+ *
+ * 限流的 过滤器
  */
 @Activate(group = Constants.PROVIDER, value = Constants.TPS_LIMIT_RATE_KEY)
 public class TpsLimitFilter implements Filter {
 
+    /**
+     * 限流对象 通过这个对象的 限流方法 判断能否正常调用
+     */
     private final TPSLimiter tpsLimiter = new DefaultTPSLimiter();
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
 
+        //如果限流对象 不允许调用就 抛出异常
         if (!tpsLimiter.isAllowable(invoker.getUrl(), invocation)) {
             throw new RpcException(
                     "Failed to invoke service " +

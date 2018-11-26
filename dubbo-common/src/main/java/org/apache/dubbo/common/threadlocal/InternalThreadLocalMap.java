@@ -23,9 +23,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  * The internal data structure that stores the threadLocal variables for Netty and all {@link InternalThread}s.
  * Note that this class is for internal use only. Use {@link InternalThread}
  * unless you know what you are doing.
+ *
+ * ThreadLocal容器
  */
 public final class InternalThreadLocalMap {
 
+    /**
+     * 保存所有 本地线程变量对象
+     */
     private Object[] indexedVariables;
 
     private static ThreadLocal<InternalThreadLocalMap> slowThreadLocalMap = new ThreadLocal<InternalThreadLocalMap>();

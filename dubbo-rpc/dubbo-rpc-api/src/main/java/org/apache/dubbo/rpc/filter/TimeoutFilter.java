@@ -30,6 +30,8 @@ import java.util.Arrays;
 
 /**
  * Log any invocation timeout, but don't stop server from running
+ *
+ * 超时过滤器
  */
 @Activate(group = Constants.PROVIDER)
 public class TimeoutFilter implements Filter {
@@ -38,9 +40,12 @@ public class TimeoutFilter implements Filter {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //获取开始时间
         long start = System.currentTimeMillis();
         Result result = invoker.invoke(invocation);
+        //获取 执行时间
         long elapsed = System.currentTimeMillis() - start;
+        //大于超时时间 打印日志
         if (invoker.getUrl() != null
                 && elapsed > invoker.getUrl().getMethodParameter(invocation.getMethodName(),
                 "timeout", Integer.MAX_VALUE)) {

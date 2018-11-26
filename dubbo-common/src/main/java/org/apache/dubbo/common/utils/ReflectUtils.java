@@ -208,6 +208,7 @@ public final class ReflectUtils {
         if (cls == null) {
             return null;
         }
+        //保护域 java.security包中的 先不管
         ProtectionDomain domain = cls.getProtectionDomain();
         if (domain == null) {
             return null;
@@ -220,6 +221,7 @@ public final class ReflectUtils {
         if (location == null) {
             return null;
         }
+        //好像是获取 该类所在的jar包
         return location.getFile();
     }
 
@@ -887,6 +889,7 @@ public final class ReflectUtils {
         }
 
         //没有从 缓存中找到时
+        //不存在参数列表 那么应该只有一个方法是 对应的
         if (parameterTypes == null) {
             List<Method> finded = new ArrayList<Method>();
             for (Method m : clazz.getMethods()) {
@@ -906,6 +909,7 @@ public final class ReflectUtils {
             }
             method = finded.get(0);
         } else {
+            //存在参数就需要通过参数去定位这个方法
             Class<?>[] types = new Class<?>[parameterTypes.length];
             for (int i = 0; i < parameterTypes.length; i++) {
                 //将参数转换成 class

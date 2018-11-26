@@ -20,13 +20,24 @@ package org.apache.dubbo.rpc;
  *
  */
 public abstract class AbstractPostProcessFilter implements PostProcessFilter {
+
+    /**
+     * 处理下层传过来的 请求
+     * @param result invoke链返回的结果对象
+     * @param invoker 发起该请求的那层invoker
+     * @param invocation
+     * @return
+     */
     @Override
     public Result postProcessResult(Result result, Invoker<?> invoker, Invocation invocation) {
+        //如果是 异步结果
         if (result instanceof AsyncRpcResult) {
             AsyncRpcResult asyncResult = (AsyncRpcResult) result;
+            //在计算结束后调用doPost
             asyncResult.thenApplyWithContext(r -> doPostProcess(r, invoker, invocation));
             return asyncResult;
         } else {
+            //同步就直接调用doPost
             return doPostProcess(result, invoker, invocation);
         }
     }

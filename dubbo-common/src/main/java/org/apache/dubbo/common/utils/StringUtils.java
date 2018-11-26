@@ -780,19 +780,28 @@ public final class StringUtils {
         return buf == null ? camelName : buf.toString();
     }
 
+    /**
+     * 将参数拼接成字符串
+     * @param args
+     * @return
+     */
     public static String toArgumentString(Object[] args) {
         StringBuilder buf = new StringBuilder();
         for (Object arg : args) {
             if (buf.length() > 0) {
+                //添加分隔符
                 buf.append(Constants.COMMA_SEPARATOR);
             }
             if (arg == null || ReflectUtils.isPrimitives(arg.getClass())) {
+                //如果是 null 会写入一个null 如果是原始类型就直接写入
                 buf.append(arg);
             } else {
                 try {
+                    //其他参数转换成json 格式后写入
                     buf.append(JSON.toJSONString(arg));
                 } catch (Exception e) {
                     logger.warn(e.getMessage(), e);
+                    //出现异常写入异常
                     buf.append(arg);
                 }
             }

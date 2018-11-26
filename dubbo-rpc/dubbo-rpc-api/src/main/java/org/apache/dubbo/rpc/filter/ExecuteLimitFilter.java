@@ -30,31 +30,46 @@ import java.util.concurrent.Semaphore;
 
 /**
  * ThreadLimitInvokerFilter
+ *
+ * 针对 服务提供者端 代表方法的最大执行次数 与{@link ActiveLimitFilter} 类似
  */
 @Activate(group = Constants.PROVIDER, value = Constants.EXECUTES_KEY)
 public class ExecuteLimitFilter implements Filter {
 
+    /**
+     * 服务提供者端的 限流对象
+     * @param invoker    service
+     * @param invocation invocation.
+     * @return
+     * @throws RpcException
+     */
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //获取url 对象
         URL url = invoker.getUrl();
         String methodName = invocation.getMethodName();
         Semaphore executesLimit = null;
         boolean acquireResult = false;
+        //获取 url 上的 最大执行数
         int max = url.getMethodParameter(methodName, Constants.EXECUTES_KEY, 0);
         if (max > 0) {
+            //获取该方法级的 status
             RpcStatus count = RpcStatus.getStatus(url, invocation.getMethodName());
 //            if (count.getActive() >= max) {
             /**
              * http://manzhizhen.iteye.com/blog/2386408
              * use semaphore for concurrency control (to limit thread number)
              */
+            //创建指定数量的 信号量
             executesLimit = count.getSemaphore(max);
+            //获取信号量失败 超过限制次数了
             if(executesLimit != null && !(acquireResult = executesLimit.tryAcquire())) {
                 throw new RpcException("Failed to invoke method " + invocation.getMethodName() + " in provider " + url + ", cause: The service using threads greater than <dubbo:service executes=\"" + max + "\" /> limited.");
             }
         }
         long begin = System.currentTimeMillis();
         boolean isSuccess = true;
+        //增加活跃数
         RpcStatus.beginCount(url, methodName);
         try {
             Result result = invoker.invoke(invocation);
@@ -69,6 +84,7 @@ public class ExecuteLimitFilter implements Filter {
         } finally {
             RpcStatus.endCount(url, methodName, System.currentTimeMillis() - begin, isSuccess);
             if(acquireResult) {
+                //释放信号量
                 executesLimit.release();
             }
         }

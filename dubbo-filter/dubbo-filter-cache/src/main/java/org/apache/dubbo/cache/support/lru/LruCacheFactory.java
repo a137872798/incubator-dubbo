@@ -22,6 +22,8 @@ import org.apache.dubbo.common.URL;
 
 /**
  * LruCacheFactory
+ *
+ * cache 的默认实现
  */
 public class LruCacheFactory extends AbstractCacheFactory {
 

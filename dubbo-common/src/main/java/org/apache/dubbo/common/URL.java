@@ -89,6 +89,10 @@ public /**final**/ class URL implements Serializable {
 
     /**
      * 非必要的 属性 就是 url 后面的 &gid=1&pid=3 等属性
+     * 在 dubbo 设置中就是
+     * <dubbo:service interface="com.alibaba.dubbo.demo.DemoService" ref="demoServiceImpl" protocol="injvm" >
+     *  <dubbo:parameter key="tps" value="100" />
+     * </dubbo:service>
      */
     private final Map<String, String> parameters;
 
@@ -584,7 +588,7 @@ public /**final**/ class URL implements Serializable {
      * @return
      */
     public int getParameter(String key, int defaultValue) {
-        //这里 怎么有2级缓存???
+        //这里 又设置一个 将 int 类型 数据保存的 临时容器
         Number n = getNumbers().get(key);
         if (n != null) {
             return n.intValue();

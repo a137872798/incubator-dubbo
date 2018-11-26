@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
  * <p>
  * The demo is {@see com.alibaba.dubbo.examples.async.AsyncConsumer}
  * and {@see com.alibaba.dubbo.examples.async.AsyncProvider}
+ *
+ * 异步上下文对象
  */
 public interface AsyncContext {
 

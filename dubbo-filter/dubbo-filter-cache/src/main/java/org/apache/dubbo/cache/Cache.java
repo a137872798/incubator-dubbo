@@ -18,6 +18,7 @@ package org.apache.dubbo.cache;
 
 /**
  * Cache
+ * 缓存对象接口 具备保存和 取出数据的功能
  */
 public interface Cache {
 

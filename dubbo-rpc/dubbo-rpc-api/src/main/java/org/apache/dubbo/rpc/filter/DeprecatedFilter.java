@@ -31,7 +31,10 @@ import java.util.Set;
 
 /**
  * DeprecatedInvokerFilter
+ *
+ * 过滤拦截器
  */
+//只针对消费者
 @Activate(group = Constants.CONSUMER, value = Constants.DEPRECATED_KEY)
 public class DeprecatedFilter implements Filter {
 
@@ -41,9 +44,12 @@ public class DeprecatedFilter implements Filter {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //获取 服务键
         String key = invoker.getInterface().getName() + "." + invocation.getMethodName();
         if (!logged.contains(key)) {
+            //保存到容器中
             logged.add(key);
+            //获取该方法是否被过滤 就是打印日志 没做别的
             if (invoker.getUrl().getMethodParameter(invocation.getMethodName(), Constants.DEPRECATED_KEY, false)) {
                 LOGGER.error("The service method " + invoker.getInterface().getName() + "." + getMethodSignature(invocation) + " is DEPRECATED! Declare from " + invoker.getUrl());
             }
@@ -51,6 +57,11 @@ public class DeprecatedFilter implements Filter {
         return invoker.invoke(invocation);
     }
 
+    /**
+     * 格式化输出
+     * @param invocation
+     * @return
+     */
     private String getMethodSignature(Invocation invocation) {
         StringBuilder buf = new StringBuilder(invocation.getMethodName());
         buf.append("(");

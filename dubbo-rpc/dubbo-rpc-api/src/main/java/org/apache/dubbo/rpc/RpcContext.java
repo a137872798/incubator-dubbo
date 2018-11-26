@@ -42,6 +42,8 @@ import java.util.concurrent.TimeoutException;
  * For example: A invokes B, then B invokes C. On service B, RpcContext saves invocation info from A to B before B
  * starts invoking C, and saves invocation info from B to C after B invokes C.
  *
+ * RPC 上下文对象 是一个临时状态储存器 每当收到和发送请求时 状态都会发生改变 根据调用链的传递 调用信息也会被保存下去
+ * 每次发起请求 rpc 上下文都会发生变化
  * @export
  * @see org.apache.dubbo.rpc.filter.ContextFilter
  */
@@ -49,6 +51,7 @@ public class RpcContext {
 
     /**
      * use internal thread local to improve performance
+     * 创建一个本地线程变量 在里面设置一个 RPCContext对象
      */
     private static final InternalThreadLocal<RpcContext> LOCAL = new InternalThreadLocal<RpcContext>() {
         @Override
@@ -56,6 +59,9 @@ public class RpcContext {
             return new RpcContext();
         }
     };
+    /**
+     * 这个和上面的有什么区别
+     */
     private static final InternalThreadLocal<RpcContext> SERVER_LOCAL = new InternalThreadLocal<RpcContext>() {
         @Override
         protected RpcContext initialValue() {
@@ -63,12 +69,25 @@ public class RpcContext {
         }
     };
 
+    /**
+     * attachment 容器
+     */
     private final Map<String, String> attachments = new HashMap<String, String>();
     private final Map<String, Object> values = new HashMap<String, Object>();
+
+    /**
+     * future对象
+     */
     private Future<?> future;
 
+    /**
+     * 能够提供该服务的 url集合
+     */
     private List<URL> urls;
 
+    /**
+     * 消费者url
+     */
     private URL url;
 
     private String methodName;
@@ -80,17 +99,30 @@ public class RpcContext {
     private InetSocketAddress localAddress;
 
     private InetSocketAddress remoteAddress;
+    /**
+     * 使用List<URL>代替
+     */
     @Deprecated
     private List<Invoker<?>> invokers;
+    /**
+     * 使用URL代替
+     */
     @Deprecated
     private Invoker<?> invoker;
+    /**
+     * 使用methodName 等参数代替
+     */
     @Deprecated
     private Invocation invocation;
 
     // now we don't use the 'values' map to hold these objects
     // we want these objects to be as generic as possible
+    //确保可以在想获取的时机 随时获取 请求对象和响应对象
     private Object request;
     private Object response;
+    /**
+     * 异步上下文对象
+     */
     private AsyncContext asyncContext;
 
     protected RpcContext() {
@@ -99,12 +131,17 @@ public class RpcContext {
     /**
      * get server side context.
      *
+     * 获取服务端上下文对象
      * @return server context
      */
     public static RpcContext getServerContext() {
         return SERVER_LOCAL.get();
     }
 
+    /**
+     * 重置服务端上下文对象的内容
+     * @param oldServerContext
+     */
     public static void restoreServerContext(RpcContext oldServerContext) {
         SERVER_LOCAL.set(oldServerContext);
     }
@@ -127,11 +164,19 @@ public class RpcContext {
         return LOCAL.get();
     }
 
+    /**
+     * 重置本地上下文对象
+     * @param oldContext
+     */
     public static void restoreContext(RpcContext oldContext) {
         LOCAL.set(oldContext);
     }
 
 
+    /**
+     * 返回一个 当前上下文的 副本对象
+     * @return
+     */
     public RpcContext copyOf() {
         RpcContext copy = new RpcContext();
         copy.attachments.putAll(this.attachments);
@@ -159,6 +204,7 @@ public class RpcContext {
     /**
      * remove context.
      *
+     * 移除上下文对象
      * @see org.apache.dubbo.rpc.filter.ContextFilter
      */
     public static void removeContext() {
@@ -214,6 +260,7 @@ public class RpcContext {
     /**
      * is provider side.
      *
+     * 判断是提供者端还是消费者端
      * @return provider side.
      */
     public boolean isProviderSide() {
@@ -223,6 +270,7 @@ public class RpcContext {
     /**
      * is consumer side.
      *
+     * 通过当前url 的 side属性 查看是哪段
      * @return consumer side.
      */
     public boolean isConsumerSide() {
@@ -318,6 +366,7 @@ public class RpcContext {
     /**
      * set local address.
      *
+     * 通过 host和port 创建地址并设置到 本地地址中
      * @param host
      * @param port
      * @return context
@@ -362,6 +411,7 @@ public class RpcContext {
     public String getLocalHostName() {
         String host = localAddress == null ? null : localAddress.getHostName();
         if (host == null || host.length() == 0) {
+            //这里会设置本地地址
             return getLocalHost();
         }
         return host;
@@ -423,6 +473,7 @@ public class RpcContext {
     /**
      * get local host.
      *
+     * 获取本地地址 没有就设置
      * @return local host
      */
     public String getLocalHost() {
@@ -430,6 +481,7 @@ public class RpcContext {
                 localAddress.getAddress() == null ? localAddress.getHostName()
                         : NetUtils.filterLocalHost(localAddress.getAddress().getHostAddress());
         if (host == null || host.length() == 0) {
+            //获取本地地址
             return NetUtils.getLocalHost();
         }
         return host;
@@ -513,6 +565,7 @@ public class RpcContext {
     /**
      * set attachments
      *
+     * 先清除原先的attachment 再设置新的attachment
      * @param attachment
      * @return context
      */
@@ -655,13 +708,17 @@ public class RpcContext {
     public <T> CompletableFuture<T> asyncCall(Callable<T> callable) {
         try {
             try {
+                //设置成异步状态
                 setAttachment(Constants.ASYNC_KEY, Boolean.TRUE.toString());
+                //执行 任务 并获取结果 一般返回的是一个future对象
                 final T o = callable.call();
                 //local invoke will return directly
                 if (o != null) {
                     if (o instanceof CompletableFuture) {
+                        //将future 对象返回
                         return (CompletableFuture<T>) o;
                     }
+                    //将对象封装成 CompletableFuture
                     CompletableFuture.completedFuture(o);
                 } else {
                     // The service has a normal sync method signature, should get future from RpcContext.
@@ -669,9 +726,11 @@ public class RpcContext {
             } catch (Exception e) {
                 throw new RpcException(e);
             } finally {
+                //结束后移除异步标识
                 removeAttachment(Constants.ASYNC_KEY);
             }
         } catch (final RpcException e) {
+            //捕获到异常时  返回一个 抛出异常的 future对象
             return new CompletableFuture<T>() {
                 @Override
                 public boolean cancel(boolean mayInterruptIfRunning) {
@@ -701,16 +760,19 @@ public class RpcContext {
                 }
             };
         }
+        //没有结果的情况下从上下文对象中获取future
         return ((CompletableFuture<T>) getContext().getFuture());
     }
 
     /**
      * one way async call, send request only, and result is not required
      *
+     * 这种参数 代表 是 oneway 不需要返回值
      * @param runnable
      */
     public void asyncCall(Runnable runnable) {
         try {
+            //设置成不需要 返回值
             setAttachment(Constants.RETURN_KEY, Boolean.FALSE.toString());
             runnable.run();
         } catch (Throwable e) {
@@ -729,6 +791,7 @@ public class RpcContext {
     public static AsyncContext startAsync() throws IllegalStateException {
         RpcContext currentContext = getContext();
         if (currentContext.asyncContext != null) {
+            //启动上下文对象 并返回
             currentContext.asyncContext.start();
             return currentContext.asyncContext;
         } else {
@@ -736,6 +799,10 @@ public class RpcContext {
         }
     }
 
+    /**
+     * 判断异步上下文对象是否启动
+     * @return
+     */
     public boolean isAsyncStarted() {
         if (this.asyncContext == null) {
             return false;

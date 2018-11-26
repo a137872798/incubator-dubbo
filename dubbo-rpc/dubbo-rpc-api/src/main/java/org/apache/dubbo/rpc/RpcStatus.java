@@ -28,40 +28,81 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * URL statistics. (API, Cached, ThreadSafe)
  *
+ * RPC请求状态
  * @see org.apache.dubbo.rpc.filter.ActiveLimitFilter
  * @see org.apache.dubbo.rpc.filter.ExecuteLimitFilter
  * @see org.apache.dubbo.rpc.cluster.loadbalance.LeastActiveLoadBalance
  */
 public class RpcStatus {
 
+    /**
+     * key:url
+     */
     private static final ConcurrentMap<String, RpcStatus> SERVICE_STATISTICS = new ConcurrentHashMap<String, RpcStatus>();
 
+    /**
+     * key1:url key2:methodName
+     */
     private static final ConcurrentMap<String, ConcurrentMap<String, RpcStatus>> METHOD_STATISTICS = new ConcurrentHashMap<String, ConcurrentMap<String, RpcStatus>>();
+    /**
+     * 保存value的容器
+     */
     private final ConcurrentMap<String, Object> values = new ConcurrentHashMap<String, Object>();
+    /**
+     * 当前活跃数 请求完的 活跃数应该会降下来
+     */
     private final AtomicInteger active = new AtomicInteger();
+    /**
+     * 总的 活跃数
+     */
     private final AtomicLong total = new AtomicLong();
+    /**
+     * 记录失败次数
+     */
     private final AtomicInteger failed = new AtomicInteger();
+    /**
+     * 总运行时长
+     */
     private final AtomicLong totalElapsed = new AtomicLong();
+    /**
+     * 失败总时长
+     */
     private final AtomicLong failedElapsed = new AtomicLong();
+    /**
+     * 最大调用时间
+     */
     private final AtomicLong maxElapsed = new AtomicLong();
+    /**
+     * 最大失败时间
+     */
     private final AtomicLong failedMaxElapsed = new AtomicLong();
+    /**
+     * 最大成功时间
+     */
     private final AtomicLong succeededMaxElapsed = new AtomicLong();
 
     /**
      * Semaphore used to control concurrency limit set by `executes`
+     * 信号量对象
      */
     private volatile Semaphore executesLimit;
+    /**
+     * 服务执行信号量的大小
+     */
     private volatile int executesPermits;
 
     private RpcStatus() {
     }
 
     /**
+     * 通过url 获取 status 对象
      * @param url
      * @return status
      */
     public static RpcStatus getStatus(URL url) {
+        //将 url 转换成 字符串类型
         String uri = url.toIdentityString();
+        //url 与 status 对象绑定
         RpcStatus status = SERVICE_STATISTICS.get(uri);
         if (status == null) {
             SERVICE_STATISTICS.putIfAbsent(uri, new RpcStatus());
@@ -71,6 +112,7 @@ public class RpcStatus {
     }
 
     /**
+     * 根据url 移除对应的 status 对象
      * @param url
      */
     public static void removeStatus(URL url) {
@@ -79,6 +121,8 @@ public class RpcStatus {
     }
 
     /**
+     * 通过url 定位到 <method,status> 后 再通过methodName 获取更精确的 status
+     * 这个status 应该是 方法级别的统计信息
      * @param url
      * @param methodName
      * @return status
@@ -110,6 +154,7 @@ public class RpcStatus {
     }
 
     /**
+     * 开始计数
      * @param url
      */
     public static void beginCount(URL url, String methodName) {
@@ -117,28 +162,46 @@ public class RpcStatus {
         beginCount(getStatus(url, methodName));
     }
 
+    /**
+     * 增加活跃数
+     * @param status
+     */
     private static void beginCount(RpcStatus status) {
         status.active.incrementAndGet();
     }
 
     /**
+     * 结束本次请求 作为末尾处理
      * @param url
      * @param elapsed
      * @param succeeded
      */
     public static void endCount(URL url, String methodName, long elapsed, boolean succeeded) {
+        //同时 为 2个 status 设置 统计信息
         endCount(getStatus(url), elapsed, succeeded);
         endCount(getStatus(url, methodName), elapsed, succeeded);
     }
 
+    /**
+     * 结束本次请求 作为末尾处理
+     * @param status
+     * @param elapsed
+     * @param succeeded
+     */
     private static void endCount(RpcStatus status, long elapsed, boolean succeeded) {
+        //减少活跃数
         status.active.decrementAndGet();
+        //增加总次数
         status.total.incrementAndGet();
+        //增加总活跃时长
         status.totalElapsed.addAndGet(elapsed);
         if (status.maxElapsed.get() < elapsed) {
+            //设置 最大的 活跃时长
             status.maxElapsed.set(elapsed);
         }
+        //根据本次是 成功还是失败
         if (succeeded) {
+            //增加成功的 活跃时长
             if (status.succeededMaxElapsed.get() < elapsed) {
                 status.succeededMaxElapsed.set(elapsed);
             }
@@ -201,6 +264,8 @@ public class RpcStatus {
     /**
      * get average elapsed.
      *
+     * 总活跃时间/总调用次数
+     *
      * @return average elapsed
      */
     public long getAverageElapsed() {
@@ -214,6 +279,7 @@ public class RpcStatus {
     /**
      * get max elapsed.
      *
+     * 获取最大活跃时间
      * @return max elapsed
      */
     public long getMaxElapsed() {
@@ -306,6 +372,7 @@ public class RpcStatus {
      * @return tps
      */
     public long getAverageTps() {
+        //不足一秒时 直接返回
         if (getTotalElapsed() >= 1000L) {
             return getTotal() / (getTotalElapsed() / 1000L);
         }
@@ -323,6 +390,7 @@ public class RpcStatus {
             return null;
         }
 
+        //当信号量对象还没有被创建时 或者 许可证(permits)不同时
         if (executesLimit == null || executesPermits != maxThreadNum) {
             synchronized (this) {
                 if (executesLimit == null || executesPermits != maxThreadNum) {

@@ -89,7 +89,7 @@ public class RpcInvocation implements Invocation, Serializable {
             if (url.hasParameter(Constants.TIMEOUT_KEY)) {
                 setAttachment(Constants.TIMEOUT_KEY, url.getParameter(Constants.TIMEOUT_KEY));
             }
-            //令牌
+            //如果有令牌属性 在 attachment中设置令牌
             if (url.hasParameter(Constants.TOKEN_KEY)) {
                 setAttachment(Constants.TOKEN_KEY, url.getParameter(Constants.TOKEN_KEY));
             }

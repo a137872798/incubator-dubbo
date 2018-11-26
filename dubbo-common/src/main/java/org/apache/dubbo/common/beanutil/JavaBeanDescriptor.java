@@ -22,8 +22,13 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * 泛化调用中 generic=bean 时参数必须满足的类型
+ */
+
 public final class JavaBeanDescriptor implements Serializable, Iterable<Map.Entry<Object, Object>> {
 
+    //参数类型 可能是 map class enum collection
     public static final int TYPE_CLASS = 1;
     public static final int TYPE_ENUM = 2;
     public static final int TYPE_COLLECTION = 3;

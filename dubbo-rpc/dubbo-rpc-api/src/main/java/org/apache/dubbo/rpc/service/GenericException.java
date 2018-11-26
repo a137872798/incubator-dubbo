@@ -21,12 +21,17 @@ import org.apache.dubbo.common.utils.StringUtils;
 /**
  * GenericException
  *
+ * 进行泛化时 抛出的异常
+ *
  * @export
  */
 public class GenericException extends RuntimeException {
 
     private static final long serialVersionUID = -1182299763306599962L;
 
+    /**
+     *
+     */
     private String exceptionClass;
 
     private String exceptionMessage;
@@ -40,8 +45,13 @@ public class GenericException extends RuntimeException {
         this.exceptionMessage = exceptionMessage;
     }
 
+    /**
+     * 通过传入异常对象来初始化 这个异常类
+     * @param cause
+     */
     public GenericException(Throwable cause) {
         super(StringUtils.toString(cause));
+        //通过异常的 名字和 消息进行初始化
         this.exceptionClass = cause.getClass().getName();
         this.exceptionMessage = cause.getMessage();
     }

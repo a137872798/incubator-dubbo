@@ -20,6 +20,12 @@ import java.util.LinkedHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * 缓存对象 通过lock 解决并发问题
+ *
+ * @param <K>
+ * @param <V>
+ */
 public class LRUCache<K, V> extends LinkedHashMap<K, V> {
 
     private static final long serialVersionUID = -5167631809472116969L;
@@ -39,11 +45,27 @@ public class LRUCache<K, V> extends LinkedHashMap<K, V> {
         this.maxCapacity = maxCapacity;
     }
 
+    /**
+     * 移除最早的缓存对象
+     * 父类该方法默认返回false 这样应该是不会扩容 而是一旦插入的 数据要达到当前最大容量时 就删除最早加入的 数据
+     * 在linkedHashMap 中可以很容易定位到最早插入的元素
+     * if (evict && (first = head) != null && removeEldestEntry(first)) {
+     *  K key = first.key;
+     *  removeNode(hash(key), key, null, false, true);
+     * 当首节点不为空 且判断需要删除首元素时 删除
+     * @param eldest
+     * @return
+     */
     @Override
     protected boolean removeEldestEntry(java.util.Map.Entry<K, V> eldest) {
         return size() > maxCapacity;
     }
 
+    /**
+     * 是否存在某对象
+     * @param key
+     * @return
+     */
     @Override
     public boolean containsKey(Object key) {
         lock.lock();

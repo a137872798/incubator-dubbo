@@ -26,17 +26,21 @@ import org.apache.dubbo.rpc.RpcException;
 
 /**
  * ClassLoaderInvokerFilter
+ *
  */
 @Activate(group = Constants.PROVIDER, order = -30000)
 public class ClassLoaderFilter implements Filter {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //获取当前类加载器
         ClassLoader ocl = Thread.currentThread().getContextClassLoader();
+        //将当前类加载器 设置为 invocation的  为了保证invoker的调用在相同的 类加载器上下文 应该是为了解决某些bug 设计的
         Thread.currentThread().setContextClassLoader(invoker.getInterface().getClassLoader());
         try {
             return invoker.invoke(invocation);
         } finally {
+            //还原类加载器
             Thread.currentThread().setContextClassLoader(ocl);
         }
     }

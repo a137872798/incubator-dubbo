@@ -24,13 +24,20 @@ import java.util.Map;
 
 /**
  * LruCache
+ *
+ * cache的默认实现对象
  */
 public class LruCache implements Cache {
 
+    /**
+     * 保存缓存对象的容器
+     */
     private final Map<Object, Object> store;
 
+    //获取缓存大小
     public LruCache(URL url) {
         final int max = url.getParameter("cache.size", 1000);
+        //缓存对象实体 基于 linkedHashMap 这样存入的缓存对象会有先后顺序 可以根据 时间和热度来删除对应元素
         this.store = new LRUCache<Object, Object>(max);
     }
 

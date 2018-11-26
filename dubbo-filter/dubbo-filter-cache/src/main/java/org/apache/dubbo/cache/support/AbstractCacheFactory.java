@@ -27,17 +27,32 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * AbstractCacheFactory
+ *
+ * 抽象缓存工厂实现
  */
 public abstract class AbstractCacheFactory implements CacheFactory {
 
+    /**
+     * 缓存容器对象
+     */
     private final ConcurrentMap<String, Cache> caches = new ConcurrentHashMap<String, Cache>();
 
+    /**
+     * 获取缓存对象
+     * @param url
+     * @param invocation
+     * @return
+     */
     @Override
     public Cache getCache(URL url, Invocation invocation) {
+        //这里 会返回一个新的url 对象 并设置了 method属性
         url = url.addParameter(Constants.METHOD_KEY, invocation.getMethodName());
+        //将url 转换为key 对象
         String key = url.toFullString();
+        //尝试获取cache 对象
         Cache cache = caches.get(key);
         if (cache == null) {
+            //没有就 通过url 创建 cache对象
             caches.put(key, createCache(url));
             cache = caches.get(key);
         }

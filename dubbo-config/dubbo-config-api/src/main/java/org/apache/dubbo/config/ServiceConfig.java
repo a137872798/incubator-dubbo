@@ -503,7 +503,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 map.put(Constants.METHODS_KEY, StringUtils.join(new HashSet<String>(Arrays.asList(methods)), ","));
             }
         }
-        //设置令牌
+        //设置令牌 设置后 访问消费者就需要 提供对应的令牌
         if (!ConfigUtils.isEmpty(token)) {
             //是默认令牌的情况下
             if (ConfigUtils.isDefault(token)) {
