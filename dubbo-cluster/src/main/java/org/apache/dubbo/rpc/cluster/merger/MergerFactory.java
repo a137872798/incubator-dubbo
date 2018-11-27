@@ -25,24 +25,36 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * merger 工厂对象
+ */
 public class MergerFactory {
 
+    /**
+     * 根据 融合的类型 关联对应的 融合类
+     */
     private static final ConcurrentMap<Class<?>, Merger<?>> mergerCache =
             new ConcurrentHashMap<Class<?>, Merger<?>>();
 
     public static <T> Merger<T> getMerger(Class<T> returnType) {
         Merger result;
+        //如果需要的返回类型是 数组
         if (returnType.isArray()) {
+            //先获取 数组内的元素对象
             Class type = returnType.getComponentType();
+            //通过 缓存对象获取 对应的 merger对象
             result = mergerCache.get(type);
             if (result == null) {
+                //加载merger对象
                 loadMergers();
                 result = mergerCache.get(type);
             }
             if (result == null && !type.isPrimitive()) {
+                //返回一个 Object merger对象 可以强转为需要的类型
                 result = ArrayMerger.INSTANCE;
             }
         } else {
+            //普通类型 直接查询
             result = mergerCache.get(returnType);
             if (result == null) {
                 loadMergers();
@@ -52,11 +64,17 @@ public class MergerFactory {
         return result;
     }
 
+    /**
+     * 加载 merger对象
+     */
     static void loadMergers() {
+        //获取所有支持的 拓展类型  加载SPI 文件中设置的 所有Merger 的实现类
         Set<String> names = ExtensionLoader.getExtensionLoader(Merger.class)
                 .getSupportedExtensions();
         for (String name : names) {
+            //获取对应的merger对象
             Merger m = ExtensionLoader.getExtensionLoader(Merger.class).getExtension(name);
+            //将m 转换为 泛化类型 作为 key
             mergerCache.putIfAbsent(ReflectUtils.getGenericClass(m.getClass()), m);
         }
     }

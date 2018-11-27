@@ -18,6 +18,10 @@ package org.apache.dubbo.rpc.cluster;
 
 import org.apache.dubbo.common.extension.SPI;
 
+/**
+ * merge 接口 将 多个 结果 合并成一个结果
+ * @param <T>
+ */
 @SPI
 public interface Merger<T> {
 

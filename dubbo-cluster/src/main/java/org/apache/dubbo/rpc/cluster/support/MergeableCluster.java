@@ -21,12 +21,16 @@ import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 
+/**
+ * 融合的 集群对象
+ */
 public class MergeableCluster implements Cluster {
 
     public static final String NAME = "mergeable";
 
     @Override
     public <T> Invoker<T> join(Directory<T> directory) throws RpcException {
+        //返回集群对象
         return new MergeableClusterInvoker<T>(directory);
     }
 

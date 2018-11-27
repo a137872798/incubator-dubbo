@@ -46,34 +46,51 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * merger的集群对象
+ * @param <T>
+ */
 @SuppressWarnings("unchecked")
 public class MergeableClusterInvoker<T> implements Invoker<T> {
 
     private static final Logger log = LoggerFactory.getLogger(MergeableClusterInvoker.class);
+
+    /**
+     * invoker 目录对象
+     */
     private final Directory<T> directory;
+    /**
+     * 线程池对象
+     */
     private ExecutorService executor = Executors.newCachedThreadPool(new NamedThreadFactory("mergeable-cluster-executor", true));
 
     public MergeableClusterInvoker(Directory<T> directory) {
         this.directory = directory;
     }
 
+
     @Override
     @SuppressWarnings("rawtypes")
     public Result invoke(final Invocation invocation) throws RpcException {
+        //获取invoker 调用列表
         List<Invoker<T>> invokers = directory.list(invocation);
 
+        //获取merger属性
         String merger = getUrl().getMethodParameter(invocation.getMethodName(), Constants.MERGER_KEY);
+        //merger 属性为 空 选择第一个invoker 执行
         if (ConfigUtils.isEmpty(merger)) { // If a method doesn't have a merger, only invoke one Group
             for (final Invoker<T> invoker : invokers) {
                 if (invoker.isAvailable()) {
                     return invoker.invoke(invocation);
                 }
             }
+            //都不可用也执行
             return invokers.iterator().next().invoke(invocation);
         }
 
         Class<?> returnType;
         try {
+            //反射获取 返回值类型
             returnType = getInterface().getMethod(
                     invocation.getMethodName(), invocation.getParameterTypes()).getReturnType();
         } catch (NoSuchMethodException e) {

@@ -21,8 +21,16 @@ import org.apache.dubbo.rpc.cluster.Merger;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 基于map 的 merger 实现类
+ */
 public class MapMerger implements Merger<Map<?, ?>> {
 
+    /**
+     * 将多个结果合并成一个
+     * @param items
+     * @return
+     */
     @Override
     public Map<?, ?> merge(Map<?, ?>... items) {
         if (items.length == 0) {
@@ -31,6 +39,7 @@ public class MapMerger implements Merger<Map<?, ?>> {
         Map<Object, Object> result = new HashMap<Object, Object>();
         for (Map<?, ?> item : items) {
             if (item != null) {
+                //就是把所有元素合起来了
                 result.putAll(item);
             }
         }

@@ -250,6 +250,12 @@ public final class ReflectUtils {
         return getGenericClass(cls, 0);
     }
 
+    /**
+     * 获得 一般化的类
+     * @param cls
+     * @param i
+     * @return
+     */
     public static Class<?> getGenericClass(Class<?> cls, int i) {
         try {
             ParameterizedType parameterizedType = ((ParameterizedType) cls.getGenericInterfaces()[0]);

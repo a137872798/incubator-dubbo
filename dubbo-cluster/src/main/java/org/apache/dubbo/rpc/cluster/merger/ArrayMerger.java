@@ -33,6 +33,7 @@ public class ArrayMerger implements Merger<Object[]> {
         for (int i = 0; i < others.length; i++) {
             Object item = others[i];
             if (item != null && item.getClass().isArray()) {
+                //Array.getLength 返回 数组对象长度
                 totalLen += Array.getLength(item);
             } else {
                 throw new IllegalArgumentException((i + 1) + "th argument is not an array");
@@ -43,12 +44,17 @@ public class ArrayMerger implements Merger<Object[]> {
             return null;
         }
 
+        //这些api 都是建立在理解 Array源码的 基础上
+
+        //获取元素类型
         Class<?> type = others[0].getClass().getComponentType();
 
+        //根据元素类型和长度 创建数组对象
         Object result = Array.newInstance(type, totalLen);
         int index = 0;
         for (Object array : others) {
             for (int i = 0; i < Array.getLength(array); i++) {
+                //为 Object 类型的 对象 添加数组元素
                 Array.set(result, index++, Array.get(array, i));
             }
         }

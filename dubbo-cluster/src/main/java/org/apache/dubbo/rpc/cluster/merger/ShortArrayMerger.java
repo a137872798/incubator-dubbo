@@ -19,6 +19,9 @@ package org.apache.dubbo.rpc.cluster.merger;
 
 import org.apache.dubbo.rpc.cluster.Merger;
 
+/**
+ * 将多个结果合并成一个 就是将多个short[] 的每个数组对象的每个值 填入一个新的 数组中
+ */
 public class ShortArrayMerger implements Merger<short[]> {
 
     @Override

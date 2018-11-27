@@ -33,19 +33,34 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * ConsistentHashLoadBalance
- *
+ * 基于特定算法 先不看了
  */
 public class ConsistentHashLoadBalance extends AbstractLoadBalance {
     public static final String NAME = "consistenthash";
 
+    /**
+     * 保存了  服务键+methodName  和 选择器的 键值对
+     */
     private final ConcurrentMap<String, ConsistentHashSelector<?>> selectors = new ConcurrentHashMap<String, ConsistentHashSelector<?>>();
 
+    /**
+     * 选择的 核心逻辑
+     * @param invokers
+     * @param url
+     * @param invocation
+     * @param <T>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     @Override
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
+        //获取方法
         String methodName = RpcUtils.getMethodName(invocation);
+        //构建key
         String key = invokers.get(0).getUrl().getServiceKey() + "." + methodName;
+        //基于系统地址 获取hash值
         int identityHashCode = System.identityHashCode(invokers);
+        //获取选择器对象
         ConsistentHashSelector<T> selector = (ConsistentHashSelector<T>) selectors.get(key);
         if (selector == null || selector.identityHashCode != identityHashCode) {
             selectors.put(key, new ConsistentHashSelector<T>(invokers, methodName, identityHashCode));
@@ -54,12 +69,22 @@ public class ConsistentHashLoadBalance extends AbstractLoadBalance {
         return selector.select(invocation);
     }
 
+    /**
+     * 选择器对象
+     * @param <T>
+     */
     private static final class ConsistentHashSelector<T> {
 
         private final TreeMap<Long, Invoker<T>> virtualInvokers;
 
+        /**
+         * 节点总数???
+         */
         private final int replicaNumber;
 
+        /**
+         * 相同hash值
+         */
         private final int identityHashCode;
 
         private final int[] argumentIndex;
@@ -69,11 +94,14 @@ public class ConsistentHashLoadBalance extends AbstractLoadBalance {
             this.identityHashCode = identityHashCode;
             URL url = invokers.get(0).getUrl();
             this.replicaNumber = url.getMethodParameter(methodName, "hash.nodes", 160);
+            //应该是每个参数的 hash值
             String[] index = Constants.COMMA_SPLIT_PATTERN.split(url.getMethodParameter(methodName, "hash.arguments", "0"));
             argumentIndex = new int[index.length];
             for (int i = 0; i < index.length; i++) {
+                //依次转换为int值
                 argumentIndex[i] = Integer.parseInt(index[i]);
             }
+            //遍历每个 invoker对象
             for (Invoker<T> invoker : invokers) {
                 String address = invoker.getUrl().getAddress();
                 for (int i = 0; i < replicaNumber / 4; i++) {

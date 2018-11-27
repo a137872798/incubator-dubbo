@@ -525,6 +525,7 @@ public class ExtensionLoader<T> {
      */
     public Set<String> getSupportedExtensions() {
         Map<String, Class<?>> clazzes = getExtensionClasses();
+        //应对 以 接口类作为文件名的 下面的 所有的 key
         return Collections.unmodifiableSet(new TreeSet<String>(clazzes.keySet()));
     }
 
