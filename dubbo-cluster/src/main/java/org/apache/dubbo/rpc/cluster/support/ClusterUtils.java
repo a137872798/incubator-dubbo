@@ -48,6 +48,7 @@ public class ClusterUtils {
             map.putAll(remoteMap);
 
             // Remove configurations from provider, some items should be affected by provider.
+            // 移除部分属性
             map.remove(Constants.THREAD_NAME_KEY);
             map.remove(Constants.DEFAULT_KEY_PREFIX + Constants.THREAD_NAME_KEY);
 
@@ -75,6 +76,7 @@ public class ClusterUtils {
             // remove method async entry.
             Set<String> methodAsyncKey = new HashSet<>();
             for (String key : map.keySet()) {
+                //异步属性 先提取出来
                 if (key != null && key.endsWith("." + Constants.ASYNC_KEY)) {
                     methodAsyncKey.add(key);
                 }
@@ -84,9 +86,11 @@ public class ClusterUtils {
             }
         }
 
+        //将服务提供者
         if (localMap != null && localMap.size() > 0) {
             map.putAll(localMap);
         }
+        //再将 部分属性再覆盖回去
         if (remoteMap != null && remoteMap.size() > 0) {
             // Use version passed from provider side
             String dubbo = remoteMap.get(Constants.DUBBO_VERSION_KEY);
@@ -125,6 +129,7 @@ public class ClusterUtils {
             }
         }
 
+        //替换属性
         return remoteUrl.clearParameters().addParameters(map);
     }
 

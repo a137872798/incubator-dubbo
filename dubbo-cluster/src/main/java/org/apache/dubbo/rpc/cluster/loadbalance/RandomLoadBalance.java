@@ -26,6 +26,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * random load balance.
  *
+ * 随机选择 invoker
  */
 public class RandomLoadBalance extends AbstractLoadBalance {
 
@@ -33,8 +34,11 @@ public class RandomLoadBalance extends AbstractLoadBalance {
 
     @Override
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
+        //获取invoker对象总长度
         int length = invokers.size(); // Number of invokers
+        //是否具有相同权重
         boolean sameWeight = true; // Every invoker has the same weight?
+        //获取权重对象
         int firstWeight = getWeight(invokers.get(0), invocation);
         int totalWeight = firstWeight; // The sum of weights
         for (int i = 1; i < length; i++) {
@@ -44,11 +48,14 @@ public class RandomLoadBalance extends AbstractLoadBalance {
                 sameWeight = false;
             }
         }
+        //一旦权重不相等
         if (totalWeight > 0 && !sameWeight) {
             // If (not every invoker has the same weight & at least one invoker's weight>0), select randomly based on totalWeight.
+            //获取一个随机权重
             int offset = ThreadLocalRandom.current().nextInt(totalWeight);
             // Return a invoker based on the random value.
             for (int i = 0; i < length; i++) {
+                //
                 offset -= getWeight(invokers.get(i), invocation);
                 if (offset < 0) {
                     return invokers.get(i);

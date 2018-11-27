@@ -45,6 +45,7 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
     /**
      * Use {@link NamedInternalThreadFactory} to produce {@link org.apache.dubbo.common.threadlocal.InternalThread}
      * which with the use of {@link org.apache.dubbo.common.threadlocal.InternalThreadLocal} in {@link RpcContext}.
+     * 创建线程池对象
      */
     private final ExecutorService executor = Executors.newCachedThreadPool(
             new NamedInternalThreadFactory("forking-cluster-timer", true));
@@ -53,13 +54,25 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
     }
 
+    /**
+     * invoker 实际逻辑
+     * @param invocation
+     * @param invokers
+     * @param loadbalance
+     * @return
+     * @throws RpcException
+     */
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(final Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         try {
+            //检测invoker 对象是否有效
             checkInvokers(invokers, invocation);
+            //设置 已经被选择的 invoker对象
             final List<Invoker<T>> selected;
+            //获取并行度  默认为2  代表同时调用2个invoker
             final int forks = getUrl().getParameter(Constants.FORKS_KEY, Constants.DEFAULT_FORKS);
+            //超时时间
             final int timeout = getUrl().getParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
             if (forks <= 0 || forks >= invokers.size()) {
                 selected = invokers;
@@ -67,6 +80,7 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 selected = new ArrayList<>();
                 for (int i = 0; i < forks; i++) {
                     // TODO. Add some comment here, refer chinese version for more details.
+                    //选择 一定次数 避免获取到同一个invoker 将 本次选择的 添加到selected 中 不同的集群策略实现 不一定会修改selected
                     Invoker<T> invoker = select(loadbalance, invocation, invokers, selected);
                     if (!selected.contains(invoker)) {
                         //Avoid add the same invoker several times.
@@ -74,6 +88,7 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     }
                 }
             }
+            //为上下文对象设置 使用过的invoker 对象
             RpcContext.getContext().setInvokers((List) selected);
             final AtomicInteger count = new AtomicInteger();
             final BlockingQueue<Object> ref = new LinkedBlockingQueue<>();

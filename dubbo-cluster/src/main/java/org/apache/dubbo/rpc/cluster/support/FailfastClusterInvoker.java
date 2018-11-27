@@ -33,6 +33,7 @@ import java.util.List;
  *
  * <a href="http://en.wikipedia.org/wiki/Fail-fast">Fail-fast</a>
  *
+ * 快速 失败 集群策略
  */
 public class FailfastClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
@@ -40,13 +41,24 @@ public class FailfastClusterInvoker<T> extends AbstractClusterInvoker<T> {
         super(directory);
     }
 
+    /**
+     * 执行invoker 实际逻辑
+     * @param invocation
+     * @param invokers
+     * @param loadbalance
+     * @return
+     * @throws RpcException
+     */
     @Override
     public Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
+        //检验invoker 是否可用
         checkInvokers(invokers, invocation);
+        //选择合适的 invoker对象
         Invoker<T> invoker = select(loadbalance, invocation, invokers, null);
         try {
             return invoker.invoke(invocation);
         } catch (Throwable e) {
+            //失败直接抛出异常
             if (e instanceof RpcException && ((RpcException) e).isBiz()) { // biz exception.
                 throw (RpcException) e;
             }

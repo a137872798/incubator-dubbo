@@ -27,14 +27,30 @@ import java.util.List;
 /**
  * AbstractLoadBalance
  *
+ * 均衡负载的骨架类
  */
 public abstract class AbstractLoadBalance implements LoadBalance {
 
+    /**
+     * 计算权重
+     * @param uptime
+     * @param warmup
+     * @param weight 默认权重 如果超过这个权重 还是返回这个值
+     * @return
+     */
     static int calculateWarmupWeight(int uptime, int warmup, int weight) {
         int ww = (int) ((float) uptime / ((float) warmup / (float) weight));
         return ww < 1 ? 1 : (ww > weight ? weight : ww);
     }
 
+    /**
+     * 核心的选择方法
+     * @param invokers   invokers.
+     * @param url        refer url
+     * @param invocation invocation.
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         if (invokers == null || invokers.isEmpty()) {
@@ -48,13 +64,24 @@ public abstract class AbstractLoadBalance implements LoadBalance {
 
     protected abstract <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation);
 
+    /**
+     * 获取权重
+     * @param invoker
+     * @param invocation
+     * @return
+     */
     protected int getWeight(Invoker<?> invoker, Invocation invocation) {
+        //从url 中获取权重属性
         int weight = invoker.getUrl().getMethodParameter(invocation.getMethodName(), Constants.WEIGHT_KEY, Constants.DEFAULT_WEIGHT);
         if (weight > 0) {
+            //获取provider时间戳
             long timestamp = invoker.getUrl().getParameter(Constants.REMOTE_TIMESTAMP_KEY, 0L);
             if (timestamp > 0L) {
+                //获取 自provider启动后到现在的 时间间隔
                 int uptime = (int) (System.currentTimeMillis() - timestamp);
+                //获取 暖机时间
                 int warmup = invoker.getUrl().getParameter(Constants.WARMUP_KEY, Constants.DEFAULT_WARMUP);
+                //间隔时间 小于暖机时间 就要计算权重 超过暖机时间 就使用默认的 权重
                 if (uptime > 0 && uptime < warmup) {
                     weight = calculateWarmupWeight(uptime, warmup, weight);
                 }

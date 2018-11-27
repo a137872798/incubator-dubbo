@@ -31,6 +31,7 @@ import java.util.List;
 /**
  * BroadcastClusterInvoker
  *
+ * 广播调用invoker 应该是调用所有的invoker 对象
  */
 public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
@@ -43,7 +44,9 @@ public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(final Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
+        //检查 invoker 对象是否可用
         checkInvokers(invokers, invocation);
+        //设置调用过的 invoker对象
         RpcContext.getContext().setInvokers((List) invokers);
         RpcException exception = null;
         Result result = null;
@@ -52,6 +55,7 @@ public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 result = invoker.invoke(invocation);
             } catch (RpcException e) {
                 exception = e;
+                //抛出异常 打印日志
                 logger.warn(e.getMessage(), e);
             } catch (Throwable e) {
                 exception = new RpcException(e.getMessage(), e);

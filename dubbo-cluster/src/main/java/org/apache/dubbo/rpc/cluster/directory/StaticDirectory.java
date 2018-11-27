@@ -27,9 +27,13 @@ import java.util.List;
 /**
  * StaticDirectory
  *
+ * 静态资源实现的 Directory
  */
 public class StaticDirectory<T> extends AbstractDirectory<T> {
 
+    /**
+     * invoker 对象容器
+     */
     private final List<Invoker<T>> invokers;
 
     public StaticDirectory(List<Invoker<T>> invokers) {
@@ -45,6 +49,7 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
     }
 
     public StaticDirectory(URL url, List<Invoker<T>> invokers, List<Router> routers) {
+        //将 route 传给父类
         super(url == null && invokers != null && !invokers.isEmpty() ? invokers.get(0).getUrl() : url, routers);
         if (invokers == null || invokers.isEmpty()) {
             throw new IllegalArgumentException("invokers == null");
@@ -52,6 +57,10 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
         this.invokers = invokers;
     }
 
+    /**
+     * 这些服务提供者 实现的 应该是同一个接口 所以直接返回
+     * @return
+     */
     @Override
     public Class<T> getInterface() {
         return invokers.get(0).getInterface();

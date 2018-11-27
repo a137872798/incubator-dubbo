@@ -135,7 +135,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     *
+     * 判断urls 是否有效 无效就将url 设置成 空协议返回
      * @param url  符合 后面 urls 的 订阅者地址
      * @param urls 目标 url 列表
      * @return
@@ -371,7 +371,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 为指定 url 添加 监听器
+     * 为指定 url 添加 监听器 RegistryDirectory 也会被作为 监听器被添加
      * @param url      订阅条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
      * @param listener 变更事件监听器，不允许为空
      */
@@ -468,6 +468,7 @@ public abstract class AbstractRegistry implements Registry {
             if (listeners != null) {
                 for (NotifyListener listener : listeners) {
                     try {
+                        //通知的 实际逻辑
                         notify(url, listener, filterEmpty(url, urls));
                     } catch (Throwable t) {
                         logger.error("Failed to notify registry event, urls: " + urls + ", cause: " + t.getMessage(), t);
@@ -479,9 +480,9 @@ public abstract class AbstractRegistry implements Registry {
 
     /**
      * 传入的 urls 应该是 新注册的  url 包含了备份信息 然后 先去 订阅者缓存中找到对应的 订阅者对象 同时还有针对该订阅者的 监听器
-     * @param url 需要被通知的 每个地址
+     * @param url 消费者url
      * @param listener 针对需要被通知地址的 监听器
-     * @param urls
+     * @param urls 通知的结果
      */
     protected void notify(URL url, NotifyListener listener, List<URL> urls) {
         if (url == null) {
@@ -512,7 +513,7 @@ public abstract class AbstractRegistry implements Registry {
                     categoryList = new ArrayList<URL>();
                     result.put(category, categoryList);
                 }
-                //该 容器中包含了 要通知到 url 的 所有 u
+                //针对协议种类进行保存
                 categoryList.add(u);
             }
         }

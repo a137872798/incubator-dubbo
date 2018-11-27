@@ -36,18 +36,31 @@ import java.util.List;
 /**
  * Abstract implementation of Directory: Invoker list returned from this Directory's list method have been filtered by Routers
  *
+ * directory 骨架类实现
  */
 public abstract class AbstractDirectory<T> implements Directory<T> {
 
     // logger
     private static final Logger logger = LoggerFactory.getLogger(AbstractDirectory.class);
 
+    /**
+     * 资源对象
+     */
     private final URL url;
 
+    /**
+     * 是否销毁
+     */
     private volatile boolean destroyed = false;
 
+    /**
+     * 消费者的 资源对象
+     */
     private volatile URL consumerUrl;
 
+    /**
+     * 路由信息
+     */
     private volatile List<Router> routers;
 
     public AbstractDirectory(URL url) {
@@ -55,6 +68,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
     }
 
     public AbstractDirectory(URL url, List<Router> routers) {
+        //默认 consumerUrl 和url 是一样的
         this(url, url, routers);
     }
 
@@ -64,20 +78,31 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         }
         this.url = url;
         this.consumerUrl = consumerUrl;
+        //设置路由信息
         setRouters(routers);
     }
 
+    /**
+     * 返回当前所有invoker 对象
+     * @param invocation
+     * @return
+     * @throws RpcException
+     */
     @Override
     public List<Invoker<T>> list(Invocation invocation) throws RpcException {
         if (destroyed) {
             throw new RpcException("Directory already destroyed .url: " + getUrl());
         }
+        //通过invocation 获取到invoker 列表
         List<Invoker<T>> invokers = doList(invocation);
+        //获取 路由信息对象
         List<Router> localRouters = this.routers; // local reference
         if (localRouters != null && !localRouters.isEmpty()) {
             for (Router router : localRouters) {
                 try {
+                    //如果路由信息不存在
                     if (router.getUrl() == null || router.getUrl().getParameter(Constants.RUNTIME_KEY, false)) {
+                        //这个是不是修改路由信息??? 每个route 对象都会修改之前invoker 的路由信息???
                         invokers = router.route(invokers, getConsumerUrl(), invocation);
                     }
                 } catch (Throwable t) {
@@ -97,16 +122,21 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         return routers;
     }
 
+    //设置路由对象
     protected void setRouters(List<Router> routers) {
         // copy list
         routers = routers == null ? new ArrayList<Router>() : new ArrayList<Router>(routers);
         // append url router
+        //获取 路由信息
         String routerKey = url.getParameter(Constants.ROUTER_KEY);
         if (routerKey != null && routerKey.length() > 0) {
+            //通过SPI 机制 获取 对应的route工厂类
             RouterFactory routerFactory = ExtensionLoader.getExtensionLoader(RouterFactory.class).getExtension(routerKey);
+            //通过url 返回指定的 route对象
             routers.add(routerFactory.getRouter(url));
         }
         // append mock invoker selector
+        //添加一个 mock 选择器
         routers.add(new MockInvokersSelector());
         Collections.sort(routers);
         this.routers = routers;

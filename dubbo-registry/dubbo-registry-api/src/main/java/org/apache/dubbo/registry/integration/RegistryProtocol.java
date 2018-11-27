@@ -411,7 +411,7 @@ public class RegistryProtocol implements Protocol {
             //如果 是 多组 或者 *
             if ((Constants.COMMA_SPLIT_PATTERN.split(group)).length > 1
                     || "*".equals(group)) {
-                //传入可合并的 集群对象
+                //传入可合并的 集群对象 这里对应到 cluster 集群中的 分组
                 return doRefer(getMergeableCluster(), registry, type, url);
             }
         }
@@ -436,9 +436,9 @@ public class RegistryProtocol implements Protocol {
      * @return
      */
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
-        //创建 注册中心 目录对象
+        //在发往 注册中心的 refer 时 会创建 注册中心 目录对象
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
-        //设置 注册中心 和 协议
+        //设置 注册中心 和 协议对象
         directory.setRegistry(registry);
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
@@ -454,13 +454,13 @@ public class RegistryProtocol implements Protocol {
             registry.register(subscribeUrl.addParameters(Constants.CATEGORY_KEY, Constants.CONSUMERS_CATEGORY,
                     Constants.CHECK_KEY, String.valueOf(false)));
         }
-        //往 目录中 设置发布的 订阅信息 这里 替换了 category
+        //往 目录中 设置发布的 订阅信息 这里 替换了 category 默认订阅3种  这里就是委托到Regoistry的 subscribe
         directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY,
                 Constants.PROVIDERS_CATEGORY
                         + "," + Constants.CONFIGURATORS_CATEGORY
                         + "," + Constants.ROUTERS_CATEGORY));
 
-        //创建invoker 对象 这里通过集群调用 返回了一个合适的invoker 对象
+        //使用这里获取到的 目录对象 创建invoker 对象 这里通过集群调用 返回了一个合适的invoker 对象
         Invoker invoker = cluster.join(directory);
         //给全局 表中 设置消费者
         ProviderConsumerRegTable.registerConsumer(invoker, url, subscribeUrl, directory);
@@ -523,6 +523,7 @@ public class RegistryProtocol implements Protocol {
         }
 
         /**
+         * 发生变化时 通知 给定的url 列表
          * @param urls The list of registered information , is always not empty, The meaning is the same as the return value of {@link org.apache.dubbo.registry.RegistryService#lookup(URL)}.
          */
         @Override

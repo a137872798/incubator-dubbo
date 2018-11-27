@@ -139,7 +139,7 @@ public class RpcUtils {
      * @param inv
      */
     public static void attachInvocationIdIfAsync(URL url, Invocation inv) {
-        //isAttach 判断是否 是 异步的  getInvocationId 获取 id 属性
+        //isAttach 判断是否 是 异步的 或者是否是 auto-attach  且invocation 的 id为 null 就设置 id属性
         if (isAttachInvocationId(url, inv) && getInvocationId(inv) == null && inv instanceof RpcInvocation) {
             //设置 id 属性
             ((RpcInvocation) inv).setAttachment(Constants.ID_KEY, String.valueOf(INVOKE_ID.getAndIncrement()));
@@ -183,7 +183,13 @@ public class RpcUtils {
         return invocation.getMethodName();
     }
 
+    /**
+     * 获取 invocation 方法的参数列表
+     * @param invocation
+     * @return
+     */
     public static Object[] getArguments(Invocation invocation) {
+        //泛化方法 返回第三个参数  第二个参数是参数类型
         if (Constants.$INVOKE.equals(invocation.getMethodName())
                 && invocation.getArguments() != null
                 && invocation.getArguments().length > 2
