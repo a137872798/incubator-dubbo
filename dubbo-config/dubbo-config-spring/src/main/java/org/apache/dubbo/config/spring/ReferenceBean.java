@@ -52,6 +52,10 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         super();
     }
 
+    /**
+     * spring 以注解方式 创建 对象 还不知道 spring 内部机制怎么实现
+     * @param reference
+     */
     public ReferenceBean(Reference reference) {
         super(reference);
     }
@@ -113,11 +117,13 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
                         consumerConfig = config;
                     }
                 }
+                //设置 consumerConfig 属性
                 if (consumerConfig != null) {
                     setConsumer(consumerConfig);
                 }
             }
         }
+        //设置应用配置
         if (getApplication() == null
                 && (getConsumer() == null || getConsumer().getApplication() == null)) {
             Map<String, ApplicationConfig> applicationConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ApplicationConfig.class, false, false);
@@ -136,6 +142,7 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
                 }
             }
         }
+        //设置 组件配置
         if (getModule() == null
                 && (getConsumer() == null || getConsumer().getModule() == null)) {
             Map<String, ModuleConfig> moduleConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ModuleConfig.class, false, false);
@@ -154,6 +161,7 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
                 }
             }
         }
+        //设置注册中心配置 一个 引用配置 对应多个 注册中心配置
         if ((getRegistries() == null || getRegistries().isEmpty())
                 && (getConsumer() == null || getConsumer().getRegistries() == null || getConsumer().getRegistries().isEmpty())
                 && (getApplication() == null || getApplication().getRegistries() == null || getApplication().getRegistries().isEmpty())) {
@@ -170,6 +178,7 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
                 }
             }
         }
+        //设置监控中心
         if (getMonitor() == null
                 && (getConsumer() == null || getConsumer().getMonitor() == null)
                 && (getApplication() == null || getApplication().getMonitor() == null)) {
@@ -189,11 +198,14 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
                 }
             }
         }
+        //是否已经初始化完成 可以在 xml 中设置 如果为true 就是已启动就开始 获取 ref 对象 否则在调用时才会 获取
         Boolean b = isInit();
         if (b == null && getConsumer() != null) {
+            //判断消费者有没有完成初始化
             b = getConsumer().isInit();
         }
         if (b != null && b) {
+            //如果设置了 init 就要直接返回对象
             getObject();
         }
     }

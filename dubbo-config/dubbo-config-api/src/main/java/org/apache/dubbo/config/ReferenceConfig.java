@@ -129,7 +129,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     /**
-     * 通过给定的 注解 进行初始化 class 对象定位方法 reference 对象提供真实的属性
+     * 通过给定的 注解 进行初始化 class 对象定位方法 reference 对象提供真实的属性 这个是子类通过spring 注解方式进行初始化时创建的 所以优先使用注解属性进行初始化
      * @param reference
      */
     public ReferenceConfig(Reference reference) {
@@ -159,6 +159,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         }
         //如果 没有 获取到的 实现对象 就 进行初始化
         if (ref == null) {
+            //这里 初始化 的同时 会从 服务提供者那里获取ref 对象
             init();
         }
         return ref;

@@ -83,6 +83,8 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
      * 传入的上下文对象 会收到spring 生命周期的影响 因为这里是引用传递
      *
      * 这样通过创建 SpringExtensionFactory 对象可以随时从上下文对象中获取指定的 bean 对象
+     *
+     * 应该是这个方法 优先于 bean 创建完成时触发
      * @param applicationContext
      */
     @Override
@@ -124,19 +126,19 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
             if (logger.isInfoEnabled()) {
                 logger.info("The service ready on spring started. service: " + getInterface());
             }
-            //开始调用 出口方法
+            //开始调用 出口方法 就是向注册中心发布服务
             export();
         }
     }
 
     /**
-     * 当该bean 对象生成后 执行
+     * 当该bean 对象生成后 执行 父类对象ServiceConfig 设置各个属性  isDefault 对 配置会有什么影响???
      * @throws Exception
      */
     @Override
     @SuppressWarnings({"unchecked", "deprecation"})
     public void afterPropertiesSet() throws Exception {
-        //这里 spring 的加载顺序还不是很清楚 先揣测一下
+        //应该是先设置上下文对象 再 完成bean 的创建
 
         //该对象创建时 生成了ServiceConfig 对象 而里面的 provider 对象还没有设置
         if (getProvider() == null) {
@@ -198,10 +200,12 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                     }
                 }
                 if (applicationConfig != null) {
+                    //只设置默认的 应用配置
                     setApplication(applicationConfig);
                 }
             }
         }
+        //如果moduleConfig 还没设置 同样只能设置默认属性
         if (getModule() == null
                 && (getProvider() == null || getProvider().getModule() == null)) {
             Map<String, ModuleConfig> moduleConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ModuleConfig.class, false, false);
@@ -220,6 +224,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
+        //设置注册中心 这里可以是多个
         if ((getRegistries() == null || getRegistries().isEmpty())
                 && (getProvider() == null || getProvider().getRegistries() == null || getProvider().getRegistries().isEmpty())
                 && (getApplication() == null || getApplication().getRegistries() == null || getApplication().getRegistries().isEmpty())) {
@@ -228,6 +233,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 List<RegistryConfig> registryConfigs = new ArrayList<RegistryConfig>();
                 for (RegistryConfig config : registryConfigMap.values()) {
                     if (config.isDefault() == null || config.isDefault()) {
+                        //只添加默认的 配置  为什么???
                         registryConfigs.add(config);
                     }
                 }
@@ -236,6 +242,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
+        //获取监控中心的 配置信息
         if (getMonitor() == null
                 && (getProvider() == null || getProvider().getMonitor() == null)
                 && (getApplication() == null || getApplication().getMonitor() == null)) {
@@ -251,10 +258,12 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                     }
                 }
                 if (monitorConfig != null) {
+                    //设置单个 监控中心
                     setMonitor(monitorConfig);
                 }
             }
         }
+        //设置 协议属性
         if ((getProtocols() == null || getProtocols().isEmpty())
                 && (getProvider() == null || getProvider().getProtocols() == null || getProvider().getProtocols().isEmpty())) {
             Map<String, ProtocolConfig> protocolConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ProtocolConfig.class, false, false);
@@ -270,14 +279,18 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 }
             }
         }
+        //path 是 什么属性
         if (getPath() == null || getPath().length() == 0) {
             if (beanName != null && beanName.length() > 0
                     && getInterface() != null && getInterface().length() > 0
                     && beanName.startsWith(getInterface())) {
+                //将 bean 名字作为 path
                 setPath(beanName);
             }
         }
+        //如果 没有设置监听器 (或者设置失败)就要直接进行暴露 否则 通过监听器进行暴露
         if (!supportedApplicationListener) {
+            //将服务发布到注册中心
             export();
         }
     }

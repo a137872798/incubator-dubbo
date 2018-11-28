@@ -67,9 +67,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     protected String stub;
 
     /**
-     * 监控中心的配置
+     * 监控中心的配置 不像注册中心 而是 只有一个
      */
-    // service monitor
     protected MonitorConfig monitor;
 
     /**
@@ -125,9 +124,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     protected ModuleConfig module;
 
     /**
-     * 注册中心配置
+     * 注册中心配置  一个 接口级对象(消费者 或者 提供者 ) 都可以针对 多个服务中心进行注册
      */
-    // registry centers
     protected List<RegistryConfig> registries;
 
     /**
