@@ -105,6 +105,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
                     return invoker.invoke(new RpcInvocation(invocation, invoker));
                 }
             });
+            //将每个 future 对象保存
             results.put(invoker.getUrl().getServiceKey(), future);
         }
 
@@ -112,16 +113,19 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
 
         List<Result> resultList = new ArrayList<Result>(results.size());
 
+        //获取超时时间
         int timeout = getUrl().getMethodParameter(invocation.getMethodName(), Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
         for (Map.Entry<String, Future<Result>> entry : results.entrySet()) {
             Future<Result> future = entry.getValue();
             try {
+                //这里会 阻塞线程
                 Result r = future.get(timeout, TimeUnit.MILLISECONDS);
                 if (r.hasException()) {
                     log.error("Invoke " + getGroupDescFromServiceKey(entry.getKey()) + 
                                     " failed: " + r.getException().getMessage(), 
                             r.getException());
                 } else {
+                    //将结果保存
                     resultList.add(r);
                 }
             } catch (Exception e) {
@@ -129,31 +133,41 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
             }
         }
 
+        //返回一个空结果
         if (resultList.isEmpty()) {
             return new RpcResult((Object) null);
         } else if (resultList.size() == 1) {
             return resultList.iterator().next();
         }
 
+        //如果是 无返回值类型 也直接返回
         if (returnType == void.class) {
             return new RpcResult((Object) null);
         }
 
+        //如果以"." 开头 去掉这个开头 这里应该是代表 要merger某个方法
+        // 指定合并方法，将调用返回结果的指定方法进行合并，合并方法的参数类型必须是返回结果类型本身
+        //    <dubbo:method name="getMenuItems" merger=".addAll" />
+        //也就是 该方法需要的参数 就是返回的结果
         if (merger.startsWith(".")) {
             merger = merger.substring(1);
             Method method;
             try {
+                //从返回对象中 选择被merger 的方法
                 method = returnType.getMethod(merger, returnType);
             } catch (NoSuchMethodException e) {
                 throw new RpcException("Can not merge result because missing method [ " + merger + " ] in class [ " + 
                         returnType.getClass().getName() + " ]");
             }
+            //如果不是 public 方法 获取权限
             if (!Modifier.isPublic(method.getModifiers())) {
                 method.setAccessible(true);
             }
+            //获取第一个结果对象
             result = resultList.remove(0).getValue();
             try {
                 if (method.getReturnType() != void.class
+                        //返回结果是 result类型 参数是 result.value 类型
                         && method.getReturnType().isAssignableFrom(result.getClass())) {
                     for (Result r : resultList) {
                         result = method.invoke(result, r.getValue());
@@ -168,7 +182,9 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
             }
         } else {
             Merger resultMerger;
+            //如果merger策略对象是 true or default
             if (ConfigUtils.isDefault(merger)) {
+                //根据返回类型获得merger对象
                 resultMerger = MergerFactory.getMerger(returnType);
             } else {
                 resultMerger = ExtensionLoader.getExtensionLoader(Merger.class).getExtension(merger);
@@ -178,6 +194,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
                 for (Result r : resultList) {
                     rets.add(r.getValue());
                 }
+                //将merger 委托给实现类执行
                 result = resultMerger.merge(
                         rets.toArray((Object[]) Array.newInstance(returnType, 0)));
             } else {

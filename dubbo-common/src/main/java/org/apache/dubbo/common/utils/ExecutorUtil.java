@@ -71,6 +71,7 @@ public class ExecutorUtil {
             return;
         }
         try {
+            //等待指定时间后 终止正在执行的任务
             // Wait a while for existing tasks to terminate
             if (!es.awaitTermination(timeout, TimeUnit.MILLISECONDS)) {
                 es.shutdownNow();

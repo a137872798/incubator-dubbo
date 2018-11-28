@@ -194,6 +194,7 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
 
     @Override
     public void close(int timeout) {
+        //这里会阻塞一会当前线程
         ExecutorUtil.gracefulShutdown(executor, timeout);
         close();
     }

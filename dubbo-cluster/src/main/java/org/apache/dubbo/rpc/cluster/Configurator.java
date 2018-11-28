@@ -27,6 +27,7 @@ public interface Configurator extends Comparable<Configurator> {
     /**
      * get the configurator url.
      *
+     * 获取配置信息
      * @return configurator url.
      */
     URL getUrl();
@@ -35,6 +36,7 @@ public interface Configurator extends Comparable<Configurator> {
      * Configure the provider url.
      * O
      *
+     * 将配置信息配置到url中 就是将传入的 url 进行覆盖操作
      * @param url - old rovider url.
      * @return new provider url.
      */

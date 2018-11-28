@@ -136,7 +136,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
             routers.add(routerFactory.getRouter(url));
         }
         // append mock invoker selector
-        //添加一个 mock 选择器
+        //添加一个 mock 选择器 这个对象也实现了 route 接口
         routers.add(new MockInvokersSelector());
         Collections.sort(routers);
         this.routers = routers;

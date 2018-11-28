@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * FailbackRegistry. (SPI, Prototype, ThreadSafe)
  *
- * 失败重试
+ * 失败重试 将注册失败和 订阅失败的数据在这里进行重试 销毁时 就关闭线程池  子类实现就是对接到第三方框架 destory 就是调用第三方的close
  */
 public abstract class FailbackRegistry extends AbstractRegistry {
 

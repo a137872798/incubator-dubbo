@@ -65,7 +65,9 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
     private static final Logger logger = LoggerFactory.getLogger(DubboBeanDefinitionParser.class);
     private static final Pattern GROUP_AND_VERION = Pattern.compile("^[\\-.0-9_a-zA-Z]+(\\:[\\-.0-9_a-zA-Z]+)?$");
     /**
-     * bean 对象
+     * xml最终被解析成的 class对象
+     *
+     * registerBeanDefinitionParser("application",  这里设置了 element name 也就是 dubbo:application
      */
     private final Class<?> beanClass;
     /**
@@ -105,7 +107,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                     //如果是 协议配置类 就 设置成 dubbo
                     generatedBeanName = "dubbo";
                 } else {
-                    //否则 设置成 interface
+                    //否则 设置成 元素的 接口名
                     generatedBeanName = element.getAttribute("interface");
                 }
             }
@@ -113,7 +115,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
             if (generatedBeanName == null || generatedBeanName.length() == 0) {
                 generatedBeanName = beanClass.getName();
             }
-            //将name 设置到id上 也就是 不填写id 的情况 默认使用 interface 或类名
+            //将name 设置到id上 也就是 不填写id 的情况 默认使用 interface所对应的名字
             id = generatedBeanName;
             int counter = 2;
             //存在id 的情况下 就在id 下 增加计数 parserContext 应该是解析的 上下文对象
@@ -130,24 +132,25 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
             //给 beanDefinition 设置值
             beanDefinition.getPropertyValues().addPropertyValue("id", id);
         }
-        //当bean 是 协议配置类的时候
+        //根据 不同的 类型 将xml 中的元素 解析成对应的 beanDefinition对象
+        //如果 是 protocolConfig
         if (ProtocolConfig.class.equals(beanClass)) {
             //遍历所有 解析上下文的  bean定义 name
             for (String name : parserContext.getRegistry().getBeanDefinitionNames()) {
                 //获取 对应的 bean 定义
                 BeanDefinition definition = parserContext.getRegistry().getBeanDefinition(name);
-                //尝试 获取协议值
+                //尝试 获取协议值  也就是要从xml 的上下文中 找到对应的值 生成对应的 class对象
                 PropertyValue property = definition.getPropertyValues().getPropertyValue("protocol");
                 if (property != null) {
                     Object value = property.getValue();
-                    //这里 名字相等 可能是  都为 dubbo 也可能就是 id 相等了
+                    //这里需要id 相等
                     if (value instanceof ProtocolConfig && id.equals(((ProtocolConfig) value).getName())) {
                         //创建了 一个 runtimeBeanReference 对象 不知道什么用的
                         definition.getPropertyValues().addPropertyValue("protocol", new RuntimeBeanReference(id));
                     }
                 }
             }
-            //如果是 serviceBean
+            //如果是 serviceBean 这里没有传入 ServiceConfig
         } else if (ServiceBean.class.equals(beanClass)) {
             //获取 class 属性
             String className = element.getAttribute("class");
@@ -162,6 +165,7 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
                 //设置 属性
                 beanDefinition.getPropertyValues().addPropertyValue("ref", new BeanDefinitionHolder(classDefinition, id + "Impl"));
             }
+            //这2个配置 有嵌套属性 所以解析会麻烦点
         } else if (ProviderConfig.class.equals(beanClass)) {
             parseNested(element, parserContext, ServiceBean.class, true, "service", "provider", id, beanDefinition);
         } else if (ConsumerConfig.class.equals(beanClass)) {

@@ -402,7 +402,7 @@ public class UrlUtils {
     }
 
     /**
-     * 判断 消费者 和 提供者 的 url 能否对应
+     * 判断 2个 url 能否对应
      * @param consumerUrl
      * @param providerUrl
      * @return
@@ -411,7 +411,7 @@ public class UrlUtils {
         //获得  2个 接口
         String consumerInterface = consumerUrl.getServiceInterface();
         String providerInterface = providerUrl.getServiceInterface();
-        //如果 2个 接口不同 返回false
+        //如果 2个 接口不同 返回false 如果消费者订阅的是 * 就能匹配所有的 provider
         if (!(Constants.ANY_VALUE.equals(consumerInterface) || StringUtils.isEquals(consumerInterface, providerInterface))) {
             return false;
         }
@@ -440,40 +440,62 @@ public class UrlUtils {
                 && (consumerClassifier == null || Constants.ANY_VALUE.equals(consumerClassifier) || StringUtils.isEquals(consumerClassifier, providerClassifier));
     }
 
+    /**
+     * 判断
+     * @param pattern
+     * @param value
+     * @param param
+     * @return
+     */
     public static boolean isMatchGlobPattern(String pattern, String value, URL param) {
+        //如果pattern 以 $ 开头 代表要从 param 中寻找对应的参数
         if (param != null && pattern.startsWith("$")) {
+            //将 param中获取的参数作为 pattern
             pattern = param.getRawParameter(pattern.substring(1));
         }
         return isMatchGlobPattern(pattern, value);
     }
 
+    /**
+     * 判断 pattern 是否与 value 相符合
+     * @param pattern
+     * @param value
+     * @return
+     */
     public static boolean isMatchGlobPattern(String pattern, String value) {
+        //* 代表全匹配
         if ("*".equals(pattern)) {
             return true;
         }
+        //都为null 就是匹配
         if ((pattern == null || pattern.length() == 0)
                 && (value == null || value.length() == 0)) {
             return true;
         }
+        //一方为null 匹配失败
         if ((pattern == null || pattern.length() == 0)
                 || (value == null || value.length() == 0)) {
             return false;
         }
 
+        //如果带有星号
         int i = pattern.lastIndexOf('*');
         // doesn't find "*"
         if (i == -1) {
+            //没有* 就是要判断equal
             return value.equals(pattern);
         }
-        // "*" is at the end
+        // "*" is at the end 如果以 * 结尾
         else if (i == pattern.length() - 1) {
+            //匹配开头的部分
             return value.startsWith(pattern.substring(0, i));
         }
-        // "*" is at the beginning
+        // "*" is at the beginning 如果*开头
         else if (i == 0) {
+            //匹配结尾的部分
             return value.endsWith(pattern.substring(i + 1));
         }
-        // "*" is in the middle
+        // "*" is in the middle 判断头尾
         else {
             String prefix = pattern.substring(0, i);
             String suffix = pattern.substring(i + 1);

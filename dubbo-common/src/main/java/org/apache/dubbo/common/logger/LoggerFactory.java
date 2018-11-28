@@ -34,11 +34,15 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class LoggerFactory {
 
+    /**
+     * 将日志类 与 对应的 安全日志包装类 关联起来 FailsafeLogger 将Logger的异常全部捕获
+     */
     private static final ConcurrentMap<String, FailsafeLogger> LOGGERS = new ConcurrentHashMap<String, FailsafeLogger>();
     private static volatile LoggerAdapter LOGGER_ADAPTER;
 
     // search common-used logging frameworks
     static {
+        //从 系统变量中获取日志类 (优先级最高)
         String logger = System.getProperty("dubbo.application.logger");
         if ("slf4j".equals(logger)) {
             setLoggerAdapter(new Slf4jLoggerAdapter());
@@ -74,6 +78,10 @@ public class LoggerFactory {
     private LoggerFactory() {
     }
 
+    /**
+     * 更换日志类
+     * @param loggerAdapter
+     */
     public static void setLoggerAdapter(String loggerAdapter) {
         if (loggerAdapter != null && loggerAdapter.length() > 0) {
             setLoggerAdapter(ExtensionLoader.getExtensionLoader(LoggerAdapter.class).getExtension(loggerAdapter));

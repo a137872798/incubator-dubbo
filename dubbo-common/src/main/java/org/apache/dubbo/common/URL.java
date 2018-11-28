@@ -1178,6 +1178,11 @@ public /**final**/ class URL implements Serializable {
         return new URL(protocol, username, password, host, port, path, new HashMap<String, String>());
     }
 
+    /**
+     * 传入想要获取的 属性名 返回url 中的对应属性
+     * @param key
+     * @return
+     */
     public String getRawParameter(String key) {
         if ("protocol".equals(key)) {
             return protocol;
@@ -1200,6 +1205,10 @@ public /**final**/ class URL implements Serializable {
         return getParameter(key);
     }
 
+    /**
+     * 将 属性 和 param 全部保存到map 中并返回
+     * @return
+     */
     public Map<String, String> toMap() {
         Map<String, String> map = new HashMap<String, String>(parameters);
         if (protocol != null) {

@@ -588,11 +588,11 @@ public abstract class AbstractRegistry implements Registry {
         if (logger.isInfoEnabled()) {
             logger.info("Destroy registry:" + getUrl());
         }
-        //获取 当前 的注册对象
+        //获取 当前 的注册对象 进行注销
         Set<URL> destroyRegistered = new HashSet<URL>(getRegistered());
         if (!destroyRegistered.isEmpty()) {
             for (URL url : new HashSet<URL>(getRegistered())) {
-                //如果是 dynamic 就进行注销  这个 标识是干嘛用的???
+                //如果是 dynamic 就进行注销 如果 dynamic 为false 应该是要在下线前将数据保存起来
                 if (url.getParameter(Constants.DYNAMIC_KEY, true)) {
                     try {
                         unregister(url);
@@ -605,6 +605,7 @@ public abstract class AbstractRegistry implements Registry {
                 }
             }
         }
+        //获取所有订阅对象 取消订阅
         Map<URL, Set<NotifyListener>> destroySubscribed = new HashMap<URL, Set<NotifyListener>>(getSubscribed());
         if (!destroySubscribed.isEmpty()) {
             for (Map.Entry<URL, Set<NotifyListener>> entry : destroySubscribed.entrySet()) {

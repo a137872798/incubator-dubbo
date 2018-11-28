@@ -268,7 +268,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         }
         // configurators
         if (configuratorUrls != null && !configuratorUrls.isEmpty()) {
-            //将url 变成 Configurator 列表
+            //将url 变成 Configurator 列表 这里是全量数据
             this.configurators = toConfigurators(configuratorUrls);
         }
         // routers
@@ -279,8 +279,10 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                 setRouters(routers);
             }
         }
+        //如果存在配置对象 尝试进行配置
         List<Configurator> localConfigurators = this.configurators; // local reference
         // merge override parameters
+        //directoryUrl 是原始的 url  每次收到notify 后 都会更新配置信息 这时 将url 通过配置中心配置后 就生成了新的 overrideUrl
         this.overrideDirectoryUrl = directoryUrl;
         if (localConfigurators != null && !localConfigurators.isEmpty()) {
             for (Configurator configurator : localConfigurators) {

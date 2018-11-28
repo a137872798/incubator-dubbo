@@ -24,6 +24,7 @@ import org.apache.dubbo.rpc.cluster.Directory;
 /**
  * mock impl
  *
+ * 虚假集群包装类
  */
 public class MockClusterWrapper implements Cluster {
 

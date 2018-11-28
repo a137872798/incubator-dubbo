@@ -22,6 +22,8 @@ import java.io.File;
 
 /**
  * Logger provider
+ *
+ * 将 第三方 日志类 变成dubbo日志类
  */
 @SPI
 public interface LoggerAdapter {

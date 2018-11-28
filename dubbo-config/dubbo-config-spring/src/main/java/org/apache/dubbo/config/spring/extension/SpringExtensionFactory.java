@@ -41,13 +41,17 @@ public class SpringExtensionFactory implements ExtensionFactory {
     private static final Logger logger = LoggerFactory.getLogger(SpringExtensionFactory.class);
 
     /**
-     * spring  上下文容器
+     * spring  上下文容器 保存了 关联的 所有 xml 启动的上下文对象
      */
     private static final Set<ApplicationContext> contexts = new ConcurrentHashSet<ApplicationContext>();
+    /**
+     * 应用监听器对象
+     */
     private static final ApplicationListener shutdownHookListener = new ShutdownHookListener();
 
     public static void addApplicationContext(ApplicationContext context) {
         contexts.add(context);
+        //为上下文对象添加终结钩子
         BeanFactoryUtils.addApplicationListener(context, shutdownHookListener);
     }
 
@@ -64,15 +68,21 @@ public class SpringExtensionFactory implements ExtensionFactory {
         contexts.clear();
     }
 
+    /**
+     * 以spring 上下文的方式 获取 某个 bean对象
+     *
+     * 任意一个SpringExtensionFactory 对象都可以从全局上下文对象中 获取指定的bean对象
+     * @param type object type.
+     * @param name object name.
+     * @param <T>
+     * @return
+     */
     @Override
     @SuppressWarnings("unchecked")
-    /**
-     * 获取拓展对象
-     */
     public <T> T getExtension(Class<T> type, String name) {
 
         //SPI should be get from SpiExtensionFactory
-        //实现SPI 的 待拓展对象不应该有SPRINGExtension 实现
+        //代表该类只能通过SPI机制加载
         if (type.isInterface() && type.isAnnotationPresent(SPI.class)) {
             return null;
         }
@@ -80,6 +90,7 @@ public class SpringExtensionFactory implements ExtensionFactory {
         for (ApplicationContext context : contexts) {
             //遍历 如果存在 指定的 bean 就创建bean 对象 且 该实例实现该接口
             if (context.containsBean(name)) {
+                //通过beanName 找到对应的bean 对象 如果是 给定类型的实例就直接返回
                 Object bean = context.getBean(name);
                 if (type.isInstance(bean)) {
                     return (T) bean;
@@ -91,14 +102,14 @@ public class SpringExtensionFactory implements ExtensionFactory {
 
         logger.warn("No spring extension (bean) named:" + name + ", try to find an extension (bean) of type " + type.getName());
 
-        //如果 是 Object 类型 就不返回
+        //Object类型就不用返回
         if (Object.class == type) {
             return null;
         }
 
         for (ApplicationContext context : contexts) {
             try {
-                //这里 不管是否 实现该接口 都返回
+                //依次从每个上下文中 获取bean 对象 抛出异常 捕获 不处理 直到获取到bean 对象
                 return context.getBean(type);
             } catch (NoUniqueBeanDefinitionException multiBeanExe) {
                 logger.warn("Find more than 1 spring extensions (beans) of type " + type.getName() + ", will stop auto injection. Please make sure you have specified the concrete parameter type and there's only one extension of that type.");
@@ -111,9 +122,13 @@ public class SpringExtensionFactory implements ExtensionFactory {
 
         logger.warn("No spring extension (bean) named:" + name + ", type:" + type.getName() + " found, stop get bean.");
 
+        //没有找到 bean 对象
         return null;
     }
 
+    /**
+     * 应用监听器对象 这里触发条件是 当 应用关闭时  即 spring停止时
+     */
     private static class ShutdownHookListener implements ApplicationListener {
         @Override
         public void onApplicationEvent(ApplicationEvent event) {
@@ -121,6 +136,7 @@ public class SpringExtensionFactory implements ExtensionFactory {
                 // we call it anyway since dubbo shutdown hook make sure its destroyAll() is re-entrant.
                 // pls. note we should not remove dubbo shutdown hook when spring framework is present, this is because
                 // its shutdown hook may not be installed.
+                //调用 dubbo 的终结钩子 开始 关闭程序
                 DubboShutdownHook shutdownHook = DubboShutdownHook.getDubboShutdownHook();
                 shutdownHook.destroyAll();
             }

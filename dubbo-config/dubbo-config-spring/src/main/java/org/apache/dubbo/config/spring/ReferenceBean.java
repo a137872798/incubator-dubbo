@@ -39,6 +39,8 @@ import java.util.Map;
 
 /**
  * ReferenceFactoryBean
+ *
+ * 当该类通过spring 容器初始化时 就已经开启了 从注册中心订阅服务
  */
 public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean, ApplicationContextAware, InitializingBean, DisposableBean {
 
@@ -54,28 +56,48 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         super(reference);
     }
 
+    /**
+     * 应该是跟 ServiceBean 一样在初始化的时候设置上下文对象 并增加 终结钩子
+     * @param applicationContext
+     */
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
         SpringExtensionFactory.addApplicationContext(applicationContext);
     }
 
+    /**
+     * 返回需要的 对象 因为解析 dubbo:reference 需要的 是 ref所引用的对象
+     * 这里返回的 是 referenceConfig 的 ref 对象
+     * @return
+     */
     @Override
     public Object getObject() {
         return get();
     }
 
+    /**
+     * 获取对象类型
+     */
     @Override
     public Class<?> getObjectType() {
         return getInterfaceClass();
     }
 
+    /**
+     * 默认为单例
+     * @return
+     */
     @Override
     @Parameter(excluded = true)
     public boolean isSingleton() {
         return true;
     }
 
+    /**
+     * 当bean 实例被创建时  这里应该就是进行订阅 服务的地方
+     * @throws Exception
+     */
     @Override
     @SuppressWarnings({"unchecked"})
     public void afterPropertiesSet() throws Exception {
@@ -176,6 +198,9 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         }
     }
 
+    /**
+     * 销毁方法通过终结钩子执行
+     */
     @Override
     public void destroy() {
         // do nothing

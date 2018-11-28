@@ -124,6 +124,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         appendAnnotation(Service.class, service);
     }
 
+    /**
+     * 将服务提供者配置 变成 协议配置
+     * @param providers
+     * @return
+     */
     @Deprecated
     private static List<ProtocolConfig> convertProviderToProtocol(List<ProviderConfig> providers) {
         if (providers == null || providers.isEmpty()) {
@@ -148,6 +153,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return providers;
     }
 
+    /**
+     * 从provider 中取出属性设置到 protocol中 因为
+     * @param provider
+     * @return
+     */
     @Deprecated
     private static ProtocolConfig convertProviderToProtocol(ProviderConfig provider) {
         ProtocolConfig protocol = new ProtocolConfig();
@@ -940,6 +950,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     /**
      * @deprecated Replace to setProtocols()
+     * 设置一组协议配置
      */
     @Deprecated
     public void setProviders(List<ProviderConfig> providers) {

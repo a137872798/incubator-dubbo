@@ -201,7 +201,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         closed = true;
         if (timeout > 0) {
             long start = System.currentTimeMillis();
-            //如果  该 future 对象还没由完成 就 不 关闭
+            //如果  该 future 对象还没由完成 就 不 关闭  等待 future 对象完成
             while (DefaultFuture.hasFuture(channel)
                     && System.currentTimeMillis() - start < timeout) {
                 try {

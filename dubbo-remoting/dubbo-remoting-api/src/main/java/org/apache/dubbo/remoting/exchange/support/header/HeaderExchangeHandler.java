@@ -106,7 +106,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     void handlerEvent(Channel channel, Request req) throws RemotingException {
         //如果是 只读事件 目前 内置的 只有 心跳 和 只读 2种事件
         if (req.getData() != null && req.getData().equals(Request.READONLY_EVENT)) {
-            //给 channel 增加一个 只读属性
+            //给 channel 增加一个 只读属性 代表 该客户端 不能在访问 该服务器了
             channel.setAttribute(Constants.CHANNEL_ATTRIBUTE_READONLY_KEY, Boolean.TRUE);
         }
     }

@@ -629,6 +629,7 @@ public class DubboProtocol extends AbstractProtocol {
 
     @Override
     public void destroy() {
+        //销毁所有服务器
         for (String key : new ArrayList<String>(serverMap.keySet())) {
             ExchangeServer server = serverMap.remove(key);
             if (server != null) {
@@ -636,6 +637,7 @@ public class DubboProtocol extends AbstractProtocol {
                     if (logger.isInfoEnabled()) {
                         logger.info("Close dubbo server: " + server.getLocalAddress());
                     }
+                    //给与一定关闭时间 好处理已经接受到的 请求
                     server.close(ConfigUtils.getServerShutdownTimeout());
                 } catch (Throwable t) {
                     logger.warn(t.getMessage(), t);
@@ -643,6 +645,7 @@ public class DubboProtocol extends AbstractProtocol {
             }
         }
 
+        //关闭所有客户端
         for (String key : new ArrayList<String>(referenceClientMap.keySet())) {
             ExchangeClient client = referenceClientMap.remove(key);
             if (client != null) {
@@ -657,6 +660,7 @@ public class DubboProtocol extends AbstractProtocol {
             }
         }
 
+        //幽灵客户端也关闭
         for (String key : new ArrayList<String>(ghostClientMap.keySet())) {
             ExchangeClient client = ghostClientMap.remove(key);
             if (client != null) {
@@ -670,7 +674,9 @@ public class DubboProtocol extends AbstractProtocol {
                 }
             }
         }
+        //清理存根容器
         stubServiceMethodsMap.clear();
+        //继续 父类的销毁工作
         super.destroy();
     }
 }

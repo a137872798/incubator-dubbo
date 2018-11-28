@@ -34,12 +34,14 @@ public class Log4jLoggerAdapter implements LoggerAdapter {
     @SuppressWarnings("unchecked")
     public Log4jLoggerAdapter() {
         try {
+            //获取根目录
             org.apache.log4j.Logger logger = LogManager.getRootLogger();
             if (logger != null) {
                 Enumeration<Appender> appenders = logger.getAllAppenders();
                 if (appenders != null) {
                     while (appenders.hasMoreElements()) {
                         Appender appender = appenders.nextElement();
+                        //实现了FileAppender接口 就使用文件名创建文件对象
                         if (appender instanceof FileAppender) {
                             FileAppender fileAppender = (FileAppender) appender;
                             String filename = fileAppender.getFile();
@@ -76,6 +78,11 @@ public class Log4jLoggerAdapter implements LoggerAdapter {
         return org.apache.log4j.Level.OFF;
     }
 
+    /**
+     * 适配 log4j 日志级别 与 dubbo 日志级别
+     * @param level
+     * @return
+     */
     private static Level fromLog4jLevel(org.apache.log4j.Level level) {
         if (level == org.apache.log4j.Level.ALL) {
             return Level.ALL;

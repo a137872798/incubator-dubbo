@@ -25,6 +25,7 @@ import org.apache.dubbo.common.extension.SPI;
  * <p>
  * <a href="http://en.wikipedia.org/wiki/Routing">Routing</a>
  *
+ * 路由工厂对象
  * @see org.apache.dubbo.rpc.cluster.Cluster#join(Directory)
  * @see org.apache.dubbo.rpc.cluster.Directory#list(org.apache.dubbo.rpc.Invocation)
  */
@@ -34,6 +35,7 @@ public interface RouterFactory {
     /**
      * Create router.
      *
+     * 获取指定url 的 路由信息
      * @param url
      * @return router
      */

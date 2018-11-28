@@ -94,16 +94,25 @@ public class BeanFactoryUtils {
 
     }
 
+    /**
+     * 为应用上下文对象 创建 监听器
+     * @param applicationContext
+     * @param listener
+     * @return
+     */
     public static boolean addApplicationListener(ApplicationContext applicationContext, ApplicationListener listener) {
         try {
             // backward compatibility to spring 2.0.1
+            //向后兼容 2.0.1 通过反射增加监听器
             Method method = applicationContext.getClass().getMethod("addApplicationListener", ApplicationListener.class);
             method.invoke(applicationContext, listener);
             return true;
+            //无法添加时
         } catch (Throwable t) {
             if (applicationContext instanceof AbstractApplicationContext) {
                 try {
                     // backward compatibility to spring 2.0.1
+                    //也是反射增加
                     Method method = AbstractApplicationContext.class.getDeclaredMethod("addListener", ApplicationListener.class);
                     if (!method.isAccessible()) {
                         method.setAccessible(true);

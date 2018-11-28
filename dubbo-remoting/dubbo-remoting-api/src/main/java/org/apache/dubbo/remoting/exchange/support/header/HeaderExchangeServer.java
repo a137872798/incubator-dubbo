@@ -42,6 +42,7 @@ import static java.util.Collections.unmodifiableCollection;
 /**
  * ExchangeServerImpl
  *
+ * 为 server 增加了 心跳检测功能
  */
 public class HeaderExchangeServer implements ExchangeServer {
 
@@ -131,12 +132,12 @@ public class HeaderExchangeServer implements ExchangeServer {
         if (timeout > 0) {
             final long max = (long) timeout;
             final long start = System.currentTimeMillis();
-            //从 url 中 获取相关参数 如果 是 只读
+            //如果 url 中设置了只读事件通知 就通知 客户端 这样 当客户端准备发起请求时 判断到 服务器不再接受新的请求 通过isAvailable
             if (getUrl().getParameter(Constants.CHANNEL_SEND_READONLYEVENT_KEY, true)) {
                 //触发只读事件
                 sendChannelReadOnlyEvent();
             }
-            //在指定的 时间内 如果服务器还在运行中 就等待  那么 channel 是 怎么自己关闭的呢
+            //在指定的 时间内 如果服务器还在运行中
             while (HeaderExchangeServer.this.isRunning()
                     && System.currentTimeMillis() - start < max) {
                 try {

@@ -50,7 +50,7 @@ public class DefaultFuture implements ResponseFuture {
     private static final Logger logger = LoggerFactory.getLogger(DefaultFuture.class);
 
     /**
-     * key 应该是请求的 唯一标识  channel 是针对本次请求的  channel 对象
+     * key 应该是请求的 唯一标识  channel 是针对本次请求的  channel 对象 每个结果一旦完成就会从容器中移除
      */
     private static final Map<Long, Channel> CHANNELS = new ConcurrentHashMap<>();
 

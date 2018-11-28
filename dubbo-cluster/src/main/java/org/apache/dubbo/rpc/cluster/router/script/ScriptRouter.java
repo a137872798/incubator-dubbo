@@ -41,34 +41,53 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * ScriptRouter
  *
+ * 脚本实现的路由对象
  */
 public class ScriptRouter implements Router {
 
     private static final Logger logger = LoggerFactory.getLogger(ScriptRouter.class);
 
+    /**
+     * key 脚本类型 value 脚本引擎 脚本引擎对象是 jdk自带的
+     */
     private static final Map<String, ScriptEngine> engines = new ConcurrentHashMap<String, ScriptEngine>();
 
+    /**
+     * 引擎对象
+     */
     private final ScriptEngine engine;
 
     private final int priority;
 
+    /**
+     * 规则内容
+     */
     private final String rule;
 
+    /**
+     * 路由规则 url
+     */
     private final URL url;
 
     public ScriptRouter(URL url) {
         this.url = url;
+        //获取 type  这个和 rule 属性都是从FileRouteFactory 中设置的 并传入到下面的路由对象
         String type = url.getParameter(Constants.TYPE_KEY);
         this.priority = url.getParameter(Constants.PRIORITY_KEY, 0);
+        //获取rule 信息
         String rule = url.getParameterAndDecoded(Constants.RULE_KEY);
+        //脚本类型不存在就默认是 javascript
         if (type == null || type.length() == 0) {
             type = Constants.DEFAULT_SCRIPT_TYPE_KEY;
         }
+        //不存在路由规则会抛出异常
         if (rule == null || rule.length() == 0) {
             throw new IllegalStateException(new IllegalStateException("route rule can not be empty. rule:" + rule));
         }
+        //通过 容器获得 对应类型的 引擎对象
         ScriptEngine engine = engines.get(type);
         if (engine == null) {
+            //从 引擎管理对象中获取对应对象 这个对象是 jdk携带的
             engine = new ScriptEngineManager().getEngineByName(type);
             if (engine == null) {
                 throw new IllegalStateException(new IllegalStateException("Unsupported route rule type: " + type + ", rule: " + rule));
@@ -84,6 +103,15 @@ public class ScriptRouter implements Router {
         return url;
     }
 
+    /**
+     * 路由信息
+     * @param invokers
+     * @param url        refer url
+     * @param invocation
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> List<Invoker<T>> route(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {

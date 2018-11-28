@@ -31,8 +31,15 @@ import java.util.Set;
  */
 public abstract class AbstractConfigurator implements Configurator {
 
+    /**
+     * 配置的 相关url 对象
+     */
     private final URL configuratorUrl;
 
+    /**
+     * 设置url 对象
+     * @param url
+     */
     public AbstractConfigurator(URL url) {
         if (url == null) {
             throw new IllegalArgumentException("configurator url == null");
@@ -52,22 +59,27 @@ public abstract class AbstractConfigurator implements Configurator {
      */
     @Override
     public URL configure(URL url) {
+        //如果 该配置规则 端口不存在 就直接返回 host应该代表 该 配置中心是针对 哪个host的 url 进行配置的
         if (configuratorUrl.getHost() == null || url == null || url.getHost() == null) {
             return url;
         }
         // If override url has port, means it is a provider address. We want to control a specific provider with this override url, it may take effect on the specific provider instance or on consumers holding this provider instance.
-        // 有时候 传入的 url 和 configuratorUrl 是一个对象
+        // 如果带有端口 就代表针对指定服务提供者
         if (configuratorUrl.getPort() != 0) {
             if (url.getPort() == configuratorUrl.getPort()) {
-                //检测 配置是否匹配
+                //如果匹配就会进行配置 否则 返回原对象
                 return configureIfMatch(url.getHost(), url);
             }
         } else {// override url don't have a port, means the ip override url specify is a consumer address or 0.0.0.0
             // 1.If it is a consumer ip address, the intention is to control a specific consumer instance, it must takes effect at the consumer side, any provider received this override url should ignore;
             // 2.If the ip is 0.0.0.0, this override url can be used on consumer, and also can be used on provider
+            // 当没有端口时 代表针对的配置对象是消费者端 也要进行匹配
             if (url.getParameter(Constants.SIDE_KEY, Constants.PROVIDER).equals(Constants.CONSUMER)) {
+                //getLocalHost 是消费者注册到 注册中心的地址
                 return configureIfMatch(NetUtils.getLocalHost(), url);// NetUtils.getLocalHost is the ip address consumer registered to registry.
+            //或者是 任意服务提供者端口
             } else if (url.getParameter(Constants.SIDE_KEY, Constants.CONSUMER).equals(Constants.PROVIDER)) {
+                //那么这里就传入全部 提供者 那么现在还没有针对 某个 服务提供者 进行配置的功能
                 return configureIfMatch(Constants.ANYHOST_VALUE, url);// take effect on all providers, so address must be 0.0.0.0, otherwise it won't flow to this if branch
             }
         }
@@ -76,19 +88,19 @@ public abstract class AbstractConfigurator implements Configurator {
 
     /**
      * 检测配置是否匹配
-     * @param host
+     * @param host 是需要被配置的 url 的host
      * @param url
      * @return
      */
     private URL configureIfMatch(String host, URL url) {
-        //当 url 与 configuratorUrl 基本一致时 (可能现在2个是 同一个对象)
+        //如果配置中心的 host 是0.0.0.0 就代表是针对 任何url的 或者 端口相匹配
+        //如果传入的host 是0.0.0.0 而 配置的url 不是 也不会进行处理 也就是 配置中心是针对某一个host的
         if (Constants.ANYHOST_VALUE.equals(configuratorUrl.getHost()) || host.equals(configuratorUrl.getHost())) {
-            //获取 成员变量 的 配置信息
+            //判断针对的应用返回
             String configApplication = configuratorUrl.getParameter(Constants.APPLICATION_KEY,
                     configuratorUrl.getUsername());
-            //获取 传入参数的配置信息
             String currentApplication = url.getParameter(Constants.APPLICATION_KEY, url.getUsername());
-            //如果 成员变量的匹配信息是 全匹配 或或匹配信息 或 跟传入的 url 匹配信息一致
+            //如果 应用名没设置 或者 是全应用 或者 匹配 都可以进行配置
             if (configApplication == null || Constants.ANY_VALUE.equals(configApplication)
                     || configApplication.equals(currentApplication)) {
                 //设置一些属性到 set中
@@ -101,11 +113,10 @@ public abstract class AbstractConfigurator implements Configurator {
                 for (Map.Entry<String, String> entry : configuratorUrl.getParameters().entrySet()) {
                     String key = entry.getKey();
                     String value = entry.getValue();
-                    //~ 好像是代表要取消的 属性  出现 application 和 side 时 要加入到 set容器中
+                    //~ 好像是代表要取消的 属性  出现 application 和 side 时 要加入到 set容器中 这些都是需要匹配 的条件
                     if (key.startsWith("~") || Constants.APPLICATION_KEY.equals(key) || Constants.SIDE_KEY.equals(key)) {
                         conditionKeys.add(key);
-                        //如果value为不空 且 不为 * 且 url 的 value 跟 成员变量的url的value 不等
-                        //这里应该是代表没有匹配上 就直接返回了
+                        //这里代表没有匹配上 就直接返回原url 代表 不进行配置操作
                         if (value != null && !Constants.ANY_VALUE.equals(value)
                                 && !value.equals(url.getParameter(key.startsWith("~") ? key.substring(1) : key))) {
                             return url;
@@ -116,6 +127,7 @@ public abstract class AbstractConfigurator implements Configurator {
                 return doConfigure(url, configuratorUrl.removeParameters(conditionKeys));
             }
         }
+        //一开始端口没匹配 也是直接返回
         return url;
     }
 

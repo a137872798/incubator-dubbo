@@ -163,7 +163,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         if (!super.isAvailable()) {
             return false;
         }
-        //只要有一个client 在连接中 且不是只读的就是true
+        //只要有一个client 在连接中 且不是只读的就是true 当收到 服务端发起的 只读请求后 客户端就会修改状态为 只读
         for (ExchangeClient client : clients) {
             if (client.isConnected() && !client.hasAttribute(Constants.CHANNEL_ATTRIBUTE_READONLY_KEY)) {
                 //cannot write == not Available ?
