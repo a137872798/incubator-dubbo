@@ -140,7 +140,8 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
     public void afterPropertiesSet() throws Exception {
         //应该是先设置上下文对象 再 完成bean 的创建
 
-        //该对象创建时 生成了ServiceConfig 对象 而里面的 provider 对象还没有设置
+        //该对象创建时 生成了ServiceConfig 对象 而里面的 provider 对象还没有设置 代表没有通过xml 设置
+        //反过来如果指定了 provider属性 那么这里就不会进入 自动设置配置 也就没有发生异常的可能了
         if (getProvider() == null) {
             //尝试获取从xml 中 读取的 providerConfig 的所有属性
             Map<String, ProviderConfig> providerConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ProviderConfig.class, false, false);
@@ -156,7 +157,8 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                     List<ProviderConfig> providerConfigs = new ArrayList<ProviderConfig>();
                     for (ProviderConfig config : providerConfigMap.values()) {
                         if (config.isDefault() != null && config.isDefault()) {
-                            //只添加默认配置???
+                            //在为config 对象自动添加依赖时 只会添加 defualt 的 如果在xml 中显式指定 defualt = false 就不会进行
+                            //配置 也不会出现 无法确定配置那个config 的问题了 不过需要用户自行配置
                             providerConfigs.add(config);
                         }
                     }
@@ -233,7 +235,6 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 List<RegistryConfig> registryConfigs = new ArrayList<RegistryConfig>();
                 for (RegistryConfig config : registryConfigMap.values()) {
                     if (config.isDefault() == null || config.isDefault()) {
-                        //只添加默认的 配置  为什么???
                         registryConfigs.add(config);
                     }
                 }
@@ -270,6 +271,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
             if (protocolConfigMap != null && protocolConfigMap.size() > 0) {
                 List<ProtocolConfig> protocolConfigs = new ArrayList<ProtocolConfig>();
                 for (ProtocolConfig config : protocolConfigMap.values()) {
+                    //这里的 意思也就变成了 针对协议的默认配置会全部加载 因为 一个serviceConfig 就是可以对应多个协议的
                     if (config.isDefault() == null || config.isDefault()) {
                         protocolConfigs.add(config);
                     }
@@ -284,7 +286,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
             if (beanName != null && beanName.length() > 0
                     && getInterface() != null && getInterface().length() > 0
                     && beanName.startsWith(getInterface())) {
-                //将 bean 名字作为 path
+                //将 bean 名字作为 path 这里去要beanName 以 接口名开头
                 setPath(beanName);
             }
         }

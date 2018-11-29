@@ -169,7 +169,7 @@ public class RegistryProtocol implements Protocol {
     }
 
     /**
-     * 服务提供者向 注册中心进行出口
+     * 服务提供者向 注册中心进行出口时调用的方法 返回一个 export对象
      * @param originInvoker
      * @param <T>
      * @return
@@ -178,7 +178,7 @@ public class RegistryProtocol implements Protocol {
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
         //export invoker
-        //将 该invoker 对象 保存到本地容器中 保证不重复出口
+        //启动服务提供者 监听指定端口
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker);
 
         //获取注册中心真正的 url 对象 (使用真正的 协议)
@@ -221,14 +221,14 @@ public class RegistryProtocol implements Protocol {
     }
 
     /**
-     * 在本地 为待出口的服务做标识 防止重复 出口
+     * 启动服务提供者 监听指定端口 处理服务消费者请求
      * @param originInvoker
      * @param <T>
      * @return
      */
     @SuppressWarnings("unchecked")
     private <T> ExporterChangeableWrapper<T> doLocalExport(final Invoker<T> originInvoker) {
-        //先通过 invoker 对象 获取 服务提供者的url 并在 去除部分 属性后 转换成了 域名格式返回
+        //从 invoker 对象的 url 中筛选出 export 的 url 这个信息里包含服务提供者信息 用来开启 并监听消费者请求
         String key = getCacheKey(originInvoker);
         //尝试 获取 如果能获取到就不进行重复出口了
         ExporterChangeableWrapper<T> exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
@@ -237,9 +237,9 @@ public class RegistryProtocol implements Protocol {
             synchronized (bounds) {
                 exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
                 if (exporter == null) {
-                    //再次 确保 对象没有被创建
+                    //通过服务提供者 url 和 原始的 invoker对象 创建 delegate 对象
                     final Invoker<?> invokerDelegete = new InvokerDelegete<T>(originInvoker, getProviderUrl(originInvoker));
-                    //初始化 一个 出口服务的 包装对象
+                    //初始化 一个 出口服务的 包装对象 这个protocol 应该也是 自适应对象
                     exporter = new ExporterChangeableWrapper<T>((Exporter<T>) protocol.export(invokerDelegete), originInvoker);
                     //设置到绑定对象中
                     bounds.put(key, exporter);
@@ -364,7 +364,7 @@ public class RegistryProtocol implements Protocol {
             throw new IllegalArgumentException("The registry export url is null! registry: " + origininvoker.getUrl());
         }
 
-        //获取到 出口者的 url
+        //获取到 出口者的 url 这里面 应该还带着监控中心的url
         URL providerUrl = URL.valueOf(export);
         return providerUrl;
     }
@@ -372,15 +372,14 @@ public class RegistryProtocol implements Protocol {
     /**
      * Get the key cached in bounds by invoker
      *
-     * 查看 当前出口者 是否有对应的 引用
      * @param originInvoker
      * @return
      */
     private String getCacheKey(final Invoker<?> originInvoker) {
-        //通过 invoker 对象 获取到 providerUrl 就是 解析invoker 的 url 的export 字段
+        //从invoker 的url 中获取export 关联的url 这个url 中包含服务提供者信息
         URL providerUrl = getProviderUrl(originInvoker);
 
-        //在 移除了 指定的 属性标识(key) 后 将 返回的新url 转换成了string
+        //这里移除了 dynamic 和enabled 因为这2个属性 与 开启服务提供者无关
         String key = providerUrl.removeParameters("dynamic", "enabled").toFullString();
         return key;
     }

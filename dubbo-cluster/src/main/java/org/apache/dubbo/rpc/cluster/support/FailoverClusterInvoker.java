@@ -67,7 +67,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         //检查invoker 对象是否存在
         checkInvokers(copyinvokers, invocation);
         String methodName = RpcUtils.getMethodName(invocation);
-        //获取重试次数
+        //获取重试次数 这个是针对方法级别的 所以要加上方法名前缀
         int len = getUrl().getMethodParameter(methodName, Constants.RETRIES_KEY, Constants.DEFAULT_RETRIES) + 1;
         //默认次数 是1
         if (len <= 0) {

@@ -201,6 +201,7 @@ public /**final**/ class URL implements Serializable {
         Map<String, String> parameters = null;
         int i = url.indexOf("?"); // seperator between body and parameters 
         if (i >= 0) {
+            //拆分 url 中 后面携带的参数
             String[] parts = url.substring(i + 1).split("\\&");
             parameters = new HashMap<String, String>();
             for (String part : parts) {
@@ -224,9 +225,9 @@ public /**final**/ class URL implements Serializable {
                 throw new IllegalStateException("url missing protocol: \"" + url + "\"");
             }
             //最前面的是 协议
-            //例如 ： dubbo://
+            //例如 ： dubbo://  如果是 registry 那么  zookeeper://192.168.2.249:2181 zookeeper 就会变成协议了
             protocol = url.substring(0, i);
-            //域名 不带参数的
+            //去除  dubbo:// 的 后面部分 这里 ? 后面的东西也已经去掉了
             url = url.substring(i + 3);
         } else {
             // case: file:/path/to/file.txt
@@ -241,8 +242,9 @@ public /**final**/ class URL implements Serializable {
             }
         }
 
-        //下面 也是域名解析 没有实际的 例子 先不看
+        //下面 也是域名解析  这些有点特殊规则了
 
+        //截取 / 前面的 为 path 后面的为url
         i = url.indexOf("/");
         if (i >= 0) {
             path = url.substring(i + 1);
@@ -250,6 +252,7 @@ public /**final**/ class URL implements Serializable {
         }
         i = url.lastIndexOf("@");
         if (i >= 0) {
+            //截取 @前面的部分为用户名
             username = url.substring(0, i);
             int j = username.indexOf(":");
             if (j >= 0) {
@@ -273,6 +276,8 @@ public /**final**/ class URL implements Serializable {
         if (url.length() > 0) {
             host = url;
         }
+        //主要 就是将 ? 后面的 设置到 param 容器中 如果是 registry 且 携带前缀 比如 zookeeper 就将这个变成 protocol
+        //一般情况的 address 是 不带 协议 或者是 dubbo 协议 也就是协议有可能是 null
         return new URL(protocol, username, password, host, port, path, parameters);
     }
 

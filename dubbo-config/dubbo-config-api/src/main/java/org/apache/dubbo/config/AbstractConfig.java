@@ -78,6 +78,9 @@ public abstract class AbstractConfig implements Serializable {
     private static final Pattern PATTERN_NAME_HAS_SYMBOL = Pattern.compile("[:*,\\s/\\-._0-9a-zA-Z]+");
 
     private static final Pattern PATTERN_KEY = Pattern.compile("[*,\\-._0-9a-zA-Z]+");
+    /**
+     * 转换 properties 的 键值名 应该是 兼容老版本的
+     */
     private static final Map<String, String> legacyProperties = new HashMap<String, String>();
     /**
      * 配置的 后缀名 可能是用 config 也可能是用 bean
@@ -85,6 +88,7 @@ public abstract class AbstractConfig implements Serializable {
     private static final String[] SUFFIXES = new String[]{"Config", "Bean"};
 
     static {
+        //兼容老版本的一个 映射容器
         legacyProperties.put("dubbo.protocol.name", "dubbo.service.protocol");
         legacyProperties.put("dubbo.protocol.host", "dubbo.service.server.host");
         legacyProperties.put("dubbo.protocol.port", "dubbo.service.server.port");
@@ -105,7 +109,7 @@ public abstract class AbstractConfig implements Serializable {
     protected String id;
 
     /**
-     * 对设置的参数做一下处理
+     * 这里是 兼容旧版本的 将返回的结果做一下处理 先不管
      * @param key
      * @param value
      * @return
@@ -126,10 +130,11 @@ public abstract class AbstractConfig implements Serializable {
      * @param config
      */
     protected static void appendProperties(AbstractConfig config) {
+        //空对象直接返回
         if (config == null) {
             return;
         }
-        //生成对应的配置前缀  如果是 serviceBean 或者 serviceConfig 那解析出来 就是 dubbo.service.
+        //生成对应的配置前缀  如果是 serviceBean 或者 serviceConfig 那解析出来 就是 dubbo.service. dubbo.provider 等
         String prefix = "dubbo." + getTagName(config.getClass()) + ".";
         Method[] methods = config.getClass().getMethods();
         for (Method method : methods) {
@@ -144,11 +149,10 @@ public abstract class AbstractConfig implements Serializable {
                     String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), ".");
 
                     String value = null;
+                    //这个id 是 springBean 的id
                     if (config.getId() != null && config.getId().length() > 0) {
-                        //拼接 id 和 前缀
+                        //拼接 id 和 前缀  比如 dubbo.provider.{id}.default
                         String pn = prefix + config.getId() + "." + property;
-                        //从系统变量获取对应的值 那么 这种获取属性的抽取方法就是一种规范
-                        //id 应该不是简单的数字 那么是如何被定义的
                         value = System.getProperty(pn);
                         if (!StringUtils.isBlank(value)) {
                             logger.info("Use System Property " + pn + " to config dubbo");
@@ -176,23 +180,23 @@ public abstract class AbstractConfig implements Serializable {
                                 getter = null;
                             }
                         }
-                        //找到了
+                        //找到了 这里是在 判断是否 通过springBean 的机制为对象创建了属性
                         if (getter != null) {
                             //如果属性没有被设置
                             if (getter.invoke(config) == null) {
                                 if (config.getId() != null && config.getId().length() > 0) {
-                                    //从另一个地方获取 配置 这里先不看
+                                    //从properties 文件中获取对应属性
                                     value = ConfigUtils.getProperty(prefix + config.getId() + "." + property);
                                 }
                                 //没有获取到就去掉id 获取
                                 if (value == null || value.length() == 0) {
                                     value = ConfigUtils.getProperty(prefix + property);
                                 }
-                                //还是获取不到 就从本地缓存的配置中 获取对应的value
+                                //还是获取不到 就从legacyProperties对象中 将 配置键 转换 并重新获取
                                 if (value == null || value.length() == 0) {
                                     String legacyKey = legacyProperties.get(prefix + property);
                                     if (legacyKey != null && legacyKey.length() > 0) {
-                                        //如果key 满足特殊值 就处理获取到的value 并重新赋值
+                                        //将key 做 兼容后获取的值 再去获取属性
                                         value = convertLegacyValue(legacyKey, ConfigUtils.getProperty(legacyKey));
                                     }
                                 }
@@ -268,13 +272,14 @@ public abstract class AbstractConfig implements Serializable {
                     //将方法转换成对应属性名
                     String prop = StringUtils.camelToSplitName(name.substring(i, i + 1).toLowerCase() + name.substring(i + 1), ".");
                     String key;
-                    //获取 注解的 key 不存在就将 key 设置成属性名
+                    //设置 key 为注解 的 key 属性
                     if (parameter != null && parameter.key().length() > 0) {
                         key = parameter.key();
                     } else {
+                        //否则 就设置为属性名
                         key = prop;
                     }
-                    //获取属性
+                    //获取配置对象的 对应属性
                     Object value = method.invoke(config);
                     String str = String.valueOf(value).trim();
                     if (value != null && str.length() > 0) {

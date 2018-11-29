@@ -33,7 +33,7 @@ public class UrlUtils {
     private final static String URL_PARAM_STARTING_SYMBOL = "?";
 
     /**
-     * 解析 地址
+     * 地址格式 10.20.153.10:9090  zookeeper://192.168.2.249:2181   10.20.141.150:9090?subscribe=false
      * @param address
      * @param defaults
      * @return
@@ -47,10 +47,12 @@ public class UrlUtils {
         //地址 有2种 格式 一种就是域名 一种是用,拼接的 ip
         //第一种
         if (address.contains("://") || address.contains(URL_PARAM_STARTING_SYMBOL)) {
+            //代表 是 httpurl 格式的 地址
             url = address;
         } else {
-            //拆分地址
+            //","拆分地址
             String[] addresses = Constants.COMMA_SPLIT_PATTERN.split(address);
+            //多地址情况 使用第一个
             url = addresses[0];
             if (addresses.length > 1) {
                 StringBuilder backup = new StringBuilder();
@@ -65,13 +67,16 @@ public class UrlUtils {
                 url += URL_PARAM_STARTING_SYMBOL + Constants.BACKUP_KEY + "=" + backup.toString();
             }
         }
-        //从容器中获取默认值
+        //从容器中获取默认值 这个协议是通信 协议 而不是 注册中心的类型
         String defaultProtocol = defaults == null ? null : defaults.get("protocol");
         if (defaultProtocol == null || defaultProtocol.length() == 0) {
+            //默认使用dubbo 进行通信
             defaultProtocol = "dubbo";
         }
+        //如果 存在 用户名密码 尝试获取
         String defaultUsername = defaults == null ? null : defaults.get("username");
         String defaultPassword = defaults == null ? null : defaults.get("password");
+        //尝试获取 端口path
         int defaultPort = StringUtils.parseInteger(defaults == null ? null : defaults.get("port"));
         String defaultPath = defaults == null ? null : defaults.get("path");
         Map<String, String> defaultParameters = defaults == null ? null : new HashMap<String, String>(defaults);
@@ -87,10 +92,12 @@ public class UrlUtils {
         //通过 url 获取到 对应的 url对象
         URL u = URL.valueOf(url);
         boolean changed = false;
-        //先抽离出 独有属性
+        //先抽离出 独有属性  这里的 protocol 可能是 null 对应 10.20.141.150:9090 也可能是 zookeeper 对应 zookeeper://192.168.2.249:2181
         String protocol = u.getProtocol();
+        //这几个也可能为null
         String username = u.getUsername();
         String password = u.getPassword();
+        //端口域名存在
         String host = u.getHost();
         int port = u.getPort();
         String path = u.getPath();
@@ -98,6 +105,7 @@ public class UrlUtils {
         //url 对应的资源没有找到 就使用默认的  这里是从传入的 map 中获取的
         if ((protocol == null || protocol.length() == 0) && defaultProtocol != null && defaultProtocol.length() > 0) {
             changed = true;
+            //如果协议没有设置的情况 默认就是 dubbo 协议 如果指定了 registry 的实现就是zookeeper 或redis
             protocol = defaultProtocol;
         }
         if ((username == null || username.length() == 0) && defaultUsername != null && defaultUsername.length() > 0) {
@@ -137,7 +145,7 @@ public class UrlUtils {
                     String value = parameters.get(key);
                     if (value == null || value.length() == 0) {
                         changed = true;
-                        //获取不到就使用 从默认容器设置的属性
+                        //如果一开始传入的 defualtParam 里面还有更多属性 就要设置到 这个新生成的url中
                         parameters.put(key, defaultValue);
                     }
                 }
@@ -145,6 +153,8 @@ public class UrlUtils {
         }
         //发生改变就创建新的 url 对象 也就是 有新的值就使用新的 没有就使用默认的
         if (changed) {
+            //这里 如果 registry 的 address 指定了 特定注册中心的 实现就是 protocol 就是zookeeper  否则 默认是 dubbo
+            //这里 有可能 host 是 0.0.0.0
             u = new URL(protocol, username, password, host, port, path, parameters);
         }
         return u;
@@ -170,6 +180,7 @@ public class UrlUtils {
         for (String addr : addresses) {
             //将每个地址解析后保存到 容器中
             //通过 address 定位到 资源 并生成 资源对象 如果没有某些属性就从 默认容器中获取
+            //看来这里会把地址变成 url 格式
             registries.add(parseURL(addr, defaults));
         }
         //返回解析后的 资源列表

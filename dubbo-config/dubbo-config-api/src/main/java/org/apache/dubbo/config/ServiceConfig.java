@@ -83,7 +83,14 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     private static final Map<String, Integer> RANDOM_PORT_MAP = new HashMap<String, Integer>();
 
+    /**
+     * 延迟暴露服务的 定时器 在进行暴露时 通过 判断delay 属性 决定是否 直接执行
+     */
     private static final ScheduledExecutorService delayExportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("DubboServiceDelayExporter", true));
+
+    /**
+     * 代表 以每种协议生成的 url 每个url 又会发布到全部的注册中心上
+     */
     private final List<URL> urls = new ArrayList<URL>();
 
     /**
@@ -111,8 +118,14 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      */
     private List<MethodConfig> methods;
     private ProviderConfig provider;
+    /**
+     * 是否完成 发布
+     */
     private transient volatile boolean exported;
 
+    /**
+     * 是否已经注销
+     */
     private transient volatile boolean unexported;
 
     private volatile String generic;
@@ -223,19 +236,27 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return unexported;
     }
 
+    /**
+     * 向注册中心暴露服务的 核心入口
+     */
     public synchronized void export() {
+        //如果 xml 中没有为 service 配置 provider 并且 provider 不是 default 这里就是null
+        //也有可能 provider 没有配置
         if (provider != null) {
             if (export == null) {
+                //如果 export 对象没有 就从provider 中获取
                 export = provider.getExport();
             }
             if (delay == null) {
                 delay = provider.getDelay();
             }
         }
+        //这里是判断 该服务是否需要暴露的 标识 如果设置成 export = false 代表该服务不需要暴露
         if (export != null && !export) {
             return;
         }
 
+        //当存在 延时时 通过定时器 触发 export 方法
         if (delay != null && delay > 0) {
             delayExportExecutor.schedule(new Runnable() {
                 @Override
@@ -244,22 +265,32 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 }
             }, delay, TimeUnit.MILLISECONDS);
         } else {
+            //为-1 代表不进行延时
             doExport();
         }
     }
 
+    /**
+     * 执行暴露逻辑
+     */
     protected synchronized void doExport() {
+        //如果 已经注销 不能进行暴露了 也就是一个服务 不能 反复暴露
         if (unexported) {
             throw new IllegalStateException("Already unexported!");
         }
+        //如果 已经暴露成功 就不能发布到注册中心了
         if (exported) {
             return;
         }
+        //修改 发布标识
         exported = true;
+        //不存在 发布的 服务接口 抛出异常
         if (interfaceName == null || interfaceName.length() == 0) {
             throw new IllegalStateException("<dubbo:service interface=\"\" /> interface not allow null!");
         }
+        //检验配置信息  同时为provider 设置属性
         checkDefault();
+        //尝试从providerConfig 中获取配置
         if (provider != null) {
             if (application == null) {
                 application = provider.getApplication();
@@ -277,6 +308,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 protocols = provider.getProtocols();
             }
         }
+        //module 的配置会覆盖 provider的配置
         if (module != null) {
             if (registries == null) {
                 registries = module.getRegistries();
@@ -285,6 +317,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 monitor = module.getMonitor();
             }
         }
+        //应用级别配置 高于 组件级别
         if (application != null) {
             if (registries == null) {
                 registries = application.getRegistries();
@@ -293,24 +326,34 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 monitor = application.getMonitor();
             }
         }
+        //如果 提供的 服务对象 实现了 泛化接口 这个 服务实现对象一般是通过springBean 设置已经存在的类
         if (ref instanceof GenericService) {
+            //将接口修改为泛化接口
             interfaceClass = GenericService.class;
+            //设置 泛化标识为true
             if (StringUtils.isEmpty(generic)) {
                 generic = Boolean.TRUE.toString();
             }
+            //泛化 不用检查 methods 且InterfaceName 就不起作用了
         } else {
             try {
+
                 interfaceClass = Class.forName(interfaceName, true, Thread.currentThread()
                         .getContextClassLoader());
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            //一般的接口类型 创建interface对象后 并检测 提供的方法是否能在该接口中找到
             checkInterfaceAndMethods(interfaceClass, methods);
+            //检验 ref 是否实现该接口
             checkRef();
+            //泛化标识设置为false  也就是在xml 中配置 该标识 意义不大
             generic = Boolean.FALSE.toString();
         }
+        //代表是否 只进行本地暴露  这个功能 已经被弃用了 被 stub 替代
         if (local != null) {
             if ("true".equals(local)) {
+                //修改接口名
                 local = interfaceName + "Local";
             }
             Class<?> localClass;
@@ -323,13 +366,17 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 throw new IllegalStateException("The local implementation class " + localClass.getName() + " not implement interface " + interfaceName);
             }
         }
+        //存在 存根对象
         if (stub != null) {
             if ("true".equals(stub)) {
+                //修改接口名
                 stub = interfaceName + "Stub";
             }
             Class<?> stubClass;
             try {
+                //返回对象 就是通过反射创建对象 数组 或原始类型 或一般对象
                 stubClass = ClassHelper.forNameWithThreadContextClassLoader(stub);
+                //对象不存在 或者不满足接口 都抛异常
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
@@ -337,17 +384,21 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 throw new IllegalStateException("The stub implementation class " + stubClass.getName() + " not implement interface " + interfaceName);
             }
         }
+        //检查各个配置是否存在 不存在 就加载属性
         checkApplication();
         checkRegistry();
         checkProtocol();
+        //为本config 再次 获取 属性
         appendProperties(this);
         checkStub(interfaceClass);
         checkMock(interfaceClass);
+        //如果Service beanName 以interfaceName开头 path就会设置成 beanName 如果没有在这层就会设置成 接口名
         if (path == null || path.length() == 0) {
             path = interfaceName;
         }
         //上诉检查 和加载 对应 资源结束后 开始 执行出口逻辑
         doExportUrls();
+        //这里还没分析
         ProviderModel providerModel = new ProviderModel(getUniqueServiceName(), ref, interfaceClass);
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
     }
@@ -389,22 +440,22 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      * 出口服务
      */
     private void doExportUrls() {
-        //从 系统变量/xml/property 中获取注册中心地址 并 将地址解析成对应的url 对象返回
+        //加载注册中心的 信息 boolean 代表执行这个方法的是 服务提供者
         List<URL> registryURLs = loadRegistries(true);
         //遍历 协议 列表
         for (ProtocolConfig protocolConfig : protocols) {
-            //根据 一些和 要出口的 注册中心 进行注册
+            //根据 每种通信协议 对每个注册中心进行发布  注意如果 regisry 是 N/A 返回的是空列表
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
 
     /**
-     * 使用某个协议 对注册中心进行出口
+     * 使用某个协议 对注册中心列表进行服务发布
      * @param protocolConfig
      * @param registryURLs
      */
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
-        //当协议名不存在时 使用 dubbo
+        //当协议名不存在时 默认使用dubbo 通信协议
         String name = protocolConfig.getName();
         if (name == null || name.length() == 0) {
             name = "dubbo";
@@ -427,14 +478,15 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         //如果存在方法配置
         if (methods != null && !methods.isEmpty()) {
             for (MethodConfig method : methods) {
-                //从 方法中获取属性 第三个参数是前缀 这样获取属性才会 覆盖
+                //将其余配置抽取出来的共性 以方法级别 创建副本 并将 属性 增加该方法名作为前缀 代表该方法配置级别下的
                 appendParameters(map, method, method.getName());
-                //获取 重试 key
+                //判断 该方法是否开启重试
                 String retryKey = method.getName() + ".retry";
                 if (map.containsKey(retryKey)) {
-                    //这种 模板 出现很多次了 还没理解 就是将 retry 去除 然后设置了一个 retries
                     String retryValue = map.remove(retryKey);
+                    //如果 关闭重试
                     if ("false".equals(retryValue)) {
+                        //将该方法级别的 重试次数 更正为0 这个重试次数 是从 service级别继承来的
                         map.put(method.getName() + ".retries", "0");
                     }
                 }
@@ -458,6 +510,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                                         // one callback in the method
                                         if (argument.getIndex() != -1) {
                                             if (argtypes[argument.getIndex()].getName().equals(argument.getType())) {
+                                                //为map 增加 参数级别的配置
                                                 appendParameters(map, argument, method.getName() + "." + argument.getIndex());
                                             } else {
                                                 throw new IllegalArgumentException("argument config error : the index attribute and type attribute not match :index :" + argument.getIndex() + ", type:" + argument.getType());
@@ -492,9 +545,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             } // end of methods for
         }
 
-        //是否是通用的
+        //判断是否指明了 泛化类型  这里应该在上面 被 覆盖成 true or false 了
         if (ProtocolUtils.isGeneric(generic)) {
+            //为 true 时 会进入 设置 generic = true
             map.put(Constants.GENERIC_KEY, generic);
+            //如果是 泛化实现 就将注册中心发布的方法 设置成*
             map.put(Constants.METHODS_KEY, Constants.ANY_VALUE);
         } else {
             //获取版本号的相关逻辑 暂时看不懂
@@ -503,13 +558,15 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 map.put("revision", revision);
             }
 
-            //将接口生成包装类后 获取了 所有方法 这里 有一些 包装时 生成的 新方法
+            //将接口生成包装类后 获取了 所有方法 这里 增加了3个 新的方法 一个是 setPropertyValue getPropertyValue invokeMethod
+            //根据传入参数动态实现 这里怎么实现的 先不管 只知道 打算将返回的所有方法 都发布到了注册中心
             String[] methods = Wrapper.getWrapper(interfaceClass).getMethodNames();
             if (methods.length == 0) {
                 logger.warn("NO method found in service interface " + interfaceClass.getName());
+                //没有找到 方法为发布成* ???
                 map.put(Constants.METHODS_KEY, Constants.ANY_VALUE);
             } else {
-                //将提供的 所有方法 连起来 出口给注册中心
+                //代表 要发布到注册中心的所有方法
                 map.put(Constants.METHODS_KEY, StringUtils.join(new HashSet<String>(Arrays.asList(methods)), ","));
             }
         }
@@ -524,58 +581,66 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 map.put(Constants.TOKEN_KEY, token);
             }
         }
-        //如果是 本地协议 也就是 不进行通信  injvm
+        //在发布的 时候 遍历每个 协议 并发布到所有注册中心 如果是 本地协议 也就是 不进行通信  injvm
         if (Constants.LOCAL_PROTOCOL.equals(protocolConfig.getName())) {
             // 就不注册到 注册中心了
             protocolConfig.setRegister(false);
+            // 表示当监听到服务提供者发生变化时 不通知  现在设置是在哪里生效???
             map.put("notify", "false");
         }
         // export service
         // 获取 上下文对象路径
         String contextPath = protocolConfig.getContextpath();
         if ((contextPath == null || contextPath.length() == 0) && provider != null) {
+            //没有就从 提供者上获取
             contextPath = provider.getContextpath();
         }
 
-        //从配置中找到 本机的host 和 port
+        //从协议配置中找到 本机的host 和 port  也就是说 对外发布的 ip port 由 协议配置决定
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
 
-        //根据获取到的 创建URL 对象 这个URL 应该是本机的 这个 name 就是协议 从 Protocol 中获取 或者默认使用dubbo
+        //根据获取到的 创建URL 对象 这个URL 应该是本机的 这个 name 就是通信协议 从 Protocol 中获取 或者默认使用dubbo
+        //获取到的 应该可以是 override 和 absent  有这么多种协议吗???
+        //host 和 port 代表 对外暴露的 地址 以及暴露的 接口方法级别配置 方法参数级别配置
         URL url = new URL(name, host, port, (contextPath == null || contextPath.length() == 0 ? "" : contextPath + "/") + path, map);
 
-        //如果 配置工厂中 有 当前url 对应的 协议配置类 那么就使用该配置类 对 url 设置配置 这里的意图不太明白因为2个 url是同一个对象
+        //如果存在以指定协议为key 的配置工厂 这个是实现动态配置的 可能传入的协议类型 就是 override
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
+            //为 url 进行配置后返回 就是 补充 或 覆盖一些配置 这里应该是用不到的
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                     .getExtension(url.getProtocol()).getConfigurator(url).configure(url);
         }
 
-        //获取scope 判断是 注册到远程还是本地
+        //获取scope 判断是 注册到远程还是本地 这个值是从其他配置中拿出来的
         String scope = url.getParameter(Constants.SCOPE_KEY);
         // don't export when none is configured
-        //如果 是 none 代表不进行注册
+        //如果 是 none 代表不进行注册 scope 没有配置的情况 默认是 都进行暴露
         if (!Constants.SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
             //如果 是local 进行本地出口 传入的参数是本地的 URL
             if (!Constants.SCOPE_REMOTE.equalsIgnoreCase(scope)) {
+                //本地暴露
                 exportLocal(url);
             }
-            // 远程出口
             // export to remote if the config is not local (export to local only when config is local)
             // 等价于 == remote
             if (!Constants.SCOPE_LOCAL.equalsIgnoreCase(scope)) {
                 if (logger.isInfoEnabled()) {
                     logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
                 }
+                //遍历注册中心url 进行远程暴露
                 if (registryURLs != null && !registryURLs.isEmpty()) {
                     //遍历注册中心的 URL 地址
                     for (URL registryURL : registryURLs) {
                         // 从注册中心中获取是否动态注册的信息
                         // "dynamic" ：服务是否动态注册，如果设为false，注册后将显示后disable状态，需人工启用，并且服务提供者停止时，也不会自动取消册，需人工禁用。
                         url = url.addParameterIfAbsent(Constants.DYNAMIC_KEY, registryURL.getParameter(Constants.DYNAMIC_KEY));
-                        //获取监控中心 的url
+                        //获取监控中心 的url 没有获取到直接返回null 一般返回的都是同一个 监控中心配置上的信息
+                        //如果获取不到 监控中心的 地址 且监控中心的协议是 registry类型 就需要从注册中心信息做转换
+                        //当监控中心 协议为registry 就代表需要从 注册中心上获取地址
                         URL monitorUrl = loadMonitor(registryURL);
                         if (monitorUrl != null) {
                             //将监控中心的地址设置到 本地出口的url上  key: monitor value: 监控中心的 url
@@ -594,14 +659,13 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         }
 
                         //通过 代理工厂 创建 invoker 对象 这里就是创建动态代理的 地方
-                        //param1: 实际被出口的对象 param2:被服务提供者实现的目标接口 param3: 注册中心的 url 里面设置了一个 本地url 同时本地url 有一个属性记录了 监测中心的url
+                        //这里为注册中心的 url 上又增加了 服务提供者的url (服务提供者上又携带了 监控中心的 url)
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
 
                         //该对象封装了 invoker 和 serviceConfig  该对象还是 实现invoker接口
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
-                        //出口 被封装的对象  因为 这个 protocol 是自适应对象 所以根据传入的参数不同就会 调用不同实现类的 方法
-                        //远程 协议 默认 protocol 是 dubbo 就会生成 DubboProtocol 协议对象
+                        //这里的 protocol 是 SPI 机制拓展的 而不是 配置中的所有协议对象 这个对象应该会自适应成 RegistryProtocol
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         //加入到 该服务提供者的出口对象中  每个 注册中心地址 对应一个 出口对象
                         exporters.add(exporter);
@@ -616,6 +680,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 }
             }
         }
+        //如果 scope 为 none 就会直接加入到这里
         this.urls.add(url);
     }
 
@@ -804,16 +869,27 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return port;
     }
 
+    /**
+     * 检验配置信息
+     */
     private void checkDefault() {
         if (provider == null) {
+            //这里是2种情况
+            // 1 是 xml 中没有配置 providerConfig
+            // 2是没有指定provider 并且 providerConfig default = false
             provider = new ProviderConfig();
         }
+        //刚创建的 providerConfig 是空的 需要获取属性
         appendProperties(provider);
     }
 
+    /**
+     * 检测 协议配置 信息
+     */
     private void checkProtocol() {
         if ((protocols == null || protocols.isEmpty())
                 && provider != null) {
+            //从 provider 中 获取协议
             setProtocols(provider.getProtocols());
         }
         // backward compatibility
@@ -822,6 +898,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
         for (ProtocolConfig protocolConfig : protocols) {
             if (StringUtils.isEmpty(protocolConfig.getName())) {
+                //name 默认使用dubbo
                 protocolConfig.setName(Constants.DUBBO_VERSION_KEY);
             }
             appendProperties(protocolConfig);

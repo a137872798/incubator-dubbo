@@ -58,6 +58,9 @@ public class ProtocolConfig extends AbstractConfig {
     // service port
     private Integer port;
 
+    /**
+     * 上下文路径
+     */
     // context path
     private String contextpath;
 

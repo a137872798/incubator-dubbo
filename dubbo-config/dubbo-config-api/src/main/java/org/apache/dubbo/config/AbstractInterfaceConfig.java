@@ -161,7 +161,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 }
             }
         }
-        //还是 为 null 就抛出异常
+        //代表 必须要设置注册中心
         if ((registries == null || registries.isEmpty())) {
             throw new IllegalStateException((getClass().getSimpleName().startsWith("Reference")
                     ? "No such any registry to refer service in consumer "
@@ -186,10 +186,12 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         //如果能从 系统变量中 获取应用名  这里没有设置应用名
         if (application == null) {
             String applicationName = ConfigUtils.getProperty("dubbo.application.name");
+            //代表 存在 application 的 相关配置
             if (applicationName != null && applicationName.length() > 0) {
                 application = new ApplicationConfig();
             }
         }
+        //代表 必须要设置applicationConfig
         if (application == null) {
             throw new IllegalStateException(
                     "No such application config! Please add <dubbo:application name=\"...\" /> to your spring config.");
@@ -217,18 +219,18 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * @return
      */
     protected List<URL> loadRegistries(boolean provider) {
-        //检测 注册中心是否存在
+        //检测 注册中心是否存在 不存在会抛出异常
         checkRegistry();
         List<URL> registryList = new ArrayList<URL>();
         //遍历 注册中心列表
         if (registries != null && !registries.isEmpty()) {
             for (RegistryConfig config : registries) {
-                //不存在 地址就设置一个 默认值
+                //不存在 地址就设置一个 默认值 地址格式zookeeper://192.168.2.249:2181 or 10.20.153.10:9090
                 String address = config.getAddress();
                 if (address == null || address.length() == 0) {
-                    address = Constants.ANYHOST_VALUE;
+                    address = Constants.ANYHOST_VALUE;// address = "0.0.0.0"
                 }
-                //获取系统变量 存在就 替换地址 因为系统变量的优先级是最高的
+                //获取系统变量 存在就 替换地址 因为系统变量的优先级是最高的 这里的地址应该也带上了 注册中心的实现类型
                 String sysaddress = System.getProperty("dubbo.registry.address");
                 if (sysaddress != null && sysaddress.length() > 0) {
                     address = sysaddress;
@@ -237,6 +239,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 if (address.length() > 0 && !RegistryConfig.NO_AVAILABLE.equalsIgnoreCase(address)) {
                     //创建 容器并从 application 和 registerconfig 读取响应属性
                     Map<String, String> map = new HashMap<String, String>();
+                    //从应用中获取参数设置到map 中
                     appendParameters(map, application);
                     //注册中心配置的  地址 是 exclude 就是不会加入到 map中
                     appendParameters(map, config);
@@ -248,26 +251,28 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                     if (ConfigUtils.getPid() > 0) {
                         map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
                     }
-                    //设置协议 如果有 remote 的拓展就设置 否则使用默认的协议
+                    //设置协议 如果有 remote 的拓展就设置 否则使用默认的协议  如果本身就存在协议 就使用那个协议
                     if (!map.containsKey("protocol")) {
-                        //也就是SPI 中该指定的 接口文件中是否有 以 remote 为key 的 实现类
+                        //也就是SPI 中该指定的 接口文件中是否有 以 remote 为key 的 实现类 现在项目中 只有 dubbo
                         if (ExtensionLoader.getExtensionLoader(RegistryFactory.class).hasExtension("remote")) {
                             map.put("protocol", "remote");
                         } else {
                             map.put("protocol", "dubbo");
                         }
                     }
-                    //解析 地址字符串 并返回 一组资源定位符  address可能是 ;拼接的 多个 地址
+                    //解析 地址字符串 并返回 一组资源定位符  address可能是 ;拼接的 多个 地址 也有可能是 0.0.0.0
                     //通过地址定位到资源 如果资源中某些属性不存在 就使用容器中的默认属性
                     List<URL> urls = UrlUtils.parseURLs(address, map);
                     for (URL url : urls) {
-                        //遍历每个 资源对象 设置注册中心协议  以及在 registry中设置原本的 协议
-                        //例如：registry：zookeeper
+                        //这里协议对象 如果要求了 注册中心的 实现 就是 zookeeper or redis  如果没有 一般默认是dubbo 代表 通信协议
+                        //将 协议 设置到 registry 属性上
                         url = url.addParameter(Constants.REGISTRY_KEY, url.getProtocol());
                         //将协议修改成registry
-                        //例如：zookeeper：//  ----> registry://
+                        //例如：zookeeper：//  ----> registry:// 默认情况 就是 dubbo:// ----> registry://
+                        //这里如果是 0.0.0.0 也会被正常添加
                         url = url.setProtocol(Constants.REGISTRY_PROTOCOL);
-                        //这个应该是一个 校验 提供者对应注册 消费者对应订阅
+                        //这里是校验 角色是否正确 提供者 就应该设置register 标识 默认是true
+                        //如果 注册中心 的 register 设置为false 就是该 注册中心 不支持 发布
                         if ((provider && url.getParameter(Constants.REGISTER_KEY, true))
                                 || (!provider && url.getParameter(Constants.SUBSCRIBE_KEY, true))) {
                             registryList.add(url);
@@ -276,6 +281,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 }
             }
         }
+        //当 address 为 N/A 时 返回空列表
         return registryList;
     }
 
@@ -283,7 +289,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * 根据 注册中心的 url 返回监测中心的 url
      */
     protected URL loadMonitor(URL registryURL) {
-        //首先从 系统变量或环境变量获取 属性 找不到就直接返回null
+        //首先判断 spring 有没有加载 监控中心  其次从 系统变量或properties获取 属性 找不到就直接返回null
         if (monitor == null) {
             String monitorAddress = ConfigUtils.getProperty("dubbo.monitor.address");
             String monitorProtocol = ConfigUtils.getProperty("dubbo.monitor.protocol");
@@ -344,9 +350,9 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             }
             //解析地址获取 一个 url 对象 没有的属性 从map中获取
             return UrlUtils.parseURL(address, map);
-            //当 监控中心地址为空时  当协议是registry 且 注册中心url 不为空 代表这个监控中心 要从 注册中心获取
+            //当 监控中心地址为空时  当协议是registry 且 注册中心url 不为空 代表这个监控中心url 要从 注册中心获取
         } else if (Constants.REGISTRY_PROTOCOL.equals(monitor.getProtocol()) && registryURL != null) {
-            //返回注册中心地址 作为监控中心地址  增加一个 协议属性 增加一个refer 参数 将map 传入
+            //返回注册中心地址 作为监控中心地址  增加一个 协议属性 可能代表这个监控中心的url 是从注册中心转换过来的  增加一个refer 参数 将map 传入
             return registryURL.setProtocol("dubbo").addParameter(Constants.PROTOCOL_KEY, "registry").addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map));
         }
         return null;
@@ -409,6 +415,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
          * <li>force => default</li>
          * <li>fail:throw/return foo => throw/return foo</li>
          * <li>force:throw/return foo => throw/return foo</li>
+         *
+         * return 会转换成 return null 代表默认值  throw 代表返回对应异常类对象 没有以这些开头代表需要创建 mock字符串对应的实例对象
          */
         String normalizedMock = MockInvoker.normalizeMock(mock);
         if (normalizedMock.startsWith(Constants.RETURN_PREFIX)) {
@@ -444,7 +452,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * @param interfaceClass
      */
     void checkStub(Class<?> interfaceClass) {
-        //local 和 stub 只能实现一个
+        //local 和 stub 只能实现一个  local 是已经废弃的
         if (ConfigUtils.isNotEmpty(local)) {
             //是否为 true||default 是就要将接口名 贴上Local 否则 是直接用local 创建对象
             //相当于用本地类 来实现服务提供

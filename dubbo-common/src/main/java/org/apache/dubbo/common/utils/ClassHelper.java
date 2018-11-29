@@ -71,13 +71,14 @@ public class ClassHelper {
     }
 
     /**
-     * 通过给定name 生成对应类对象
+     * 通过指定对象名生成对象
      * @param name
      * @return
      * @throws ClassNotFoundException
      */
     public static Class<?> forNameWithThreadContextClassLoader(String name)
             throws ClassNotFoundException {
+        //通过类名和 classLoader 创建对象
         return forName(name, Thread.currentThread().getContextClassLoader());
     }
 
@@ -176,9 +177,9 @@ public class ClassHelper {
         if (name.endsWith(ARRAY_SUFFIX)) {
             //截取 获取 类名
             String elementClassName = name.substring(0, name.length() - ARRAY_SUFFIX.length());
-            //递归调用 再次尝试获取类名
+            //递归调用 再次尝试获取类对象
             Class<?> elementClass = forName(elementClassName, classLoader);
-            //根据 类型创建 对象的数据对象
+            //接到上次递归返回的类对象后 又生成对应的 数组对象
             return Array.newInstance(elementClass, 0).getClass();
         }
 
@@ -196,7 +197,7 @@ public class ClassHelper {
             } else if (name.startsWith("[")) {
                 elementClassName = name.substring(1);
             }
-            //递归调用
+            //递归调用 代表该类还是 数组类型 当跳出递归后还是要在这里创建数组对象
             Class<?> elementClass = forName(elementClassName, classLoader);
             return Array.newInstance(elementClass, 0).getClass();
         }
