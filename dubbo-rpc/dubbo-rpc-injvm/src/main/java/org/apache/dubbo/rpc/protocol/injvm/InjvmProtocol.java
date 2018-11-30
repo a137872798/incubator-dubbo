@@ -144,7 +144,7 @@ public class InjvmProtocol extends AbstractProtocol implements Protocol {
         String scope = url.getParameter(Constants.SCOPE_KEY);
         // Since injvm protocol is configured explicitly, we don't need to set any extra flag, use normal refer process.
         if (Constants.LOCAL_PROTOCOL.toString().equals(url.getProtocol())) {
-            //这里为 false 的意思 是不做处理了 因为传进来之前一般都会判断过协议类型
+            //这里 代表 已经过了 判定是否是 injvm 的时机了 就是false 因为一般进入的时候是temp
             isJvmRefer = false;
         } else if (Constants.SCOPE_LOCAL.equals(scope) || (url.getParameter(Constants.LOCAL_PROTOCOL, false))) {
             // if it's declared as local reference

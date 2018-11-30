@@ -63,18 +63,19 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
     private int idleTimeout = 600; //600 seconds
 
     public AbstractServer(URL url, ChannelHandler handler) throws RemotingException {
+        //就是 从url 中 获取 心跳时间  编码方式 连接超时时间
         super(url, handler);
-        //从url 中 获取地址
+        //通过url 的 ip port  构建地址
         localAddress = getUrl().toInetSocketAddress();
 
-        //获取 端口和ip
+        //获取 端口和ip  这个 和上面的值 一般就是一样的 在 serviceConfig 中 获取ip 和port 的同时 就设置到对应的 param中
         String bindIp = getUrl().getParameter(Constants.BIND_IP_KEY, getUrl().getHost());
         int bindPort = getUrl().getParameter(Constants.BIND_PORT_KEY, getUrl().getPort());
         //如果 端口无效 或者 url 带有 anyhost  绑定到 0.0.0.0
         if (url.getParameter(Constants.ANYHOST_KEY, false) || NetUtils.isInvalidLocalHost(bindIp)) {
             bindIp = NetUtils.ANYHOST;
         }
-        //创建新的地址对象
+        //创建绑定地址
         bindAddress = new InetSocketAddress(bindIp, bindPort);
         //获取连接数和心跳检测时间
         this.accepts = url.getParameter(Constants.ACCEPTS_KEY, Constants.DEFAULT_ACCEPTS);
@@ -109,6 +110,7 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
             return;
         }
         try {
+            //重置 accept
             if (url.hasParameter(Constants.ACCEPTS_KEY)) {
                 int a = url.getParameter(Constants.ACCEPTS_KEY, 0);
                 if (a > 0) {

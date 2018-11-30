@@ -54,7 +54,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
      */
     protected final Directory<T> directory;
 
-    /**
+    /**9
      * 集群做负载时是否要检查该节点是否可用 默认为true
      */
     protected final boolean availablecheck;

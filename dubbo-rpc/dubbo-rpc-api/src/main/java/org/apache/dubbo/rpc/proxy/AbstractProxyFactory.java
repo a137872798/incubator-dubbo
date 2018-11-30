@@ -44,6 +44,14 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
         return getProxy(invoker, false);
     }
 
+    /**
+     * 从 invoker 对象中 剥离出 ref对象
+     * @param invoker
+     * @param generic
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
         //生成 接口数组

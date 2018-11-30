@@ -48,14 +48,15 @@ public class HeaderExchanger implements Exchanger {
     }
 
     /**
-     * 多层包装handler 后生成 server对象
-     * @param url
-     * @param handler
+     * 绑定生成 服务器对象
+     * @param url 包含要绑定的 信息
+     * @param handler 处理请求的 对象
      * @return
      * @throws RemotingException
      */
     @Override
     public ExchangeServer bind(URL url, ExchangeHandler handler) throws RemotingException {
+        //Transporters.bind 返回一个 transporter接口的自适应对象
         return new HeaderExchangeServer(Transporters.bind(url, new DecodeHandler(new HeaderExchangeHandler(handler))));
     }
 

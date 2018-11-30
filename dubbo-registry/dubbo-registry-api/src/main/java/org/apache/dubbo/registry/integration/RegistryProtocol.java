@@ -73,13 +73,18 @@ public class RegistryProtocol implements Protocol {
     //providerurl <--> exporter
     /**
      * 解决 端口重复 出口的问题
-     * key export url 的字符串格式 value 对应的export对象
+     * key export url 的字符串格式 value 对应的export对象 该对象是由服务提供者url 生成的
      */
     private final Map<String, ExporterChangeableWrapper<?>> bounds = new ConcurrentHashMap<String, ExporterChangeableWrapper<?>>();
+
+
+    /**
+     * 这个集群对象是要自己创建的
+     */
     private Cluster cluster;
 
     /**
-     * 协议对象
+     * 协议对象  注册中心要 实现 协议相关的功能都是通过委托该对象
      */
     private Protocol protocol;
 
@@ -181,25 +186,26 @@ public class RegistryProtocol implements Protocol {
         //启动服务提供者 监听指定端口
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker);
 
-        //获取注册中心真正的 url 对象 (使用真正的 协议)
+        //获取注册中心真正的 url 对象 (使用真正的 协议) 也就是将registry:// 变成 zookeeper or redis or dubbo 等
+        //注意 这里的 注册中心的 url 可以是为0.0.0.0
         URL registryUrl = getRegistryUrl(originInvoker);
 
         //registry provider
-        //通过 invoker 对象 获取到 注册中心 (方法 内部实际获取了 注册中心的url 再去 注册中心工厂获取对象)
+        //根据注册中心协议类型获取对应的实现
         final Registry registry = getRegistry(originInvoker);
 
-        //获取服务提供者 url 从invoker 的url 上 通过 export 的 key 获取到 服务提供者的 url 并过滤掉一部分无用属性
+        //将服务提供者 url 去除无关属性
         final URL registeredProviderUrl = getRegisteredProviderUrl(originInvoker);
 
-        //to judge to delay publish whether or not
+        //to judge to delay publish whether or not  判断 该 服务提供者是否 具有注册的 功能
         boolean register = registeredProviderUrl.getParameter("register", true);
 
-        //向本地注册表注册服务提供者 也就是生成缓存
+        //这里就是将 注册中心地址 提供者地址 invoker 对象封装成一个 包装对象并保存在 全局容器中 应该是方便随时获取 或者查看 是否被重复发布等
         ProviderConsumerRegTable.registerProvider(originInvoker, registryUrl, registeredProviderUrl);
 
-        //如果 register为true
+        //如果需要被注册
         if (register) {
-            //向服务中心提供自己
+            //针对指定注册中心 注册服务提供者
             register(registryUrl, registeredProviderUrl);
             //标记 服务注册表 为 已注册
             ProviderConsumerRegTable.getProviderWrapper(originInvoker).setReg(true);
@@ -207,7 +213,7 @@ public class RegistryProtocol implements Protocol {
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call the same service. Because the subscribed is cached key with the name of the service, it causes the subscription information to cover.
-        // 为url 增加订阅配置中心的 属性
+        //服务提供者 订阅注册中心 这样在注册中心发生变化时 会 提供提供者重新发布
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(registeredProviderUrl);
         // 使用该 url 创建 Override 监听器 这个监听器是针对 配置中心发生变化的
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
@@ -229,8 +235,10 @@ public class RegistryProtocol implements Protocol {
     @SuppressWarnings("unchecked")
     private <T> ExporterChangeableWrapper<T> doLocalExport(final Invoker<T> originInvoker) {
         //从 invoker 对象的 url 中筛选出 export 的 url 这个信息里包含服务提供者信息 用来开启 并监听消费者请求
+        //这里 只从url 中提取出 ip:port username password
         String key = getCacheKey(originInvoker);
-        //尝试 获取 如果能获取到就不进行重复出口了
+        //尝试 获取 如果能获取到就不进行重复出口了 从当前实现来看 每个 协议 对应一个默认端口 也即是一个协议 对应一个 服务提供者地址
+        //一个 协议下的 dubbo:service只能存在一个
         ExporterChangeableWrapper<T> exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
         if (exporter == null) {
             //使用内置锁 来避免并发问题
@@ -239,7 +247,7 @@ public class RegistryProtocol implements Protocol {
                 if (exporter == null) {
                     //通过服务提供者 url 和 原始的 invoker对象 创建 delegate 对象
                     final Invoker<?> invokerDelegete = new InvokerDelegete<T>(originInvoker, getProviderUrl(originInvoker));
-                    //初始化 一个 出口服务的 包装对象 这个protocol 应该也是 自适应对象
+                    //初始化 一个 出口服务的 包装对象 这个protocol 应该也是 自适应对象 这里一般就会转发到 dubboProtocol
                     exporter = new ExporterChangeableWrapper<T>((Exporter<T>) protocol.export(invokerDelegete), originInvoker);
                     //设置到绑定对象中
                     bounds.put(key, exporter);
@@ -304,7 +312,7 @@ public class RegistryProtocol implements Protocol {
         URL registryUrl = originInvoker.getUrl();
         //如果 协议类型 是  registry  协议 就是 registry:// --> dubbo://
         if (Constants.REGISTRY_PROTOCOL.equals(registryUrl.getProtocol())) {
-            //从属性容器中获取 registry 对应的真正的 协议对象  没有就返回默认的dubbo
+            //从属性容器中获取 registry 对应的真正的 协议对象  没有就返回默认的dubbo 如果指定了 就可能是 redis or zookeeper
             String protocol = registryUrl.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_DIRECTORY);
             //替换掉原来的registry 协议 同时 移除掉属性中的 registry
             //那么 当 协议是 registry 时 就是告诉调用者 需要从属性中获取 真正的协议类型
@@ -326,7 +334,7 @@ public class RegistryProtocol implements Protocol {
         URL providerUrl = getProviderUrl(originInvoker);
         //The address you see at the registry
         //移除掉一些不必要的属性
-        //getFilteredKeys 返回的 是 需要被过滤的 属性
+        //getFilteredKeys 返回的 是 需要被过滤的 属性  这里移除了 监控中心的 url
         return providerUrl.removeParameters(getFilteredKeys(providerUrl))
                 .removeParameter(Constants.MONITOR_KEY)
                 .removeParameter(Constants.BIND_IP_KEY)
@@ -399,16 +407,18 @@ public class RegistryProtocol implements Protocol {
         url = url.setProtocol(url.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_REGISTRY)).removeParameter(Constants.REGISTRY_KEY);
         //从注册中心工厂中获取 对应的 注册中心类
         Registry registry = registryFactory.getRegistry(url);
-        //如果需要的 类型是 RegistryService 类型 从代理工厂中获取 invoker 对象
+        //如果需要的 类型是 RegistryService 类型 应该代表 消费者需要的是注册中心对象吧
         if (RegistryService.class.equals(type)) {
+            //这里是将 注册中心 包装成 invoker 返回了
             return proxyFactory.getInvoker((T) registry, type, url);
         }
 
         // group="a,b" or group="*"
-        //将 refer 属性解析成 map
+        //将 refer 属性解析成 map  这个是在消费者端 发起订阅时将所有参数 编码生成的
         Map<String, String> qs = StringUtils.parseQueryString(url.getParameterAndDecoded(Constants.REFER_KEY));
         //获取 group 信息
         String group = qs.get(Constants.GROUP_KEY);
+        //这里关于 多group 的情况 先不考虑
         if (group != null && group.length() > 0) {
             //如果 是 多组 或者 *
             if ((Constants.COMMA_SPLIT_PATTERN.split(group)).length > 1
@@ -438,25 +448,26 @@ public class RegistryProtocol implements Protocol {
      * @return
      */
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
-        //在发往 注册中心的 refer 时 会创建 注册中心 目录对象
+        //创建 基于注册中心 动态发现服务提供者 的 directory对象
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
         //设置 注册中心 和 协议对象
         directory.setRegistry(registry);
+        //注册中心 本身的 protocol 职能实现都是 通过委托给 protocol 对象
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
-        //获取 目录对象的url 的属性
+        //获取 目录对象的url 的属性 这个url 是消费者 url 缩减部分数据后的
         Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
-        //创建 一个 消费者 url 对象 协议是 consumer 传入的 param 中 移除 注册中心的 属性
+        //创建 一个 消费者 url 对象 协议是 consumer 传入的 param 中 端口 使用 绑定到注册中心的 端口 也就是消费者端 连接 注册中心使用的端口
         URL subscribeUrl = new URL(Constants.CONSUMER_PROTOCOL, parameters.remove(Constants.REGISTER_IP_KEY), 0, type.getName(), parameters);
-        //当接口 信息不是 *  这个属性是什么时候设置的???
+        //当消费者订阅的 接口 不是 * 时 且消费者 register 为true 应该是 代表该url 可以注册到注册中心 那么
         if (!Constants.ANY_VALUE.equals(url.getServiceInterface())
-                //且 url 包含registry
                 && url.getParameter(Constants.REGISTER_KEY, true)) {
-            //向注册中心 注册该订阅信息
+            //向注册中心 注册该订阅信息  注册实际逻辑先不看
+            //相比上面 增加了 category = consumer  check = false 代表订阅了 消费者的变化
             registry.register(subscribeUrl.addParameters(Constants.CATEGORY_KEY, Constants.CONSUMERS_CATEGORY,
                     Constants.CHECK_KEY, String.valueOf(false)));
         }
-        //往 目录中 设置发布的 订阅信息 这里 替换了 category 默认订阅3种  这里就是委托到Regoistry的 subscribe
+        //使用 目录对象 发起订阅 种类是 服务提供者，路由信息，配置信息
         directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY,
                 Constants.PROVIDERS_CATEGORY
                         + "," + Constants.CONFIGURATORS_CATEGORY
@@ -464,7 +475,7 @@ public class RegistryProtocol implements Protocol {
 
         //使用这里获取到的 目录对象 创建invoker 对象 这里通过集群调用 返回了一个合适的invoker 对象
         Invoker invoker = cluster.join(directory);
-        //给全局 表中 设置消费者
+        //给全局 表中 设置消费者 和 服务提供者(invoker) 的关联关系
         ProviderConsumerRegTable.registerConsumer(invoker, url, subscribeUrl, directory);
         return invoker;
     }

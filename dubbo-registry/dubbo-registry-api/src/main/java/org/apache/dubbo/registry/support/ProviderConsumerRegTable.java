@@ -33,7 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ProviderConsumerRegTable {
     /**
-     * 一个 服务键 下的所有出口者对象
+     * 一个 服务键 下的所有出口者对象  key 服务键  value 对应的注册中心 invoker 提供者url 的包装类
+     * 因为 同一个key 可以发布到多个注册中心 所以value 是set 类型
      */
     public static ConcurrentHashMap<String, Set<ProviderInvokerWrapper>> providerInvokers = new ConcurrentHashMap<String, Set<ProviderInvokerWrapper>>();
     /**
@@ -89,6 +90,13 @@ public class ProviderConsumerRegTable {
         return null;
     }
 
+    /**
+     * 在全局变量中 保存消费者 和 服务提供者(invoker)
+     * @param invoker
+     * @param registryUrl
+     * @param consumerUrl
+     * @param registryDirectory
+     */
     public static void registerConsumer(Invoker invoker, URL registryUrl, URL consumerUrl, RegistryDirectory registryDirectory) {
         ConsumerInvokerWrapper wrapperInvoker = new ConsumerInvokerWrapper(invoker, registryUrl, consumerUrl, registryDirectory);
         String serviceUniqueName = consumerUrl.getServiceKey();

@@ -98,9 +98,9 @@ public class Exchangers {
         if (handler == null) {
             throw new IllegalArgumentException("handler == null");
         }
-        //给url 设置 编解码器
+        //给url 设置 编解码器  一般 已经被设置成 dubbo 了
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
-        //通过url 中的参数 获取拓展对象 开始绑定
+        //通过url 获取 exchanger 对象 进行绑定
         return getExchanger(url).bind(url, handler);
     }
 

@@ -32,6 +32,7 @@ public class NettyTransporter implements Transporter {
 
     @Override
     public Server bind(URL url, ChannelHandler listener) throws RemotingException {
+        //listener 是 当netty  框架本身的handler 触发时 转发的 handler 对象
         return new NettyServer(url, listener);
     }
 

@@ -51,8 +51,8 @@ public class Transporters {
 
     /**
      * 绑定到本地  返回的 Server 应该是 将 第三方通信框架返回的 server对象再做一层封装
-     * @param url
-     * @param handlers
+     * @param url 包含 绑定必要信息的url
+     * @param handlers 处理请求的 对象
      * @return
      * @throws RemotingException
      */

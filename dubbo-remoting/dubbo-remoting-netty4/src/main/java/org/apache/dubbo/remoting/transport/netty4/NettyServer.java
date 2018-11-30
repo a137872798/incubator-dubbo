@@ -70,7 +70,7 @@ public class NettyServer extends AbstractServer implements Server {
     private EventLoopGroup workerGroup;
 
     public NettyServer(URL url, ChannelHandler handler) throws RemotingException {
-        //将传入的handler 包装 这里 使用了  dispatcher 使得一些操作 会放入线程池中进行
+        //这里包装了handler 并用 url 传给父类 初始化 服务器
         super(url, ChannelHandlers.wrap(handler, ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME)));
     }
 
@@ -87,7 +87,7 @@ public class NettyServer extends AbstractServer implements Server {
         workerGroup = new NioEventLoopGroup(getUrl().getPositiveParameter(Constants.IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),
                 new DefaultThreadFactory("NettyServerWorker", true));
 
-        //初始化  服务端处理器对象 这里传入自身作为handler  特点是 执行 io事件 时 使用的handler 是包装过的也就是 会触发dispatcher 方法
+        //在创建 nettyhandler对象时 传入 自身作为 handler 将 处理逻辑委托到本类
         final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this);
         //获取 处理器对象 的 channel 容器
         channels = nettyServerHandler.getChannels();

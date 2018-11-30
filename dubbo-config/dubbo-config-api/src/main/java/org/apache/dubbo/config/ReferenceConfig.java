@@ -78,7 +78,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     private static final ProxyFactory proxyFactory = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
 
     /**
-     * 所有注册中心的 信息
+     * 所有注册中心的 信息 （如果是直连情况 就是 提供者 url）
      */
     private final List<URL> urls = new ArrayList<URL>();
     // interface name
@@ -87,7 +87,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     private Class<?> asyncInterfaceClass;
     // client type
     private String client;
-    // url for peer-to-peer invocation
+    /**
+     * 这个 是 直连地址 url
+     */
     private String url;
     // method configs
     private List<MethodConfig> methods;
@@ -183,7 +185,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     /**
-     * 初始化 服务消费者
+     * 初始化 服务消费者 获取ref 对象
      */
     private void init() {
         //如果 已经初始化完成 就直接返回
@@ -221,7 +223,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             checkInterfaceAndMethods(interfaceClass, methods);
         }
 
-        //获取 该 接口的 配置信息
+        //获取 该 接口的 配置信息  这段逻辑代表的是 获取 直连服务提供者地址
         String resolve = System.getProperty(interfaceName);
         String resolveFile = null;
         //当获取不到配置时
@@ -229,13 +231,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             //获取 文件
             resolveFile = System.getProperty("dubbo.resolve.file");
             if (resolveFile == null || resolveFile.length() == 0) {
-                //创建一个新的文件
+                //尝试 从properties
                 File userResolveFile = new File(new File(System.getProperty("user.home")), "dubbo-resolve.properties");
                 if (userResolveFile.exists()) {
                     //创建成功后 获取绝对路径
                     resolveFile = userResolveFile.getAbsolutePath();
                 }
             }
+            //如果获取到了该文件
             if (resolveFile != null && resolveFile.length() > 0) {
                 Properties properties = new Properties();
                 FileInputStream fis = null;
@@ -258,8 +261,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 resolve = properties.getProperty(interfaceName);
             }
         }
+        //如果 直接获取到了 resolve
         if (resolve != null && resolve.length() > 0) {
-            //将url 设置成 resolve
+            //将直连url 设置成 resolve
             url = resolve;
             if (logger.isWarnEnabled()) {
                 if (resolveFile != null) {
@@ -307,7 +311,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         //这个  看不懂先不管 就是校验mock方法的
         checkMock(interfaceClass);
         Map<String, String> map = new HashMap<String, String>();
-        //如果当前接口类是 异步类 更换信息设置成 同步类 并初始化 异步类相关信息
+        //修改一些 interfaceClass 的信息
         resolveAsyncInterface(interfaceClass, map);
 
         //设置 时间戳 协议版本 和 side标识
@@ -340,6 +344,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         //从配置中获取相关属性设置到map中
         appendParameters(map, application);
         appendParameters(map, module);
+        //为 设置的属性增加 default 前缀
         appendParameters(map, consumer, Constants.DEFAULT_KEY);
         appendParameters(map, this);
         Map<String, Object> attributes = null;
@@ -356,12 +361,12 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         map.put(methodConfig.getName() + ".retries", "0");
                     }
                 }
-                //从配置中 抽取 回调函数 保存到容器中 这样可以针对某个方法 设置不同的回调
+                //将 方法 与 调用时触发的 相关回调 保存到容器中
                 attributes.put(methodConfig.getName(), convertMethodConfig2AyncInfo(methodConfig));
             }
         }
 
-        //从环境变量或 系统变量中 获取 host
+        //从环境变量或 系统变量中 获取 订阅到 注册中心的 ip
         String hostToRegistry = ConfigUtils.getSystemProperty(Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry == null || hostToRegistry.length() == 0) {
             hostToRegistry = NetUtils.getLocalHost();
@@ -374,13 +379,13 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         //通过配置 创建  代理对象
         ref = createProxy(map);
 
-        //先不看
+        //创建 服务消费者包装对象 并保存到全局容器中
         ConsumerModel consumerModel = new ConsumerModel(getUniqueServiceName(), ref, interfaceClass.getMethods(), attributes);
         ApplicationModel.initConsumerModel(getUniqueServiceName(), consumerModel);
     }
 
     /**
-     * 创建代理对象
+     * 生成代理对象
      */
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
@@ -389,7 +394,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         final boolean isJvmRefer;
         //是否是 本地引用
         if (isInjvm() == null) {
-            //存在 url 就代表是remote
+            //存在 url 代表是 直连模式
             if (url != null && url.length() > 0) { // if a url is specified, don't do local reference
                 isJvmRefer = false;
             } else {
@@ -403,9 +408,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
         //本地引用情况
         if (isJvmRefer) {
-            //创建本地 url
+            //创建本地 url 使用本机 ip
             URL url = new URL(Constants.LOCAL_PROTOCOL, NetUtils.LOCALHOST, 0, interfaceClass.getName()).addParameters(map);
-            //这个对象应该是 分配 invoker的 根据传入的 本地url 生成 injvmProtocol 对象
+            //获取自适应拓展对象 通过url 的 协议 也就是 injvm 返回了invoker对象
             invoker = refprotocol.refer(interfaceClass, url);
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
@@ -423,28 +428,28 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                             //设置path 为接口名
                             url = url.setPath(interfaceName);
                         }
-                        //如果是注册中心
+                        //如果 直连 url 中 存在 registry 为协议的 对象 那么还是要 从 注册中心 获取 提供者
                         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
                             //给url 对象增加属性
                             urls.add(url.addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map)));
                         } else {
+                            //这里就是将 提供者url 中的 部分属性使用 传入的 map  以及去掉部分属性 比较繁琐等用到的时候再查看对应属性
                             urls.add(ClusterUtils.mergeUrl(url, map));
                         }
                     }
                 }
-                //注册中心
+                //代表从注册中心 发现服务提供者
             } else { // assemble URL from register center's configuration
                 //获取所有的 注册中心地址
                 List<URL> us = loadRegistries(false);
                 if (us != null && !us.isEmpty()) {
                     for (URL u : us) {
-                        //通过注册中心加载 监控中心
+                        //获取监控中心信息 如果监控中心 的 协议类型是 registry 代表从注册中心生成 监控中心
                         URL monitorUrl = loadMonitor(u);
                         if (monitorUrl != null) {
-                            //监控中心之间 会 覆盖 但是在下次覆盖之前会设置到 urls中
                             map.put(Constants.MONITOR_KEY, URL.encode(monitorUrl.toFullString()));
                         }
-                        //将获得 的 注册中心保存
+                        //将map 中属性 以 refer 作为key 保存
                         urls.add(u.addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map)));
                     }
                 }
@@ -453,6 +458,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
 
+            //直连 或是从注册中心 发现
             if (urls.size() == 1) {
                 //通过唯一的 注册中心 进行 引用
                 invoker = refprotocol.refer(interfaceClass, urls.get(0));
@@ -467,13 +473,18 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         registryURL = url; // use last registry url
                     }
                 }
-                //集群相关的先不看
+                //如果 有 从 注册中心返回的 可以构建成 集群模式 每次 从返回的所有invoker 中根据一定规则 获取 一个invoker
                 if (registryURL != null) { // registry url is available
                     // use AvailableCluster only when register's cluster is available
+
+                    //这下面根据 直连 和 注册中心生成不同的集群 现在 还体现不出来 之后再看 具体实现
+
                     // 给url 增加一个 cluster属性
                     URL u = registryURL.addParameter(Constants.CLUSTER_KEY, AvailableCluster.NAME);
+                    //因为 集群也是实现invoker 的 所以在 外部看来 就是一个普通的 invoker对象
                     invoker = cluster.join(new StaticDirectory(u, invokers));
                 } else { // not a registry url
+                    //没有注册中心 就直接 用集群构建一个 invoker
                     invoker = cluster.join(new StaticDirectory(invokers));
                 }
             }
@@ -488,7 +499,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (c == null) {
             c = true; // default true
         }
-        //发现invoker 不可用 初始化失败 并抛出异常
+        //发现invoker 不可用 初始化失败 并抛出异常 针对集群情况 任意一个 invoker 可用 就是可用
         if (c && !invoker.isAvailable()) {
             // make it possible for consumer to retry later if provider is temporarily unavailable
             initialized = false;
@@ -498,7 +509,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
         // create service proxy
-        //将 invoker 代理成给定的类型
+        // 还需要从invoker 中  获取ref对象
         return (T) proxyFactory.getProxy(invoker);
     }
 
@@ -523,9 +534,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (annotation == null) {
             return;
         }
-        //获取 目标类
+        //获取 原 接口
         Class<?> target = annotation.value();
-        //如果 目标类 不是 该接口的 父类 就返回
+        //如果 演接口 不是 该接口的 父类 就返回
         if (!target.isAssignableFrom(interfaceClass)) {
             return;
         }
@@ -535,7 +546,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         this.interfaceClass = target;
         //修改 interfaceName的值  如果 id不存在 也一起修改
         setInterface(this.interfaceClass.getName());
-        //将 接口 信息保存到容器中
+        //将 接口 信息保存到容器中 这里保存的 还是 异步接口
         map.put(Constants.INTERFACES, interfaceClass.getName());
     }
 

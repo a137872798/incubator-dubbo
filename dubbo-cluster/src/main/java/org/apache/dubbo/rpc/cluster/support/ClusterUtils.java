@@ -82,6 +82,7 @@ public class ClusterUtils {
                 }
             }
             for (String needRemove : methodAsyncKey) {
+                //移除 map 中的异步信息
                 map.remove(needRemove);
             }
         }

@@ -80,7 +80,7 @@ public class NetUtils {
     }
 
     /**
-     * 将 传入的端口变成 可以的端口
+     * 将 传入的端口变成 可用的端口
      * @param port
      * @return
      */

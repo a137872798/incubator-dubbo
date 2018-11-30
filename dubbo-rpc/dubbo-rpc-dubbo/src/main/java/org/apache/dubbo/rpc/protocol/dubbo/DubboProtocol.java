@@ -344,19 +344,19 @@ public class DubboProtocol extends AbstractProtocol {
      */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
-        //获取 invoker 对象的url 这个应该就是 注册中心 的 url
+        //获取 使用dubbo 作为协议的 url
         URL url = invoker.getUrl();
 
         // export service.
-        // 通过 url 生成对应的 服务键对象 也就是一个特殊的key
+        //创建服务键对象 这个对象 包含 该服务器绑定的端口
         String key = serviceKey(url);
-        //创建 出口者对象 该对象是 单例模式 exporterMap 应该是只有一个
+        //创建以dubbo 协议出口的对象 内部包含全局出口对象
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         //将服务键 和 出口对象保存到容器中  那么其他对象在 进行出口的时候一旦操作或者map 对象都会影响到 其他 exporter对象的 map
         exporterMap.put(key, exporter);
 
         //export an stub service for dispatching event
-        //获取 一些 参数信息  这块跟 stub 挂钩先不管
+        //是否存在存根事件和  回调事件
         Boolean isStubSupportEvent = url.getParameter(Constants.STUB_EVENT_KEY, Constants.DEFAULT_STUB_EVENT);
         Boolean isCallbackservice = url.getParameter(Constants.IS_CALLBACK_SERVICE, false);
 
@@ -384,40 +384,46 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     /**
-     * 启动服务器  这里应该是 根据 注册中心的url 创建服务端对象
+     * 启动服务器
      * @param url
      */
     private void openServer(URL url) {
-        // find server.
+        //在注册中心 启动服务提供者时 也是根据 ip:port为单位的
+        //在没有设置情况下 默认都是使用dubbo的默认端口 这样就会使得每个serviceConfig 都会使用同一端口进行暴露
+        //那么在 注册中心那里 判断以暴露 其他暴露就会失效 可以通过在providerConfig 或者 protocolConfig 中指定端口 这样 每个serviceConfig
+        //就能够同时暴露
         String key = url.getAddress();
         //client can export a service which's only for server to invoke
+        //判断是服务器 还是 客户端
         boolean isServer = url.getParameter(Constants.IS_SERVER_KEY, true);
+        //如果 当前使用dubbo 协议的 是 服务提供者
         if (isServer) {
+            //为 全局容器增加一个 服务提供者服务器 用于监听所有消费请求
             ExchangeServer server = serverMap.get(key);
             if (server == null) {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
-                        //创建 新的服务器对象
+                        //通过给定的url 对象 创建 新的服务器对象
                         serverMap.put(key, createServer(url));
                     }
                 }
             } else {
                 // server supports reset, use together with override
-                // 将server 地址重置
+                // 以ip:port 为单位 发起相同请求 就 覆盖url 已经 修改 url相关的部分配置
                 server.reset(url);
             }
         }
     }
 
     /**
-     * 创建服务器对象
+     * 通过给定url 创建服务器对象
      * @param url
      * @return
      */
     private ExchangeServer createServer(URL url) {
         // send readonly event when server closes, it's enabled by default
-        // 在关闭server 时 能够发送 read_only 事件
+        // 在关闭server 时 能够发送 read_only 事件 代表该服务器不再接受新的请求
         url = url.addParameterIfAbsent(Constants.CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString());
         // enable heartbeat by default
         // 设置心跳检测的定时时间
@@ -434,12 +440,12 @@ public class DubboProtocol extends AbstractProtocol {
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
         ExchangeServer server;
         try {
-            //绑定到指定地址生成服务器对象
+            //通过 url 和 请求处理对象 创建 服务器对象 这个请求处理对象 先不管
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
         }
-        //从 url 中 获取  client 信息 并查询 是否有支持客户端的 通信框架实现 一般是没有设置的
+        //如果 指定了client 的 实现类型
         str = url.getParameter(Constants.CLIENT_KEY);
         if (str != null && str.length() > 0) {
             Set<String> supportedTypes = ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions();

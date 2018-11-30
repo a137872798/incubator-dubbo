@@ -81,6 +81,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
      */
     private static final ProxyFactory proxyFactory = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
 
+    /**
+     * 保留了协议 名 与端口号的映射关系
+     */
     private static final Map<String, Integer> RANDOM_PORT_MAP = new HashMap<String, Integer>();
 
     /**
@@ -203,6 +206,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return provider;
     }
 
+    /**
+     * 根据不同协议名 获取端口号  如 dubbo
+     */
     private static Integer getRandomPort(String protocol) {
         protocol = protocol.toLowerCase();
         if (RANDOM_PORT_MAP.containsKey(protocol)) {
@@ -390,6 +396,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         checkProtocol();
         //为本config 再次 获取 属性
         appendProperties(this);
+        //什么是 stub 以及 为什么需要一个 服务接口的构造函数
         checkStub(interfaceClass);
         checkMock(interfaceClass);
         //如果Service beanName 以interfaceName开头 path就会设置成 beanName 如果没有在这层就会设置成 接口名
@@ -398,8 +405,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
         //上诉检查 和加载 对应 资源结束后 开始 执行出口逻辑
         doExportUrls();
-        //这里还没分析
+        //生成一个 该服务提供者的 包装类
         ProviderModel providerModel = new ProviderModel(getUniqueServiceName(), ref, interfaceClass);
+        //设置到全局容器中 代表 该应用下 发布的服务提供者
         ApplicationModel.initProviderModel(getUniqueServiceName(), providerModel);
     }
 
@@ -472,6 +480,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         //从中获取属性到 map中
         appendParameters(map, application);
         appendParameters(map, module);
+        //为获取的 属性增加 default 前缀
         appendParameters(map, provider, Constants.DEFAULT_KEY);
         appendParameters(map, protocolConfig);
         appendParameters(map, this);
@@ -620,13 +629,13 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (!Constants.SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
-            //如果 是local 进行本地出口 传入的参数是本地的 URL
+            //主要不是 remote 就进行本地暴露
             if (!Constants.SCOPE_REMOTE.equalsIgnoreCase(scope)) {
                 //本地暴露
                 exportLocal(url);
             }
             // export to remote if the config is not local (export to local only when config is local)
-            // 等价于 == remote
+            // 只要不是local 就进行远程暴露 也就是 如果没有设置 既不是 remote 也不是 local 就都会进行暴露
             if (!Constants.SCOPE_LOCAL.equalsIgnoreCase(scope)) {
                 if (logger.isInfoEnabled()) {
                     logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
@@ -671,7 +680,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         exporters.add(exporter);
                     }
                 } else {
-                    //创建的对象不再 包含 监控中心 和 注册中心的url 而是使用 本地url 进行出口
+                    //这样 服务提供者的url 中将不包含 监控中心 和 注册中心url 就是原始的提供者url
                     Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);
                     DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
@@ -813,6 +822,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
         // if there's no bind port found from environment, keep looking up.
         if (portToBind == null) {
+            //尝试 从protocolConfig 或者 providerConfigConfig 中获取端口号
             portToBind = protocolConfig.getPort();
             if (provider != null && (portToBind == null || portToBind == 0)) {
                 portToBind = provider.getPort();
@@ -822,8 +832,10 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 portToBind = defaultPort;
             }
             if (portToBind == null || portToBind <= 0) {
+                //这里返回的 默认就是 负数啊
                 portToBind = getRandomPort(name);
                 if (portToBind == null || portToBind < 0) {
+                    //获取 可用的 端口 这里就是返回能 创建套接字的 第一个端口
                     portToBind = getAvailablePort(defaultPort);
                     putRandomPort(name, portToBind);
                 }
@@ -832,12 +844,15 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
 
         // save bind port, used as url's key later
+        // 记录已经使用的 所有 端口
         map.put(Constants.BIND_PORT_KEY, String.valueOf(portToBind));
 
         // registry port, not used as bind port by default
+        //获取 绑定到 注册中心的 端口 一般 不会设置
         String portToRegistryStr = getValueFromConfig(protocolConfig, Constants.DUBBO_PORT_TO_REGISTRY);
         Integer portToRegistry = parsePort(portToRegistryStr);
         if (portToRegistry == null) {
+            //将 发布到注册中心的 端口变成 绑定到本地的端口
             portToRegistry = portToBind;
         }
 

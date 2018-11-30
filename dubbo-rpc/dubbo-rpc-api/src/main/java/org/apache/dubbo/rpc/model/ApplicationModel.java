@@ -38,10 +38,12 @@ public class ApplicationModel {
 
     /**
      * full qualified class name -> provided service
+     * 全局 服务提供者
      */
     private static final ConcurrentMap<String, ProviderModel> providedServices = new ConcurrentHashMap<>();
     /**
      * full qualified class name -> subscribe service
+     * 全局 服务消费者
      */
     private static final ConcurrentMap<String, ConsumerModel> consumedServices = new ConcurrentHashMap<>();
 

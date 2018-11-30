@@ -42,7 +42,7 @@ public class NettyServerHandler extends ChannelDuplexHandler {
     private final Map<String, Channel> channels = new ConcurrentHashMap<String, Channel>(); // <ip:port, channel>
 
     /**
-     * 该处理器 包含的url
+     * 该服务提供者 包含的url
      */
     private final URL url;
 

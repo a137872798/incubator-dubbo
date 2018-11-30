@@ -56,7 +56,7 @@ public abstract class AbstractProtocol implements Protocol {
      * @return
      */
     protected static String serviceKey(URL url) {
-        //获取 url 上的 绑定端口 默认值为 url.getPort()
+        //获取 url 上的 绑定端口 默认值为 url.getPort() 这个值 一般就是从对应协议的 默认端口获得的
         int port = url.getParameter(Constants.BIND_PORT_KEY, url.getPort());
         //创建服务键对象
         return serviceKey(port, url.getPath(), url.getParameter(Constants.VERSION_KEY),
