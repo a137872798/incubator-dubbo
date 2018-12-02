@@ -70,13 +70,14 @@ public class ConditionRouter implements Router, Comparable<Router> {
 
     public ConditionRouter(URL url) {
         this.url = url;
-        //从url 中 获取相关配置
+        //从url 中 获取相关配置  优先级
         this.priority = url.getParameter(Constants.PRIORITY_KEY, 0);
+        //是否强制执行
         this.force = url.getParameter(Constants.FORCE_KEY, false);
         try {
             //获取 rule 信息
             String rule = url.getParameterAndDecoded(Constants.RULE_KEY);
-            //不存在 路由规则 直接抛出异常
+            //不存在 路由规则 直接抛出异常 就是 host = * => host =
             if (rule == null || rule.trim().length() == 0) {
                 throw new IllegalArgumentException("Illegal route rule!");
             }
@@ -190,8 +191,8 @@ public class ConditionRouter implements Router, Comparable<Router> {
     /**
      * 进行路由
      * @param invokers
-     * @param url        refer url
-     * @param invocation
+     * @param url        需要被 路由的url
+     * @param invocation 调用的上下文对象 记录了当前调用的是哪个方法
      * @param <T>
      * @return
      * @throws RpcException

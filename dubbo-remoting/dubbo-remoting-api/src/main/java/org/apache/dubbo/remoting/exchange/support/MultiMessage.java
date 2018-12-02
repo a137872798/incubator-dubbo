@@ -25,7 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * 复合消息
+ * 复合消息  内部封装了 多个消息
  * @see org.apache.dubbo.remoting.transport.MultiMessageHandler
  */
 public final class MultiMessage implements Iterable {
@@ -79,6 +79,7 @@ public final class MultiMessage implements Iterable {
         return result;
     }
 
+    //具备迭代器 所以能用 增强for 循环
     @Override
     public Iterator iterator() {
         return messages.iterator();

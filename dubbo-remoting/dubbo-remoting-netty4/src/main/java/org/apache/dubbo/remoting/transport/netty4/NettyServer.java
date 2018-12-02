@@ -70,7 +70,7 @@ public class NettyServer extends AbstractServer implements Server {
     private EventLoopGroup workerGroup;
 
     public NettyServer(URL url, ChannelHandler handler) throws RemotingException {
-        //这里包装了handler 并用 url 传给父类 初始化 服务器
+        //这里 的 handler 对象被 线程池包裹 在处理触发的 事件 时 会自动委托到线程池进行 setThreadName 是为url 增加线程池名 属性
         super(url, ChannelHandlers.wrap(handler, ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME)));
     }
 
@@ -89,7 +89,7 @@ public class NettyServer extends AbstractServer implements Server {
 
         //在创建 nettyhandler对象时 传入 自身作为 handler 将 处理逻辑委托到本类
         final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this);
-        //获取 处理器对象 的 channel 容器
+        //将该存放channel容器的 引用指向 serverHandler 里的容器引用
         channels = nettyServerHandler.getChannels();
 
         bootstrap.group(bossGroup, workerGroup)
@@ -101,7 +101,7 @@ public class NettyServer extends AbstractServer implements Server {
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     @Override
                     protected void initChannel(NioSocketChannel ch) throws Exception {
-                        //创建了一个适配器对象
+                        //创建了一个适配器对象  内部就是将编解码工作委托给这个对象
                         NettyCodecAdapter adapter = new NettyCodecAdapter(getCodec(), getUrl(), NettyServer.this);
                         //给 pipeline 对象 增加 编解码处理器 和服务端处理器
                         ch.pipeline()//.addLast("logging",new LoggingHandler(LogLevel.INFO))//for debug
@@ -120,7 +120,7 @@ public class NettyServer extends AbstractServer implements Server {
     }
 
     /**
-     * 关闭 服务器对象
+     * 标准的 关闭 netty服务器对象
      * @throws Throwable
      */
     @Override

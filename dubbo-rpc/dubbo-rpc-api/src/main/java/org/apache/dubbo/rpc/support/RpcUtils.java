@@ -133,7 +133,7 @@ public class RpcUtils {
 
     /**
      * Idempotent operation: invocation id will be added in async operation by default
-     * 为 异步invocation 设置 id 属性
+     * 为 异步invocation 设置 id 属性 这里可能是要用这个id 判断 异步操作是否完成
      *
      * @param url
      * @param inv

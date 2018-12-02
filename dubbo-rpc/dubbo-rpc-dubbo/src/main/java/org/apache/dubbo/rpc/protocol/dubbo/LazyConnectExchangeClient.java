@@ -89,7 +89,7 @@ final class LazyConnectExchangeClient implements ExchangeClient {
             if (client != null) {
                 return;
             }
-            //连接 返回 client 对象
+            //延时创建client对象
             this.client = Exchangers.connect(url, requestHandler);
         } finally {
             connectLock.unlock();
@@ -97,7 +97,7 @@ final class LazyConnectExchangeClient implements ExchangeClient {
     }
 
     /**
-     * 通过 该client 对象发起请求
+     * 当发起请求时 才开始创建client
      * @param request
      * @return
      * @throws RemotingException

@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * mock方法 调用对象
+ * 当找不到服务提供者的 mock 对象时  就创建一个对象
  * @param <T>
  */
 final public class MockInvoker<T> implements Invoker<T> {
@@ -120,7 +120,7 @@ final public class MockInvoker<T> implements Invoker<T> {
     }
 
     /**
-     * mock 对象的 invoker 方法
+     * mock 对象的 invoker 方法 一般就是返回默认值之类的 内部比较复杂就没细看
      * @param invocation
      * @return
      * @throws RpcException
@@ -130,15 +130,15 @@ final public class MockInvoker<T> implements Invoker<T> {
         //获取 方法.mock
         String mock = getUrl().getParameter(invocation.getMethodName() + "." + Constants.MOCK_KEY);
         if (invocation instanceof RpcInvocation) {
-            //将 自身设置到 invocation ???
+            //代表该上下文 调用的 是 mockinvoker对象
             ((RpcInvocation) invocation).setInvoker(this);
         }
-        //不存在就 获取mock值
+        //获取不到方法级别的 mock 就获取 服务接口级别的 mock
         if (StringUtils.isBlank(mock)) {
             mock = getUrl().getParameter(Constants.MOCK_KEY);
         }
 
-        //如果mock 为空直接抛出异常
+        //如果mock 为空直接抛出异常 因为这种情况已经是没有可调用的invoker了
         if (StringUtils.isBlank(mock)) {
             throw new RpcException(new IllegalAccessException("mock can not be null. url :" + url));
         }

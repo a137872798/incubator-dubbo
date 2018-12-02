@@ -79,7 +79,7 @@ public class DubboProtocol extends AbstractProtocol {
     private final Map<String, ExchangeServer> serverMap = new ConcurrentHashMap<String, ExchangeServer>(); // <host:port,Exchanger>
 
     /**
-     * key  服务键 value 包含引用计数的 client 对象
+     * key  服务键 value 包含引用计数的 client 对象 代表该共享client 对象被多少调用共享
      */
     private final Map<String, ReferenceCountExchangeClient> referenceClientMap = new ConcurrentHashMap<String, ReferenceCountExchangeClient>(); // <host:port,Exchanger>
     /**
@@ -487,7 +487,7 @@ public class DubboProtocol extends AbstractProtocol {
                 return;
             }
 
-            //遍历每个 在 注册中心进行注册
+            //依次注册序列化的类
             for (Class c : optimizer.getSerializableClasses()) {
                 SerializableClassRegistry.registerClass(c);
             }
@@ -504,7 +504,7 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     /**
-     * dubbo 协议层的 引用 invoker 消费者 借助通信层 应该是会调用这个方法
+     * dubbo 协议层的 引用 invoker  当消费者从 directory上获取到注册中心通知的 提供者的url 进行部分转换后 就会通过该url 创建client 对象 发起通信
      * @param serviceType
      * @param url  URL address for the remote service
      * @param <T>
@@ -513,10 +513,10 @@ public class DubboProtocol extends AbstractProtocol {
      */
     @Override
     public <T> Invoker<T> refer(Class<T> serviceType, URL url) throws RpcException {
-        //初始化 序列器对象
+        //初始化 序列器对象 就是从url 中获取了序列化的参数并做缓存
         optimizeSerialization(url);
         // create rpc invoker.
-        //创建 invoker 对象
+        //创建 invoker 对象   这里通过url 创建了 client 对象
         DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
         //全局容器中增加一个 发布的invoker对象
         invokers.add(invoker);
@@ -535,19 +535,20 @@ public class DubboProtocol extends AbstractProtocol {
         //获取 最大连接数 默认是0
         int connections = url.getParameter(Constants.CONNECTIONS_KEY, 0);
         // if not configured, connection is shared, otherwise, one connection for one service
-        // 0 代表共享
+        // 0 代表共享  也就是该消费者针对 该服务提供者 使用同一条连接
         if (connections == 0) {
             service_share_connect = true;
             connections = 1;
         }
 
-        //创建 对应数量的 client 对象
+        //创建 对应数量的 client 对象 不共享就是需要这么多client 一起对这个一个地址 connect
         ExchangeClient[] clients = new ExchangeClient[connections];
         for (int i = 0; i < clients.length; i++) {
             if (service_share_connect) {
-                //获取 共享 url
+                //创建共享client 为了减少client 的创建 使用了 lazyClient  也就是 该共享client 没有被调用了 也会以lazyClient 的形式存在
                 clients[i] = getSharedClient(url);
             } else {
+                //创建连接后的invoker 对象会被保留起来 当下次 服务提供者发生变化时 又要创建新的 client 对象
                 clients[i] = initClient(url);
             }
         }
@@ -561,7 +562,7 @@ public class DubboProtocol extends AbstractProtocol {
     private ExchangeClient getSharedClient(URL url) {
         //获取 url 的地址  ip:port
         String key = url.getAddress();
-        //获取client对象
+        //查看 该 服务提供者url 是否已经生成client 对象
         ReferenceCountExchangeClient client = referenceClientMap.get(key);
         //client 对象存在时
         if (client != null) {
@@ -603,7 +604,7 @@ public class DubboProtocol extends AbstractProtocol {
         // 获取 client 的 通信框架类型
         String str = url.getParameter(Constants.CLIENT_KEY, url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_CLIENT));
 
-        //设置编码 器
+        //设置编码 器  默认是dubbo
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
         // enable heartbeat by default
         //设置心跳检测时间
@@ -616,12 +617,13 @@ public class DubboProtocol extends AbstractProtocol {
                     " supported client type is " + StringUtils.join(ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions(), " "));
         }
 
+        //这一层封装了心跳检测 在handler 那层 有 设置一个 处理心跳事件的包装
         ExchangeClient client;
         try {
             // connection should be lazy
             // 获取 是否延迟
             if (url.getParameter(Constants.LAZY_CONNECT_KEY, false)) {
-                //创建 延迟 client
+                //延时client 在发送消息时 才创建对象
                 client = new LazyConnectExchangeClient(url, requestHandler);
             } else {
                 //创建普通client 通过连接服务器

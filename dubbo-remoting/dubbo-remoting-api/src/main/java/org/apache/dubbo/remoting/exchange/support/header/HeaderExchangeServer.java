@@ -157,6 +157,7 @@ public class HeaderExchangeServer implements ExchangeServer {
      */
     @Override
     public void startClose() {
+        //就是 修改 AbstractPeer 的 closing 标识 避免被重复关闭
         server.startClose();
     }
 
@@ -174,6 +175,7 @@ public class HeaderExchangeServer implements ExchangeServer {
 
         //获取 所有channel 并发送 只读 事件请求
         Collection<Channel> channels = getChannels();
+        //这个返回的实际是 headerexchangechannel
         for (Channel channel : channels) {
             try {
                 if (channel.isConnected()) {
@@ -203,11 +205,11 @@ public class HeaderExchangeServer implements ExchangeServer {
     @Override
     public Collection<ExchangeChannel> getExchangeChannels() {
         Collection<ExchangeChannel> exchangeChannels = new ArrayList<ExchangeChannel>();
-        //从服务器对象 获取channel 容器
+        //从服务器对象 获取channel 容器 这里维护了 所有连接上 服务器的 channel对象
         Collection<Channel> channels = server.getChannels();
         if (channels != null && !channels.isEmpty()) {
             for (Channel channel : channels) {
-                //获取 channel 的同时 尝试为channel 绑定一个 通过channel 自身创建的 HeaderExchangeChannel 对象
+                //获取channel 绑定的 exchangchannel
                 exchangeChannels.add(HeaderExchangeChannel.getOrAddChannel(channel));
             }
         }
@@ -303,9 +305,16 @@ public class HeaderExchangeServer implements ExchangeServer {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send message " + message
                     + ", cause: The server " + getLocalAddress() + " is closed!");
         }
+        //这里会发送给 server下的所有channel 这里会根据url 的信息 自动判断是否要等待结果返回
         server.send(message);
     }
 
+    /**
+     * send 代表是否要阻塞io 线程等待结果返回
+     * @param message
+     * @param sent    already sent to socket?
+     * @throws RemotingException
+     */
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
         if (closed.get()) {

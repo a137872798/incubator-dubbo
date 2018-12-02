@@ -74,6 +74,7 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
             final int forks = getUrl().getParameter(Constants.FORKS_KEY, Constants.DEFAULT_FORKS);
             //超时时间
             final int timeout = getUrl().getParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
+            //并行超过 所有能选择的 invoker 就按invoker 数量来算
             if (forks <= 0 || forks >= invokers.size()) {
                 selected = invokers;
             } else {
@@ -102,6 +103,7 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
                         } catch (Throwable e) {
                             int value = count.incrementAndGet();
                             if (value >= selected.size()) {
+                                //全部都异常时 才返回异常
                                 ref.offer(e);
                             }
                         }

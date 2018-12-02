@@ -22,6 +22,7 @@ import org.apache.dubbo.remoting.Dispatcher;
 
 /**
  * Direct dispatcher
+ * 直接返回本对象 因为所有操作都是在 io线程执行
  */
 public class DirectDispatcher implements Dispatcher {
 

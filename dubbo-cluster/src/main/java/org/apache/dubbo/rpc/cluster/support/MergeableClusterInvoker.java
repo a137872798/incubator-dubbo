@@ -72,7 +72,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
     @Override
     @SuppressWarnings("rawtypes")
     public Result invoke(final Invocation invocation) throws RpcException {
-        //获取invoker 调用列表
+        //在 group 模式下 这里的 每个 invoker 对象 代表一个 组对象 里面有一个 invoker list
         List<Invoker<T>> invokers = directory.list(invocation);
 
         //获取merger属性
@@ -81,10 +81,11 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
         if (ConfigUtils.isEmpty(merger)) { // If a method doesn't have a merger, only invoke one Group
             for (final Invoker<T> invoker : invokers) {
                 if (invoker.isAvailable()) {
+                    //但是这个invoker 对象其实也是 集群包裹的 这里的第一个可以不是指第一个可用的单体invoker 而是invoker组
                     return invoker.invoke(invocation);
                 }
             }
-            //都不可用也执行
+            //都不可用也执行 将异常抛出到外层
             return invokers.iterator().next().invoke(invocation);
         }
 
@@ -98,6 +99,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
         }
 
         Map<String, Future<Result>> results = new HashMap<String, Future<Result>>();
+        //这里代表以组为单位 调用每个 invoker 对象 并将每个组的结果保存
         for (final Invoker<T> invoker : invokers) {
             Future<Result> future = executor.submit(new Callable<Result>() {
                 @Override
@@ -145,6 +147,8 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
             return new RpcResult((Object) null);
         }
 
+        //下面代表以组为单位将结果 合并
+
         //如果以"." 开头 去掉这个开头 这里应该是代表 要merger某个方法
         // 指定合并方法，将调用返回结果的指定方法进行合并，合并方法的参数类型必须是返回结果类型本身
         //    <dubbo:method name="getMenuItems" merger=".addAll" />
@@ -167,7 +171,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
             result = resultList.remove(0).getValue();
             try {
                 if (method.getReturnType() != void.class
-                        //返回结果是 result类型 参数是 result.value 类型
+                        //返回结果是 原类型 每次 将结果作为下次的参数
                         && method.getReturnType().isAssignableFrom(result.getClass())) {
                     for (Result r : resultList) {
                         result = method.invoke(result, r.getValue());
@@ -184,7 +188,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
             Merger resultMerger;
             //如果merger策略对象是 true or default
             if (ConfigUtils.isDefault(merger)) {
-                //根据返回类型获得merger对象
+                //返回 对应类型的 merge对象
                 resultMerger = MergerFactory.getMerger(returnType);
             } else {
                 resultMerger = ExtensionLoader.getExtensionLoader(Merger.class).getExtension(merger);
@@ -194,7 +198,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
                 for (Result r : resultList) {
                     rets.add(r.getValue());
                 }
-                //将merger 委托给实现类执行
+                //将merger 委托给实现类执行 将结果合并并返回
                 result = resultMerger.merge(
                         rets.toArray((Object[]) Array.newInstance(returnType, 0)));
             } else {

@@ -146,12 +146,13 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
         //判断是否是 粘滞连接 默认是false
         boolean sticky = invokers.get(0).getUrl().getMethodParameter(methodName, Constants.CLUSTER_STICKY_KEY, Constants.DEFAULT_CLUSTER_STICKY);
         {
-            //ignore overloaded method 如果可选的 invoker中不包含 粘滞连接的对象就设置为null
+            //ignore overloaded method 代表之前的粘滞invoker 对象失效
             if (stickyInvoker != null && !invokers.contains(stickyInvoker)) {
                 stickyInvoker = null;
             }
             //ignore concurrency problem
-            //如果不属于最近被选择过的invoker 中
+            //如果 存在粘滞对象 且 是 粘滞模式 直接返回粘滞对象  selected 代表上次使用过的 可能代表 集群失败时 会将失败的加入到该容器中 避免下次被选择 也就是粘滞对象不能在
+            //失败容器中
             if (sticky && stickyInvoker != null && (selected == null || !selected.contains(stickyInvoker))) {
                 //需要检查 可用性 并且可用
                 if (availablecheck && stickyInvoker.isAvailable()) {
@@ -159,7 +160,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
                 }
             }
         }
-        //进行选择 并返回合适的invoker对象
+        //没有可返回的粘滞对象 就要 进行选择 并返回合适的invoker对象
         Invoker<T> invoker = doSelect(loadbalance, invocation, invokers, selected);
 
         if (sticky) {
@@ -225,9 +226,10 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
      *
      * 重新选择
      * @param loadbalance 负载策略
-     * @param invocation
+     * @param invocation 调用的上下文对象
      * @param invokers 供选择的invoker 列表
-     * @param selected 之前被选择过的 invoker 列表
+     * @param selected 之前被选择过的 且失败的invoker 列表
+     * @param availablecheck 是否需要检查可用性
      * @return
      * @throws RpcException
      */
@@ -236,7 +238,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
             throws RpcException {
 
         //Allocating one in advance, this list is certain to be used.
-        //创建一个 长度-1 的 invoker 列表
+        //创建一个 长度-1 的 invoker 列表 因为能够进入到这里selected 中肯定有至少一个元素 就是通过选出的invoker 对象在 selected中存在 才判断需要重选
         List<Invoker<T>> reselectInvokers = new ArrayList<Invoker<T>>(invokers.size() > 1 ? (invokers.size() - 1) : invokers.size());
 
         //First, try picking a invoker not in `selected`.
@@ -246,11 +248,12 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
                 if (invoker.isAvailable()) {
                     //首先可以进行重新选择的 不能是 出现在 selected 中的
                     if (selected == null || !selected.contains(invoker)) {
+                        //代表可供选择的 列表
                         reselectInvokers.add(invoker);
                     }
                 }
             }
-            //就是将 一部分出现在 selected中的 过滤后 又进行 选择看来在select 中 应该就会往 selected中添加元素
+            //再次选择 这里返回的不是 selected 中存在的
             if (!reselectInvokers.isEmpty()) {
                 return loadbalance.select(reselectInvokers, getUrl(), invocation);
             }
@@ -284,29 +287,29 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
     }
 
     /**
-     * invoker 调用链上的方法
-     * @param invocation
+     * 当针对 集群对象调用invoker 方法时 就会到这里 并在内部实现了 route 均衡负载 configurator 等一系列处理 返回唯一一个invoker 对象
+     * @param invocation  这里是调用的 上下文对象 封装了想调用的方法
      * @return
      * @throws RpcException
      */
     @Override
     public Result invoke(final Invocation invocation) throws RpcException {
-        //如果 链上的 该节点已经被销毁了 抛出异常
+        //判断该 集群是否 被关闭 关闭就抛出异常
         checkWhetherDestroyed();
 
         // binding attachments into invocation.
-        //获取上下文绑定的attachment
+        // 获取上下文绑定的attachment
         Map<String, String> contextAttachments = RpcContext.getContext().getAttachments();
         if (contextAttachments != null && contextAttachments.size() != 0) {
             //将绑定 属性转移到 rpcinvocation上
             ((RpcInvocation) invocation).addAttachments(contextAttachments);
         }
 
-        //委托给 directory 对象返回一组invoker对象
+        //委托给 directory 对象返回一组invoker对象 这里已经被路由过了
         List<Invoker<T>> invokers = list(invocation);
-        //创建负载对象
+        //创建负载对象  这个invokers 的url 都是 被 消费者 merge 过的 不是单纯的 提供者的 url
         LoadBalance loadbalance = initLoadBalance(invokers, invocation);
-        //为 invocation 设置id属性
+        //为 异步invocation 设置id属性  还不懂
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
         return doInvoke(invocation, invokers, loadbalance);
     }
@@ -364,7 +367,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
      * 初始化均衡负载对象
      */
     protected LoadBalance initLoadBalance(List<Invoker<T>> invokers, Invocation invocation) {
-        //当传入的 可选择的 invoker 不为null 就通过获取invoker 上的 负载属性创建对应的 负载对象
+        //判断该方法级别 有没有限定的 负载策略
         if (CollectionUtils.isNotEmpty(invokers)) {
             return ExtensionLoader.getExtensionLoader(LoadBalance.class).getExtension(invokers.get(0).getUrl()
                     .getMethodParameter(RpcUtils.getMethodName(invocation), Constants.LOADBALANCE_KEY, Constants.DEFAULT_LOADBALANCE));

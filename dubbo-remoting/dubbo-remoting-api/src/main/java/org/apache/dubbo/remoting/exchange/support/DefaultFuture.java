@@ -338,7 +338,7 @@ public class DefaultFuture implements ResponseFuture {
         }
 
         /**
-         * 启动任务时 触发的逻辑
+         * 启动任务时 触发的逻辑  就是在future 超时时触发
          * @param timeout a handle which is associated with this task
          */
         @Override
@@ -348,7 +348,7 @@ public class DefaultFuture implements ResponseFuture {
                 return;
             }
             // create exception response.
-            //创建了一个 响应对象
+            //创建了一个 响应对象 相当于 client 对象 给自己一个 结果而不是远程端给结果
             Response timeoutResponse = new Response(future.getId());
             // set timeout status.
             //根据 是否已经发送成功 返回 服务超时 或 客户端超时 这个 定时器的 触发时间应该就是超时时间  发送成功 没有收到结果就是客户端 没有及时响应

@@ -170,6 +170,7 @@ public class RegistryProtocol implements Protocol {
      */
     public void register(URL registryUrl, URL registedProviderUrl) {
         Registry registry = registryFactory.getRegistry(registryUrl);
+        //这里就是 将 服务提供者 发布到注册中心的过程 然后消费者 会从 注册中心订阅相关全量数据 并筛选需要的 invoker
         registry.register(registedProviderUrl);
     }
 
@@ -403,7 +404,7 @@ public class RegistryProtocol implements Protocol {
     @Override
     @SuppressWarnings("unchecked")
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
-        //获取 真正的 协议类型
+        //获取 真正的 协议类型 默认是 dubbo 可能是 zookeeper
         url = url.setProtocol(url.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_REGISTRY)).removeParameter(Constants.REGISTRY_KEY);
         //从注册中心工厂中获取 对应的 注册中心类
         Registry registry = registryFactory.getRegistry(url);
@@ -418,12 +419,14 @@ public class RegistryProtocol implements Protocol {
         Map<String, String> qs = StringUtils.parseQueryString(url.getParameterAndDecoded(Constants.REFER_KEY));
         //获取 group 信息
         String group = qs.get(Constants.GROUP_KEY);
-        //这里关于 多group 的情况 先不考虑
+        //如果是多组  这里的逻辑要配置 RegistryDirectory#toMergeMethodInvokerMap 在方法中 将按组筛选的invoker 对象 封装成单个invoker 这样在调用RegistryDirectory#list
+        //时返回的就是从外部看过去普通的一组invoker对象(实际每个invoker 又分别都代表一个组)
         if (group != null && group.length() > 0) {
-            //如果 是 多组 或者 *
+            //如果group信息是 多组 或者 *
             if ((Constants.COMMA_SPLIT_PATTERN.split(group)).length > 1
                     || "*".equals(group)) {
-                //传入可合并的 集群对象 这里对应到 cluster 集群中的 分组
+                //这里针对多组情况 使用了mergeableCluster 进行外层包装 在调用invoke时 再把内部以组为单位的 invoker 分别通过集群获取实际invoker对象 并把结果合并
+                //前提是调用的方法 必须设置了 merge 属性 否则 就跟普通集群一样
                 return doRefer(getMergeableCluster(), registry, type, url);
             }
         }
@@ -452,7 +455,7 @@ public class RegistryProtocol implements Protocol {
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
         //设置 注册中心 和 协议对象
         directory.setRegistry(registry);
-        //注册中心 本身的 protocol 职能实现都是 通过委托给 protocol 对象
+        //注册中心 本身的 protocol 职能实现都是 通过委托给 protocol 对象 这个一般就是用户创建自适应对象 这个protocol 就是将 提供者的url 变成提供者的 invoker 的
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
         //获取 目录对象的url 的属性 这个url 是消费者 url 缩减部分数据后的
@@ -473,7 +476,7 @@ public class RegistryProtocol implements Protocol {
                         + "," + Constants.CONFIGURATORS_CATEGORY
                         + "," + Constants.ROUTERS_CATEGORY));
 
-        //使用这里获取到的 目录对象 创建invoker 对象 这里通过集群调用 返回了一个合适的invoker 对象
+        //使用这里获取到的 目录对象 创建invoker 对象 这里返回的invoker 对象是一个集群对象 在调用invoke方法时 会在集群中自动使用各种容错手段以及均衡负载
         Invoker invoker = cluster.join(directory);
         //给全局 表中 设置消费者 和 服务提供者(invoker) 的关联关系
         ProviderConsumerRegTable.registerConsumer(invoker, url, subscribeUrl, directory);

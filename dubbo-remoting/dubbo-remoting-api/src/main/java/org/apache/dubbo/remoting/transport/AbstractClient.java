@@ -131,9 +131,10 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
                 logger.info("Start " + getClass().getSimpleName() + " " + NetUtils.getLocalAddress() + " connect to the server " + getRemoteAddress());
             }
         } catch (RemotingException t) {
-            //如果 开启了 检查 就 关闭
+            //如果 开启了 检查 就 关闭 否则打印日志
             if (url.getParameter(Constants.CHECK_KEY, true)) {
                 close();
+                //这个t 不会被下面捕获到 而是抛到方法外
                 throw t;
             } else {
                 logger.warn("Failed to start " + getClass().getSimpleName() + " " + NetUtils.getLocalAddress()
@@ -150,7 +151,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
         executor = (ExecutorService) ExtensionLoader.getExtensionLoader(DataStore.class)
                 //从 simpleDataStore 中以 consumer 作为组件名 端口作为key 获取 线程池对象
                 .getDefaultExtension().get(Constants.CONSUMER_SIDE, Integer.toString(url.getPort()));
-        //获取到后 就从 simpleDataStore 中 移除
+        //移除线程池 关联关系 为什么???  server端没有移除
         ExtensionLoader.getExtensionLoader(DataStore.class)
                 .getDefaultExtension().remove(Constants.CONSUMER_SIDE, Integer.toString(url.getPort()));
     }
@@ -223,6 +224,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
                         // wait registry sync provider list
                         // 如果 距离最后的重连时间 超过了 终结时间
                         if (System.currentTimeMillis() - lastConnectedTime > shutdown_timeout) {
+                            //这里打印一次 error 信息
                             if (!reconnect_error_log_flag.get()) {
                                 reconnect_error_log_flag.set(true);
                                 logger.error(errorMsg, t);
@@ -354,10 +356,10 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
      * @throws RemotingException
      */
     protected void connect() throws RemotingException {
-        //上锁 保证一次只有一个对象 开始连接 注意 lock 只能保证 原子性不能保证同步性
+        //上锁 因为有多个方法 会 进行connect 要保证只有一个线程进行连接
         connectLock.lock();
         try {
-            //已连接 直接返回
+            //已连接 直接返回  就是判断 channel 属性是否存在 就是 服务提供者的 channel
             if (isConnected()) {
                 return;
             }

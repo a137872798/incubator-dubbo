@@ -34,11 +34,20 @@ import java.util.List;
  */
 public class MockInvokersSelector implements Router {
 
+    /**
+     * 是否 决定调用mock 对象是由 invocation 上下文对象决定的
+     * @param invokers
+     * @param url        refer url
+     * @param invocation
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> List<Invoker<T>> route(final List<Invoker<T>> invokers,
                                       URL url, final Invocation invocation) throws RpcException {
         if (invocation.getAttachments() == null) {
-            //如果 某些invoker 对象中包含 mock 属性就要过滤掉
+            //如果 是正常情况 需要将 invoker 中的 mock 全部去掉 这些不应该被选择
             return getNormalInvokers(invokers);
         } else {
             //进行路由的时候 根据是否含有 needMock 属性
@@ -46,7 +55,7 @@ public class MockInvokersSelector implements Router {
             if (value == null) {
                 return getNormalInvokers(invokers);
             } else if (Boolean.TRUE.toString().equalsIgnoreCase(value)) {
-                //返回路由信息
+                //这里只返回 具有mock属性的对象
                 return getMockedInvokers(invokers);
             }
         }

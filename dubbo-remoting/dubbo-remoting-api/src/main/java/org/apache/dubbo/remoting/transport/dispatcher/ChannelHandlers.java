@@ -58,8 +58,10 @@ public class ChannelHandlers {
      * @return
      */
     protected ChannelHandler wrapInternal(ChannelHandler handler, URL url) {
-        //装饰器模式  获取到 dispatcher拓展对象  调用分发方法后 返回的 也是一个 handlerdelegate 对象 在执行事件时 会委托到线程池 中进行
+        //装饰器模式  创建一个 能将任务自动转发到线程池的对象   并被 心跳handler 和 复合消息 handler 装饰 同时具备这些功能 这些功能都是在 转发线程池之前完成的
+        //当 调用handler 的 各个事件触发函数时 从外层开始 依次往内调用
         return new MultiMessageHandler(new HeartbeatHandler(ExtensionLoader.getExtensionLoader(Dispatcher.class)
+                //这里首先根据url 的dispatcher 确认创建什么样的 分发处理器 默认使用all、 就是全部事件都使用线程池 装饰后 还是返回一个handler对象
                 .getAdaptiveExtension().dispatch(handler, url)));
     }
 }

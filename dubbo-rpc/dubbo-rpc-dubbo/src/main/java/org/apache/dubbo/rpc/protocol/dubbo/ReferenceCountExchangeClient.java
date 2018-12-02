@@ -170,7 +170,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
             } else {
                 client.close(timeout);
             }
-            //将 client 替换成 鬼魂客户端 这个鬼魂客户端 可能是不能进行某些操作的
+            //将本client 销毁后 用之前的url 生成了一个  延迟client对象
             client = replaceWithLazyClient();
         }
     }

@@ -68,7 +68,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     }
 
     /**
-     * 处理响应结果
+     * 处理响应结果 将 future 从等待的容器中移除
      *
      * @param channel
      * @param response
@@ -112,7 +112,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     }
 
     /**
-     * 处理请求
+     * 处理远程端发来的  请求
      * @param channel
      * @param req
      * @throws RemotingException

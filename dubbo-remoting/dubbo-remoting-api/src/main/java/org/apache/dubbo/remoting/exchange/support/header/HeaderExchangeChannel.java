@@ -72,7 +72,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         if (ch == null) {
             return null;
         }
-        //从 给定的 channel 获取 attribute 属性  并转型成 HeaderExchangeChannel 为什么可以这样获取???
+        //将headerexchangechannel 绑定在 ch 上
         HeaderExchangeChannel ret = (HeaderExchangeChannel) ch.getAttribute(CHANNEL_KEY);
         if (ret == null) {
             //如果没有获取到 对应对象  直接用该channel 生成对象
@@ -163,7 +163,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         //代表 需要 响应
         req.setTwoWay(true);
         req.setData(request);
-        //创建关联channel的  future 对象
+        //创建关联channel的  future 对象 该future 对象会在超时时自动去除
         DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout);
         try {
             //委托 channel 发送请求

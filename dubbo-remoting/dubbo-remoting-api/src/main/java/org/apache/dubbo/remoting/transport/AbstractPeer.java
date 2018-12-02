@@ -67,7 +67,7 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
      */
     @Override
     public void send(Object message) throws RemotingException {
-        //后面的 标识 代表是 sync or async
+        //后面的 标识 代表是否要等待结果返回
         send(message, url.getParameter(Constants.SENT_KEY, false));
     }
 
@@ -148,7 +148,7 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
         return closing && !closed;
     }
 
-    //--------------委托实现---------------
+    //--------------委托实现  netty的事件触发后就是到了这一层 才执行 并且这个handler 还被线程池 装饰 内部会派发给线程池进行---------------
 
     @Override
     public void connected(Channel ch) throws RemotingException {

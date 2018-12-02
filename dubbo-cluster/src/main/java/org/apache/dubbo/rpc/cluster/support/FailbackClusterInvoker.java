@@ -119,9 +119,9 @@ public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
             Invocation invocation = entry.getKey();
             Invoker<?> invoker = entry.getValue();
             try {
-                //进行重新执行
+                //进行重新执行 这时的invoker 对象 还是failback 对象 因为在 addFailed 时传入了本对象的引用 那么失败的时候不会抛出异常 但是会重新加入一次任务
                 invoker.invoke(invocation);
-                //同时将 该元素从 容器中移除 避免重复执行
+                //如果上面失败 重新加入 failed 后 这里不是 把刚加入的又删除了???
                 failed.remove(invocation);
             } catch (Throwable e) {
                 logger.error("Failed retry to invoke method " + invocation.getMethodName() + ", waiting again.", e);
@@ -150,6 +150,7 @@ public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
                     + e.getMessage() + ", ", e);
             //当执行出现异常时  添加到 失败队列中
             addFailed(invocation, this);
+            //这里返回空结果  没有异常 也没有 result对象
             return new RpcResult(); // ignore
         }
     }

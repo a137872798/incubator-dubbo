@@ -38,6 +38,7 @@ public class MultiMessageHandler extends AbstractChannelHandlerDelegate {
         if (message instanceof MultiMessage) {
             MultiMessage list = (MultiMessage) message;
             for (Object obj : list) {
+                //用handler 处理每个 事件
                 handler.received(channel, obj);
             }
         } else {
