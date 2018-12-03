@@ -33,14 +33,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 基本也是 委托给 handler
+ * 基本也是 委托给 handler 子类会覆盖这些方法 灵活运用线程池 和handler 的 组合 使得某些操作在io 线程执行某些在 线程池线程执行
  */
 public class WrappedChannelHandler implements ChannelHandlerDelegate {
 
     protected static final Logger logger = LoggerFactory.getLogger(WrappedChannelHandler.class);
 
     /**
-     * 共享线程池
+     * 共享线程池  当获取不到创建的线程池 时 使用这个
      */
     protected static final ExecutorService SHARED_EXECUTOR = Executors.newCachedThreadPool(new NamedThreadFactory("DubboSharedHandler", true));
 
@@ -65,8 +65,9 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
         if (Constants.CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(Constants.SIDE_KEY))) {
             componentKey = Constants.CONSUMER_SIDE;
         }
+        //也就是一个容器对象
         DataStore dataStore = ExtensionLoader.getExtensionLoader(DataStore.class).getDefaultExtension();
-        //根据 特定端口号 保存线程池对象
+        //维护 端口 和  线程池对象的 关联关系 消费者 和服务提供者 使用不同的 componentKey 在初始化 server 和client 时 会使用到
         dataStore.put(componentKey, Integer.toString(url.getPort()), executor);
     }
 

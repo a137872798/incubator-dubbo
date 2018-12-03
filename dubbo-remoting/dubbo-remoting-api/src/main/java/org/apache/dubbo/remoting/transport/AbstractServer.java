@@ -45,7 +45,7 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
     protected static final String SERVER_THREAD_POOL_NAME = "DubboServerHandler";
     private static final Logger logger = LoggerFactory.getLogger(AbstractServer.class);
     /**
-     * 线程池对象
+     * 线程池对象 也是自适应对象
      */
     ExecutorService executor;
     /**
@@ -91,8 +91,9 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
                     + " on " + getLocalAddress() + ", cause: " + t.getMessage(), t);
         }
         //fixme replace this with better method
-        //从 dataStore 中 获取线程池对象  这个对象应该还没被初始化吧那么属性是哪里获取的
+        //在包装传入的 handler 对象时 创建dispatcher 包装成线程池 handler时 服务端以EXECUTOR_SERVICE_COMPONENT_KEY 作为key 以及端口号作为2级key 保存了线程池对象
         DataStore dataStore = ExtensionLoader.getExtensionLoader(DataStore.class).getDefaultExtension();
+        //这里有可能是null 因为mockDispatcher 和 directDispatcher 不需要线程池
         executor = (ExecutorService) dataStore.get(Constants.EXECUTOR_SERVICE_COMPONENT_KEY, Integer.toString(url.getPort()));
     }
 

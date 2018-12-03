@@ -62,7 +62,7 @@ public class NettyClient extends AbstractClient {
     private volatile Channel channel; // volatile, please copy reference to use
 
     public NettyClient(final URL url, final ChannelHandler handler) throws RemotingException {
-        //将 handler 包装后 handler 处理相关事件时 会委托给线程池对象 这些 handler对象都会 传递到最上层
+        //同server 相同 会将handler 的请求 依次通过 multeHandler heartbeatHandler 线程池handler 最后 请求根据类型决定是分配到线程池执行还是在io 线程执行
         super(url, wrapChannelHandler(url, handler));
     }
 
@@ -103,12 +103,13 @@ public class NettyClient extends AbstractClient {
     }
 
     /**
-     * 开始 连接到 目标 服务器地址
+     * 开始 连接到 目标 服务器地址  为什么单独拉出这个方法 因为 在上层该方法需要加锁避免 同时 connect
      * @throws Throwable
      */
     @Override
     protected void doConnect() throws Throwable {
         long start = System.currentTimeMillis();
+        //通过提供者 url 生成地址
         ChannelFuture future = bootstrap.connect(getConnectAddress());
         try {
             //等待  连接结果
@@ -128,6 +129,7 @@ public class NettyClient extends AbstractClient {
                             //如果 存在 旧 的 channel 就 关闭
                             oldChannel.close();
                         } finally {
+                            //移除旧的关联关系
                             NettyChannel.removeChannelIfDisconnected(oldChannel);
                         }
                     }
@@ -195,6 +197,7 @@ public class NettyClient extends AbstractClient {
         if (c == null || !c.isActive()) {
             return null;
         }
+        //这里添加关联
         return NettyChannel.getOrAddChannel(c, getUrl(), this);
     }
 

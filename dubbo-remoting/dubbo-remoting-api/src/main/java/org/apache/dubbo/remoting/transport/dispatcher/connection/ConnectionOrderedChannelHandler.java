@@ -36,23 +36,42 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 连接 断开连接的 请求 排队处理
+ */
+
 public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
 
+    /**
+     * 连接线程池 专门 处理 连接 和断开连接的请求
+     */
     protected final ThreadPoolExecutor connectionExecutor;
+    /**
+     * 当队列内元素数量到多少时 警告
+     */
     private final int queuewarninglimit;
 
     public ConnectionOrderedChannelHandler(ChannelHandler handler, URL url) {
         super(handler, url);
+        //获取线程池名字
         String threadName = url.getParameter(Constants.THREAD_NAME_KEY, Constants.DEFAULT_THREAD_NAME);
+        //单线程 线程池
         connectionExecutor = new ThreadPoolExecutor(1, 1,
                 0L, TimeUnit.MILLISECONDS,
+                //线程池 容量
                 new LinkedBlockingQueue<Runnable>(url.getPositiveParameter(Constants.CONNECT_QUEUE_CAPACITY, Integer.MAX_VALUE)),
                 new NamedThreadFactory(threadName, true),
+                //拒绝策略  打印什么栈轨迹的 不太懂
                 new AbortPolicyWithReport(threadName, url)
         );  // FIXME There's no place to release connectionExecutor!
         queuewarninglimit = url.getParameter(Constants.CONNECT_QUEUE_WARNING_SIZE, Constants.DEFAULT_CONNECT_QUEUE_WARNING_SIZE);
     }
 
+    /**
+     * 委托给独有的连接线程池对象
+     * @param channel
+     * @throws RemotingException
+     */
     @Override
     public void connected(Channel channel) throws RemotingException {
         try {
@@ -73,6 +92,12 @@ public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
         }
     }
 
+    /**
+     * received 使用 父类的线程池 执行
+     * @param channel
+     * @param message
+     * @throws RemotingException
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         ExecutorService cexecutor = getExecutorService();
@@ -95,6 +120,12 @@ public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
         }
     }
 
+    /**
+     * caught 使用父类线程池 执行
+     * @param channel
+     * @param exception
+     * @throws RemotingException
+     */
     @Override
     public void caught(Channel channel, Throwable exception) throws RemotingException {
         ExecutorService cexecutor = getExecutorService();
@@ -105,6 +136,9 @@ public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
         }
     }
 
+    /**
+     * 超过指定数量 打印警告日志
+     */
     private void checkQueueLength() {
         if (connectionExecutor.getQueue().size() > queuewarninglimit) {
             logger.warn(new IllegalThreadStateException("connectionordered channel handler `queue size: " + connectionExecutor.getQueue().size() + " exceed the warning limit number :" + queuewarninglimit));

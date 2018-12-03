@@ -62,6 +62,7 @@ public class BroadcastClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 logger.warn(e.getMessage(), e);
             }
         }
+        //任意一个失败就认为是失败
         if (exception != null) {
             throw exception;
         }

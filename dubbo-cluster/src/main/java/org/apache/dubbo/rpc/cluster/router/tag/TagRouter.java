@@ -40,6 +40,9 @@ public class TagRouter implements Router, Comparable<Router> {
     private final int priority;
     private final URL url;
 
+    /**
+     * 默认匹配所有url
+     */
     public static final URL ROUTER_URL = new URL("tag", Constants.ANYHOST_VALUE, 0, Constants.ANY_VALUE).addParameters(Constants.RUNTIME_KEY, "true");
 
     public TagRouter(URL url) {
@@ -57,17 +60,27 @@ public class TagRouter implements Router, Comparable<Router> {
         return url;
     }
 
+    /**
+     * 路由的实际逻辑 过滤部分invoker 对象
+     * @param invokers
+     * @param url        refer url
+     * @param invocation
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> List<Invoker<T>> route(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
         // filter
         List<Invoker<T>> result = new ArrayList<>();
         try {
-            // Dynamic param
+            // Dynamic param 获取标签
             String tag = RpcContext.getContext().getAttachment(Constants.REQUEST_TAG_KEY);
             // Tag request
             if (!StringUtils.isEmpty(tag)) {
                 // Select tag invokers first
                 for (Invoker<T> invoker : invokers) {
+                    //标签相等才加入
                     if (tag.equals(invoker.getUrl().getParameter(Constants.TAG_KEY))) {
                         result.add(invoker);
                     }
@@ -83,7 +96,7 @@ public class TagRouter implements Router, Comparable<Router> {
             // Normal request
             } else {
                 for (Invoker<T> invoker : invokers) {
-                    // Can't access tag invoker,only normal invoker should be selected
+                    // Can't access tag invoker,only normal invoker should be selected  只返回不带有tag 的invoker
                     if (StringUtils.isEmpty(invoker.getUrl().getParameter(Constants.TAG_KEY))) {
                         result.add(invoker);
                     }

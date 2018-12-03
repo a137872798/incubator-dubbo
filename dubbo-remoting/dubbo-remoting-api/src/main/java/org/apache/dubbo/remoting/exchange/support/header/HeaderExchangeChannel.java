@@ -145,7 +145,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
     }
 
     /**
-     * 发送请求对象 这里 会创建一个 future对象 记录发送的请求结果
+     * 发送请求对象
      * @param request
      * @param timeout
      * @return
@@ -163,7 +163,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         //代表 需要 响应
         req.setTwoWay(true);
         req.setData(request);
-        //创建关联channel的  future 对象  这里还通过请求 id 定位到唯一的 future 对象
+        //创建关联channel的  future 对象
         DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout);
         try {
             //委托 channel 发送请求

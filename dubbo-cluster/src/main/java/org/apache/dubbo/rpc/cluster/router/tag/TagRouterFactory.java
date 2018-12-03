@@ -25,7 +25,8 @@ public class TagRouterFactory implements RouterFactory {
     public static final String NAME = "tag";
 
     @Override
-    public Router getRouter(URL url) {
+    public Router
+    getRouter(URL url) {
         return new TagRouter(url);
     }
 }

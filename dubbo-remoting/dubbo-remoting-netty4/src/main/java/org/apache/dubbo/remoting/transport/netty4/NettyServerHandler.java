@@ -77,7 +77,7 @@ public class NettyServerHandler extends ChannelDuplexHandler {
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         try {
             if (channel != null) {
-                //在 handler 这层 也维护一个 地址 和 channel 关联关系的 容器
+                //将访问的 客户端ip 和 对应的channel 关联
                 channels.put(NetUtils.toAddressString((InetSocketAddress) ctx.channel().remoteAddress()), channel);
             }
             //触发 handler 的回调事件

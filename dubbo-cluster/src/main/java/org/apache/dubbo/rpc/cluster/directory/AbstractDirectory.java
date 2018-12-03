@@ -54,7 +54,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
     private volatile boolean destroyed = false;
 
     /**
-     * 消费者的 资源对象
+     * 消费者的 资源对象  该协议类型是consumer  category 是 provider configuration route
      */
     private volatile URL consumerUrl;
 
@@ -83,7 +83,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
     }
 
     /**
-     * 返回当前所有invoker 对象
+     * 返回当前所有invoker 对象  这里 被 route 过滤过一部分invoker
      * @param invocation
      * @return
      * @throws RpcException
@@ -100,9 +100,9 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         if (localRouters != null && !localRouters.isEmpty()) {
             for (Router router : localRouters) {
                 try {
-                    //如果路由信息不存在
+                    //如果路由信息不存在 后面代表运行时路由 这个路由url 是由管理中心创建的 还不知道是什么逻辑
                     if (router.getUrl() == null || router.getUrl().getParameter(Constants.RUNTIME_KEY, false)) {
-                        //这个是不是修改路由信息??? 每个route 对象都会修改之前invoker 的路由信息???
+                        //过滤部分invoker 对象
                         invokers = router.route(invokers, getConsumerUrl(), invocation);
                     }
                 } catch (Throwable t) {
@@ -127,16 +127,15 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         // copy list
         routers = routers == null ? new ArrayList<Router>() : new ArrayList<Router>(routers);
         // append url router
-        //获取 路由信息
+        //如果 传入的 消费者url 携带了 路由信息 就用消费者url上的 路由信息创建对应路由对象 并设置到 路由链上
         String routerKey = url.getParameter(Constants.ROUTER_KEY);
         if (routerKey != null && routerKey.length() > 0) {
             //通过SPI 机制 获取 对应的route工厂类
             RouterFactory routerFactory = ExtensionLoader.getExtensionLoader(RouterFactory.class).getExtension(routerKey);
-            //通过url 返回指定的 route对象
             routers.add(routerFactory.getRouter(url));
         }
         // append mock invoker selector
-        //添加一个 mock 选择器 这个对象也实现了 route 接口
+        //在route 链的最后增加了一个 路由选择器
         routers.add(new MockInvokersSelector());
         Collections.sort(routers);
         this.routers = routers;

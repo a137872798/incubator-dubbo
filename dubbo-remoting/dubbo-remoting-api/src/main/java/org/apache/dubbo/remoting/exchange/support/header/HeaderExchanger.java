@@ -47,11 +47,12 @@ public class HeaderExchanger implements Exchanger {
     @Override
     public ExchangeClient connect(URL url, ExchangeHandler handler) throws RemotingException {
         //通过 装饰器模式层层包装 将传入的 handler 包装成 headerexchangehandler 在封装成解码对象 在连接到（url 和解码对象）返回client对象
+        //为什么这里要解码 不是在 netty层已经设置编解码器了吗
         return new HeaderExchangeClient(Transporters.connect(url, new DecodeHandler(new HeaderExchangeHandler(handler))), true);
     }
 
     /**
-     * 绑定生成 服务器对象
+     * 绑定生成 服务器对象  当服务提供者往注册中心 发布服务时  根据 url 携带的 ip端口 创建 自适应 server对象并调用bind 方法
      * @param url 包含要绑定的 信息
      * @param handler 处理请求的 对象
      * @return
@@ -59,7 +60,7 @@ public class HeaderExchanger implements Exchanger {
      */
     @Override
     public ExchangeServer bind(URL url, ExchangeHandler handler) throws RemotingException {
-        //Transporters.bind 返回一个 transporter接口的自适应对象
+        //1.将 dubbo handler 包装 成 适配netty 监听器的 headerExchangeHandler 监听器 外面又包装一层编解码器
         return new HeaderExchangeServer(Transporters.bind(url, new DecodeHandler(new HeaderExchangeHandler(handler))));
     }
 

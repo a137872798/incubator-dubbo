@@ -96,12 +96,12 @@ public class DubboProtocol extends AbstractProtocol {
     private final ConcurrentMap<String, String> stubServiceMethodsMap = new ConcurrentHashMap<String, String>();
 
     /**
-     * 处理请求对象  客户端 和 服务器 请求处理最终都是委托到这个对象
+     * 处理请求对象
      */
     private ExchangeHandler requestHandler = new ExchangeHandlerAdapter() {
 
         /**
-         * 回复 这在 处理twoway请求 时 会调用  这里的 message 已经完成解码
+         * 回复
          * @param channel
          * @param message
          * @return
@@ -109,27 +109,14 @@ public class DubboProtocol extends AbstractProtocol {
          */
         @Override
         public CompletableFuture<Object> reply(ExchangeChannel channel, Object message) throws RemotingException {
-            //如果 传入的数据是 invocation 类型 因为request 对象最后就会被解析成这个
-            /*
-            DecodeableRpcInvocation inv;
-                    if (channel.getUrl().getParameter(
-                            Constants.DECODE_IN_IO_THREAD_KEY,
-                            Constants.DEFAULT_DECODE_IN_IO_THREAD)) {
-                        inv = new DecodeableRpcInvocation(channel, req, is, proto);
-                        .
-                        .
-                        .
-                        .
-                        //请求的  data 就是 invocation
-                req.setData(data);
-             */
+            //如果 传入的数据是 invocation 类型
             if (message instanceof Invocation) {
-                //将message 转换成上下文对象
+                //转换
                 Invocation inv = (Invocation) message;
                 //获取 invoker 对象
                 Invoker<?> invoker = getInvoker(channel, inv);
                 // need to consider backward-compatibility if it's a callback
-                //判断是否是回调 需要考虑向后兼容性  这里应该是代表哪些方法 需要是异步调用的
+                //判断是否是回调 需要考虑向后兼容性
                 if (Boolean.TRUE.toString().equals(inv.getAttachments().get(IS_CALLBACK_SERVICE_INVOKE))) {
                     //获取方法名
                     String methodsStr = invoker.getUrl().getParameters().get("methods");
@@ -141,7 +128,7 @@ public class DubboProtocol extends AbstractProtocol {
                         //拆分 获取 方法数组
                         String[] methods = methodsStr.split(",");
                         for (String method : methods) {
-                            //在所有的 异步方法中找到
+                            //找到一个对应方法就是 hashMethod
                             if (inv.getMethodName().equals(method)) {
                                 hasMethod = true;
                                 break;
@@ -157,9 +144,9 @@ public class DubboProtocol extends AbstractProtocol {
                         return null;
                     }
                 }
-                //获取线程相关的 上下文对象
+                //获取上下文对象
                 RpcContext rpcContext = RpcContext.getContext();
-                //判断是否开启异步
+                //判断是否是异步
                 boolean supportServerAsync = invoker.getUrl().getMethodParameter(inv.getMethodName(), Constants.ASYNC_KEY, false);
                 if (supportServerAsync) {
                     //创建异步对象并保存到上下文中
@@ -168,17 +155,15 @@ public class DubboProtocol extends AbstractProtocol {
                 }
                 //设置远程地址
                 rpcContext.setRemoteAddress(channel.getRemoteAddress());
-                //调用invoker.invoke 返回结果对象
                 Result result = invoker.invoke(inv);
 
                 /**
                  * 如果是异步 结果
                  */
                 if (result instanceof AsyncRpcResult) {
-                    //返回结果 当 完成时 自动触发回调
                     return ((AsyncRpcResult) result).getResultFuture().thenApply(r -> (Object) r);
                 } else {
-                    //非异步 result中包含已经完成的结果
+                    //计算结果
                     return CompletableFuture.completedFuture(result);
                 }
             }
@@ -188,7 +173,7 @@ public class DubboProtocol extends AbstractProtocol {
         }
 
         /**
-         * 接受到请求后 应该是走不到这里的 然后调用父类 也是 noop
+         * 接受到请求后
          * @param channel
          * @param message
          * @throws RemotingException
@@ -196,30 +181,20 @@ public class DubboProtocol extends AbstractProtocol {
         @Override
         public void received(Channel channel, Object message) throws RemotingException {
             if (message instanceof Invocation) {
-                //是invocation 就直接处理 这里没有处理结果对象
+                //是invocation 就直接处理
                 reply((ExchangeChannel) channel, message);
             } else {
-                //否则委托给父类 父类实现是 noop
+                //否则委托给父类
                 super.received(channel, message);
             }
         }
 
-        /**
-         * 当连接首次创建时 查看有没有连接时 触发的方法
-         * @param channel
-         * @throws RemotingException
-         */
         @Override
         public void connected(Channel channel) throws RemotingException {
-            //传入 指定的key 来执行对应任务 当首次连接时 就会触发
+            //传入 指定的key 来执行对应任务
             invoke(channel, Constants.ON_CONNECT_KEY);
         }
 
-        /**
-         * 当连接销毁时 查看有没有 触发的方法
-         * @param channel
-         * @throws RemotingException
-         */
         @Override
         public void disconnected(Channel channel) throws RemotingException {
             if (logger.isInfoEnabled()) {
@@ -229,12 +204,11 @@ public class DubboProtocol extends AbstractProtocol {
         }
 
         /**
-         * 根据指定的key 获取不同的回调方法
+         * 根据指定的key 执行不同的逻辑
          * @param channel
          * @param methodKey
          */
         private void invoke(Channel channel, String methodKey) {
-            //连接时 创建invocation 对象
             Invocation invocation = createInvocation(channel, channel.getUrl(), methodKey);
             if (invocation != null) {
                 try {
@@ -253,7 +227,7 @@ public class DubboProtocol extends AbstractProtocol {
          * @return
          */
         private Invocation createInvocation(Channel channel, URL url, String methodKey) {
-            //获取当 连接 中断 或 建立连接时触发的方法
+            //通过 对应配置获取属性 一般情况 connect 和disconnect 都是不设置的  这个应该是 连接或断开连接触发的 方法
             String method = url.getParameter(methodKey);
             if (method == null || method.length() == 0) {
                 return null;
@@ -323,7 +297,7 @@ public class DubboProtocol extends AbstractProtocol {
         int port = channel.getLocalAddress().getPort();
         String path = inv.getAttachments().get(Constants.PATH_KEY);
         // if it's callback service on client side
-        //如果是 存根类型  存根相关的 先不管
+        //如果是 存根类型
         isStubServiceInvoke = Boolean.TRUE.toString().equals(inv.getAttachments().get(Constants.STUB_EVENT_KEY));
         if (isStubServiceInvoke) {
             //使用远程端口
@@ -341,7 +315,7 @@ public class DubboProtocol extends AbstractProtocol {
         //拼接传入的参数生成 服务键
         String serviceKey = serviceKey(port, path, inv.getAttachments().get(Constants.VERSION_KEY), inv.getAttachments().get(Constants.GROUP_KEY));
 
-        //通过服务键获取 export 对象 也就是找到 当时 服务端发布的所有 export对象
+        //通过服务键获取 export 对象
         DubboExporter<?> exporter = (DubboExporter<?>) exporterMap.get(serviceKey);
 
         if (exporter == null) {
@@ -363,7 +337,7 @@ public class DubboProtocol extends AbstractProtocol {
 
     /**
      * dubbo 协议的 出口方法
-     * @param invoker Service invoker  这个invoker 是动态代理级别的invoker
+     * @param invoker Service invoker
      * @param <T>
      * @return
      * @throws RpcException
@@ -462,7 +436,7 @@ public class DubboProtocol extends AbstractProtocol {
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
         }
 
-        //强制设置编码器 为 dubbo
+        //设置编码器 为 dubbo
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
         ExchangeServer server;
         try {
@@ -542,7 +516,7 @@ public class DubboProtocol extends AbstractProtocol {
         //初始化 序列器对象
         optimizeSerialization(url);
         // create rpc invoker.
-        // 创建 invoker 对象
+        //创建 invoker 对象
         DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
         //全局容器中增加一个 发布的invoker对象
         invokers.add(invoker);

@@ -39,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * ExchangeReceiver
- * 这个类是处理解码后的结果
+ * 基于消息头 的 信息交换类
  */
 public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
@@ -68,14 +68,14 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     }
 
     /**
-     * 处理响应结果 因为在创建发送请求的 时候 就有一个 future对象被创建  future 是保存在同一台机器上的 发起前创建 收到结果处理
+     * 处理响应结果
      *
      * @param channel
      * @param response
      * @throws RemotingException
      */
     static void handleResponse(Channel channel, Response response) throws RemotingException {
-        //非心跳响应结果 才有处理的必要 而且心跳事件好像在 上层已经处理了
+        //非心跳响应结果 才有处理的必要
         if (response != null && !response.isHeartbeat()) {
             //告诉future对象 已经收到 了结果  这样调用future 的get 方法就能获取到结果
             DefaultFuture.received(channel, response);
@@ -112,7 +112,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     }
 
     /**
-     * 双向请求代表需要返回res 对象
+     * 处理请求
      * @param channel
      * @param req
      * @throws RemotingException
@@ -120,9 +120,9 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     void handleRequest(final ExchangeChannel channel, Request req) throws RemotingException {
         //创建 返回的 响应结果对象
         Response res = new Response(req.getId(), req.getVersion());
-        //如果 请求出现了异常 也就是 解析该请求对象时  失败了
+        //如果 请求出现了异常
         if (req.isBroken()) {
-            //获取broken 信息
+            //获取请求的 data 对象
             Object data = req.getData();
 
             String msg;
@@ -145,31 +145,17 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         // 正常请求的情况
         Object msg = req.getData();
         try {
-
-            //通过保存的 channel 发送消息 就能做到异步发送消息了 即使现在处理请求的是 其他线程 也能 准确将结果返回
-
             // handle data.
-            // 委托 进行处理 并且是一个 异步请求  reply 代表是一个 需要结果的请求  received 不需要返回结果
+            // 委托 进行处理 并且是一个 异步请求
             CompletableFuture<Object> future = handler.reply(channel, msg);
-            //当 上面是 同步情况下 会直接返回结果
-            /** //调用invoker.invoke 返回结果对象
-             Result result = invoker.invoke(inv);
-             如果是异步 结果
-            if (result instanceof AsyncRpcResult) {
-                //当有结果时 返回
-                return ((AsyncRpcResult) result).getResultFuture().thenApply(r -> (Object) r);
-            } else {
-                //非异步 result中包含已经完成的结果
-                return CompletableFuture.completedFuture(result);
-            }
-            */
+            //已完成就 返回结果
             if (future.isDone()) {
                 res.setStatus(Response.OK);
                 res.setResult(future.get());
                 channel.send(res);
                 return;
             }
-            //创建 回调 当产生结果时 将结果返回  result 应该是结果 t 是异常
+            //设置 回调函数  传入的 应该是 正常结果 和 throwable
             future.whenComplete((result, t) -> {
                 try {
                     if (t == null) {
@@ -204,7 +190,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         //连接完成时 初始化 写入时间 和 读取时间
         channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());
         channel.setAttribute(KEY_WRITE_TIMESTAMP, System.currentTimeMillis());
-        //一旦创建连接 就 创建一个关联关系
+        //给传入的 channel 绑定一个 装饰该channel 的 exchangeChannel
         ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);
         try {
             //委托 到上层实现
@@ -279,7 +265,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     }
 
     /**
-     * 收到 数据时  这里是最外层的 处理
+     * 收到 数据时
      * @param channel channel.
      * @param message message.
      * @throws RemotingException
@@ -299,16 +285,14 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                     handlerEvent(channel, request);
                 } else {
                     if (request.isTwoWay()) {
-                        //双向请求时
                         handleRequest(exchangeChannel, request);
                     } else {
-                        //单向请求直接 委托上层
                         handler.received(exchangeChannel, request.getData());
                     }
                 }
             } else if (message instanceof Response) {
                 handleResponse(channel, (Response) message);
-                //如果是 指令就处理指令 这个是下层的编解码器产生的
+                //如果是 指令就解析指令
             } else if (message instanceof String) {
                 //客户端 不支持 telnet 指令
                 if (isClientSide(channel)) {
@@ -336,13 +320,12 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
      */
     @Override
     public void caught(Channel channel, Throwable exception) throws RemotingException {
-        //ExecutionException 类型异常在这层处理 否则 抛到上层
         if (exception instanceof ExecutionException) {
             ExecutionException e = (ExecutionException) exception;
             Object msg = e.getRequest();
             if (msg instanceof Request) {
                 Request req = (Request) msg;
-                //需要返回结果  心跳包应该在上层做处理了
+                //需要返回结果  心跳包是不需要处理异常情况的
                 if (req.isTwoWay() && !req.isHeartbeat()) {
                     Response res = new Response(req.getId(), req.getVersion());
                     res.setStatus(Response.SERVER_ERROR);

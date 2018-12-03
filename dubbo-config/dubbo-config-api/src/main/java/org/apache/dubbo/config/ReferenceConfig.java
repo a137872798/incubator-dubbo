@@ -479,12 +479,13 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
                     //这下面根据 直连 和 注册中心生成不同的集群 现在 还体现不出来 之后再看 具体实现
 
-                    // 给url 增加一个 cluster属性
+                    //这里代表从所有注册中心 获取到的可用的单个invoker 对象 然后又用集群对象包装使用 available选择第一个可用的invoker对象
                     URL u = registryURL.addParameter(Constants.CLUSTER_KEY, AvailableCluster.NAME);
                     //因为 集群也是实现invoker 的 所以在 外部看来 就是一个普通的 invoker对象
+                    //这里设置url 就是为了 SPI 机制
                     invoker = cluster.join(new StaticDirectory(u, invokers));
                 } else { // not a registry url
-                    //没有注册中心 就直接 用集群构建一个 invoker
+                    //如果 这个url 没有 cluster属性 会 发生什么??? 应该就是使用默认的cluster 也就是直连情况使用 failover
                     invoker = cluster.join(new StaticDirectory(invokers));
                 }
             }

@@ -32,6 +32,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 /**
  * 通过AllDispatcher 创建的对应的  请求处理器  该类 使得处理每个请求 都 使用线程池 通过传入不同的 类型 来区分执行的逻辑
+ * all代表所有 handler 处理 都 委托给 线程池
  */
 public class AllChannelHandler extends WrappedChannelHandler {
 
@@ -49,7 +50,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
         //获取线程池对象
         ExecutorService cexecutor = getExecutorService();
         try {
-            //将channel 封装成一个任务对象 交托给线程池
+            //将channel 封装成一个任务对象 交托给线程池  根据传入的枚举执行 不同的handler 逻辑
             cexecutor.execute(new ChannelEventRunnable(channel, handler, ChannelState.CONNECTED));
         } catch (Throwable t) {
             throw new ExecutionException("connect event", channel, getClass() + " error when process connected event .", t);
@@ -81,7 +82,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
         } catch (Throwable t) {
             //TODO A temporary solution to the problem that the exception information can not be sent to the opposite end after the thread pool is full. Need a refactoring
             //fix The thread pool is full, refuses to call, does not return, and causes the consumer to wait for time out
-            //当收到的 是请求 并且 返回的异常是 线程池 的拒绝策略 代替服务端 返回结果
+            //当收到的 是请求 并且 返回的异常是 线程池 的拒绝策略 直接返回服务繁忙
         	if(message instanceof Request && t instanceof RejectedExecutionException){
         	    Request request = (Request)message;
                 // twoway 还不清楚是 什么意思

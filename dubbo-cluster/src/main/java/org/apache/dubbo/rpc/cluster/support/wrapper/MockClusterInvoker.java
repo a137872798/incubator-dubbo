@@ -88,7 +88,7 @@ public class MockClusterInvoker<T> implements Invoker<T> {
         //判断是否开启了 mock 模式
         String value = directory.getUrl().getMethodParameter(invocation.getMethodName(), Constants.MOCK_KEY, Boolean.FALSE.toString()).trim();
         if (value.length() == 0 || value.equalsIgnoreCase("false")) {
-            //no mock 未开启 正常执行
+            //no mock 未开启 正常执行 这个invoker 就是一个 普通集群invoker （也可能是 mergeableInvoker）
             result = this.invoker.invoke(invocation);
             //如果是强制 mock 直接执行mock方法
         } else if (value.startsWith("force")) {
@@ -100,7 +100,8 @@ public class MockClusterInvoker<T> implements Invoker<T> {
         } else {
             //fail-mock
             try {
-                //正常调用 当捕获到异常时 才 进行mock调用
+                //正常调用 当捕获到异常时 才 进行mock调用  这里首先会进行集群容错 让集群容错也无效时 比如超过重试次数 才触发mock 比如failback 本身在invoke时就不可能
+                //抛出异常 那么设置 fail-mock 就没有意义
                 result = this.invoker.invoke(invocation);
             } catch (RpcException e) {
                 if (e.isBiz()) {
@@ -127,13 +128,13 @@ public class MockClusterInvoker<T> implements Invoker<T> {
         Result result = null;
         Invoker<T> minvoker;
 
-        //选择一组 mock invoker  这里就是在 invocation 上设置一个标识
+        //选择一组 mock invoker  这里是从服务提供者提供的 invoker 列表中选择的
         List<Invoker<T>> mockInvokers = selectMockInvoker(invocation);
         if (mockInvokers == null || mockInvokers.isEmpty()) {
-            //不存在 创建一个 mock invoker 对象
+            //不存在 创建一个 mock invoker 对象 这个url 一般是消费者url
             minvoker = (Invoker<T>) new MockInvoker(directory.getUrl());
         } else {
-            //选择第一个元素
+            //选择第一个元素 这里就没有通过 均衡负载了
             minvoker = mockInvokers.get(0);
         }
         try {
@@ -174,11 +175,11 @@ public class MockClusterInvoker<T> implements Invoker<T> {
         //TODO generic invoker？
         if (invocation instanceof RpcInvocation) {
             //Note the implicit contract (although the description is added to the interface declaration, but extensibility is a problem. The practice placed in the attachement needs to be improved)
-            //设置 need.mock 属性
+            //设置 need.mock 属性 代表该invocation 是使用了mock方法的
             ((RpcInvocation) invocation).setAttachment(Constants.INVOCATION_NEED_MOCK, Boolean.TRUE.toString());
             //directory will return a list of normal invokers if Constants.INVOCATION_NEED_MOCK is present in invocation, otherwise, a list of mock invokers will return.
             try {
-                //再次委托 返回对象
+                //再次委托 返回对象 这里返回的 对象 就是 mock 对象 因为在list链中最后有一个mockSelect 会过滤mock or not mock
                 invokers = directory.list(invocation);
             } catch (RpcException e) {
                 if (logger.isInfoEnabled()) {

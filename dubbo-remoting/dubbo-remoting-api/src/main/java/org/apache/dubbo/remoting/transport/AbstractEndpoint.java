@@ -52,7 +52,7 @@ public abstract class AbstractEndpoint extends AbstractPeer implements Resetable
 
     public AbstractEndpoint(URL url, ChannelHandler handler) {
         super(url, handler);
-        //从url 中提取参数 借助 SPI 获取对应的编解码对象
+        //从url 中提取参数 借助 SPI 获取对应的编解码对象 默认是dubbo
         this.codec = getChannelCodec(url);
         //从url 中获取超时属性
         this.timeout = url.getPositiveParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);

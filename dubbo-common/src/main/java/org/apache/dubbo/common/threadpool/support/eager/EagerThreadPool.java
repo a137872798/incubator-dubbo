@@ -45,6 +45,7 @@ public class EagerThreadPool implements ThreadPool {
         TaskQueue<Runnable> taskQueue = new TaskQueue<Runnable>(queues <= 0 ? 1 : queues);
         EagerThreadPoolExecutor executor = new EagerThreadPoolExecutor(cores,
                 threads,
+                //也是有 线程存活时间 为了避免线程无限增加
                 alive,
                 TimeUnit.MILLISECONDS,
                 taskQueue,

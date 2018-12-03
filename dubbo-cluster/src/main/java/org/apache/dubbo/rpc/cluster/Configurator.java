@@ -21,6 +21,7 @@ import org.apache.dubbo.common.URL;
 /**
  * Configurator. (SPI, Prototype, ThreadSafe)
  *
+ * 配置中心的 配置类对象
  */
 public interface Configurator extends Comparable<Configurator> {
 

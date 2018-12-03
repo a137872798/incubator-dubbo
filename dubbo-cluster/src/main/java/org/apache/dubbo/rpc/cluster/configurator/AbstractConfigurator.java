@@ -73,9 +73,10 @@ public abstract class AbstractConfigurator implements Configurator {
         } else {// override url don't have a port, means the ip override url specify is a consumer address or 0.0.0.0
             // 1.If it is a consumer ip address, the intention is to control a specific consumer instance, it must takes effect at the consumer side, any provider received this override url should ignore;
             // 2.If the ip is 0.0.0.0, this override url can be used on consumer, and also can be used on provider
-            // 当没有端口时 代表针对的配置对象是消费者端 也要进行匹配
+            // 当端口为空的时候 代表可能是针对消费者  应该是说 消费的端口没有被记录 所以要修改 消费者的 配置 就没有显示声明端口
             if (url.getParameter(Constants.SIDE_KEY, Constants.PROVIDER).equals(Constants.CONSUMER)) {
-                //getLocalHost 是消费者注册到 注册中心的地址
+                //Directory 对象是 生成在消费者本机的  因为还没有进行通信 可能在 订阅的时候在进行远程通信 那么 notify方法是在本机触发的 configurate也是本机生成 就只要获取
+                //本机地址 就是消费者地址
                 return configureIfMatch(NetUtils.getLocalHost(), url);// NetUtils.getLocalHost is the ip address consumer registered to registry.
             //或者是 任意服务提供者端口
             } else if (url.getParameter(Constants.SIDE_KEY, Constants.CONSUMER).equals(Constants.PROVIDER)) {
@@ -87,9 +88,9 @@ public abstract class AbstractConfigurator implements Configurator {
     }
 
     /**
-     * 检测配置是否匹配
-     * @param host 是需要被配置的 url 的host
-     * @param url
+     * 检测配置是否匹配 并进行配置 这里匹配的前提不需要匹配端口了 比如 主机是0.0.0.0 或是本机
+     * @param host 需要被配置的host
+     * @param url 需要被配置的url
      * @return
      */
     private URL configureIfMatch(String host, URL url) {
@@ -109,11 +110,12 @@ public abstract class AbstractConfigurator implements Configurator {
                 conditionKeys.add(Constants.CHECK_KEY);
                 conditionKeys.add(Constants.DYNAMIC_KEY);
                 conditionKeys.add(Constants.ENABLED_KEY);
-                //获取 成员变量的url 中全部的属性
+                //获取 配置url 中全部的属性 代表需要 更换哪些配置
                 for (Map.Entry<String, String> entry : configuratorUrl.getParameters().entrySet()) {
                     String key = entry.getKey();
                     String value = entry.getValue();
-                    //~ 好像是代表要取消的 属性  出现 application 和 side 时 要加入到 set容器中 这些都是需要匹配 的条件
+                    //~ 好像是代表要取消的 属性  出现 application 和 side 时 要加入到 set容器中 这些都是不需要更改的 配置
+                    //并且 如果 ~开头的 属性与 原属性对不上 取消配置
                     if (key.startsWith("~") || Constants.APPLICATION_KEY.equals(key) || Constants.SIDE_KEY.equals(key)) {
                         conditionKeys.add(key);
                         //这里代表没有匹配上 就直接返回原url 代表 不进行配置操作

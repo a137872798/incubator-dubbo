@@ -103,7 +103,7 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
                 //创建心跳包 发送
                 Response res = new Response(req.getId(), req.getVersion());
                 res.setEvent(Response.HEARTBEAT_EVENT);
-                //感觉 在发送的 时候应该会更新写的时间戳的
+                //在发送的 时候 触发 write 事件 就更新了写事件
                 channel.send(res);
                 if (logger.isInfoEnabled()) {
                     //获得发送了多少次心跳检测
@@ -126,7 +126,7 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
             //也 直接返回 代表本次 心跳检测结束
             return;
         }
-        //代理实现
+        //代理实现 也就是关于心跳事件 直接被上层处理掉了
         handler.received(channel, message);
     }
 

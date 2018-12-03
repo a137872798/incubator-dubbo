@@ -124,7 +124,7 @@ final class NettyChannel extends AbstractChannel {
     }
 
     /**
-     * 发送消息
+     * 发送消息  第二个参数代表是否要等待结果返回 这里要从url 中获取等待响应的超时时间并阻塞对应时间
      * @param message
      * @param sent    already sent to socket?
      * @throws RemotingException

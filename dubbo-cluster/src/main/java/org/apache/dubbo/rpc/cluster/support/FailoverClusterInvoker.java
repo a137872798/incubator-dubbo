@@ -66,6 +66,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> copyinvokers = invokers;
         //检查invoker 对象是否存在
         checkInvokers(copyinvokers, invocation);
+        //获取调用的 方法
         String methodName = RpcUtils.getMethodName(invocation);
         //获取重试次数 这个是针对方法级别的 所以要加上方法名前缀
         int len = getUrl().getMethodParameter(methodName, Constants.RETRIES_KEY, Constants.DEFAULT_RETRIES) + 1;
@@ -75,6 +76,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         }
         // retry loop.
         RpcException le = null; // last exception.
+        //这个列表是 记录 调用过的 invoker
         List<Invoker<T>> invoked = new ArrayList<Invoker<T>>(copyinvokers.size()); // invoked invokers.
         Set<String> providers = new HashSet<String>(len);
         //根据 重试次数进行调用
@@ -96,7 +98,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
             //针对上下文对象设置 选择过的invoker对象
             RpcContext.getContext().setInvokers((List) invoked);
             try {
-                //获取调用结果
+                //通过调用选择的 invoker 对象获取调用结果
                 Result result = invoker.invoke(invocation);
                 //代表已经出现了异常 打印日志
                 if (le != null && logger.isWarnEnabled()) {
@@ -112,6 +114,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }
                 return result;
             } catch (RpcException e) {
+                //如果是 biz 就抛出异常 终止程序
                 if (e.isBiz()) { // biz exception.
                     throw e;
                 }
@@ -121,6 +124,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 //将异常封装成 rpc异常
                 le = new RpcException(e.getMessage(), e);
             } finally {
+                //每次失败 将 失败的服务提供者 地址 记录下来
                 providers.add(invoker.getUrl().getAddress());
             }
         }

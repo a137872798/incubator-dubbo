@@ -113,6 +113,7 @@ public class ClusterUtils {
             // Reserve timestamp of provider url.
             String remoteTimestamp = remoteMap.get(Constants.TIMESTAMP_KEY);
             if (remoteTimestamp != null && remoteTimestamp.length() > 0) {
+                //将 时间戳 变成了 服务提供者启动时间戳 配合获取权重的 loadBalance 对象
                 map.put(Constants.REMOTE_TIMESTAMP_KEY, remoteMap.get(Constants.TIMESTAMP_KEY));
             }
             // Combine filters and listeners on Provider and Consumer
