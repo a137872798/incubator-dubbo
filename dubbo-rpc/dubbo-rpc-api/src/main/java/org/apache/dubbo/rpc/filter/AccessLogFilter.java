@@ -61,7 +61,7 @@ import java.util.concurrent.TimeUnit;
  * </pre></code>
  *
  *
- * 打印日志的内容一般是 时间地址 调用方法 参数
+ * 打印日志的内容一般是 时间地址 调用方法 参数  针对服务提供者
  */
 @Activate(group = Constants.PROVIDER, value = Constants.ACCESS_LOG_KEY)
 public class AccessLogFilter implements Filter {
@@ -84,12 +84,12 @@ public class AccessLogFilter implements Filter {
     private static final String MESSAGE_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
     /**
-     * 最大缓冲区
+     * 最大缓冲区  最多能在队列中保存5000条 日志 超过则丢弃
      */
     private static final int LOG_MAX_BUFFER = 5000;
 
     /**
-     * 日志输出间隔
+     * 日志输出间隔 默认为5秒
      */
     private static final long LOG_OUTPUT_INTERVAL = 5000;
 
@@ -136,14 +136,14 @@ public class AccessLogFilter implements Filter {
             logQueue.putIfAbsent(accesslog, new ConcurrentHashSet<String>());
             logSet = logQueue.get(accesslog);
         }
-        //只要小于最大缓冲就能添加新的消息
+        //只要小于最大缓冲就能添加新的消息  否则忽略
         if (logSet.size() < LOG_MAX_BUFFER) {
             logSet.add(logmessage);
         }
     }
 
     /**
-     * 调用方法
+     * 过滤器对象当 在消费者端 执行export 后 该invoker 对象就被调用链修饰
      * @param invoker    service
      * @param inv
      * @return
@@ -200,11 +200,11 @@ public class AccessLogFilter implements Filter {
                     sn.append(JSON.toJSONString(args));
                 }
                 String msg = sn.toString();
-                //使用了默认的 日志信息
+                //默认直接打印日志
                 if (ConfigUtils.isDefault(accesslog)) {
                     LoggerFactory.getLogger(ACCESS_LOG_KEY + "." + invoker.getInterface().getName()).info(msg);
                 } else {
-                    //不是默认的 或者没有设置 都是将日志保存到消息队列
+                    //设置了对应的文件名 将日志 输出到文件中
                     log(accesslog, msg);
                 }
             }
@@ -216,7 +216,7 @@ public class AccessLogFilter implements Filter {
     }
 
     /**
-     * 应该是定期从队列中将日志信息 打印 或写在什么位置  队列中的文件是什么时候被创建的
+     * 从map中 取出日志 并打印
      */
     private class LogTask implements Runnable {
         @Override
@@ -243,12 +243,12 @@ public class AccessLogFilter implements Filter {
                             }
                             //在文件存在的情况下
                             if (file.exists()) {
-                                //获取当前时间 和 文件的最后修改时间
+                                //以天数为单位 如果不在同一天
                                 String now = new SimpleDateFormat(FILE_DATE_FORMAT).format(new Date());
                                 String last = new SimpleDateFormat(FILE_DATE_FORMAT).format(new Date(file.lastModified()));
                                 //这里是 是否要进行改名
                                 if (!now.equals(last)) {
-                                    //根据时间来创建新的 文件
+                                    //将文件加上昨天的日期作为后缀 之后就会创建新的file 文件
                                     File archive = new File(file.getAbsolutePath() + "." + last);
                                     //重命名 但是文件的内容还在  文件是不能直接改名的 必须通过创建一个新的file对象然后进行改名
                                     file.renameTo(archive);

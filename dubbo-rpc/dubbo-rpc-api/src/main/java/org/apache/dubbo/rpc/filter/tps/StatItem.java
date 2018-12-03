@@ -34,17 +34,17 @@ class StatItem {
     private long lastResetTime;
 
     /**
-     * 时间间隔
+     * TPS的单位时间
      */
     private long interval;
 
     /**
-     * 好像会定期变成 rate 的值
+     * 单位时间内的 临时计数器
      */
     private AtomicInteger token;
 
     /**
-     * 比率
+     * 单位时间内 最大请求数
      */
     private int rate;
 
@@ -64,12 +64,12 @@ class StatItem {
         long now = System.currentTimeMillis();
         //代表需要重置了
         if (now > lastResetTime + interval) {
-            //更新token 的值
+            //重新设置成 单位时间内最大 访问量
             token.set(rate);
             lastResetTime = now;
         }
 
-        //获取当前的 rate 值 可能更新了 也可能没更新
+        //每执行一次 都将 本次 单位时间内的 允许访问量-1
         int value = token.get();
         boolean flag = false;
         while (value > 0 && !flag) {
@@ -78,7 +78,7 @@ class StatItem {
             value = token.get();
         }
 
-        //一般都会是0 当 value <= 0的时候就不会在处理了 value 可以说就是从 rate 中取出来的
+        //当0时 就是失败了 代表TPS 达到上限 本次单位时间不能再访问了
         return flag;
     }
 

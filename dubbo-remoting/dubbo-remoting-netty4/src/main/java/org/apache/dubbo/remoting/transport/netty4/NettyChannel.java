@@ -139,7 +139,7 @@ final class NettyChannel extends AbstractChannel {
         try {
             //使用channel 向远程端 发送消息
             ChannelFuture future = channel.writeAndFlush(message);
-            //需要等待 发送成功
+            //设置了 sent 需要等待 发送成功
             if (sent) {
                 //获取超时时间 并 阻塞 指定时间
                 timeout = getUrl().getPositiveParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);

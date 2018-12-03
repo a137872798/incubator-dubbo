@@ -114,7 +114,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
             int timeout = getUrl().getMethodParameter(methodName, Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
             if (isOneway) {
-                //methodName + key 去 查找属性
+                //是否等待 发送成功才返回
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
                 //通过client 发送请求
                 currentClient.send(inv, isSent);
@@ -127,9 +127,9 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 // 而不是  CompletableFuture  future
                 ResponseFuture future = currentClient.request(inv, timeout);
                 // For compatibility
-                // future 适配器对象
+                // future 适配器对象 这里给future 设置了回调 当收到服务端返回res 后 自动 处理结果
                 FutureAdapter<Object> futureAdapter = new FutureAdapter<>(future);
-                //设置结果对象  这里设置的 是适配器对象
+                //将请求的 future对象 适配后设置到 上下文对象
                 RpcContext.getContext().setFuture(futureAdapter);
 
                 Result result;
@@ -146,7 +146,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             } else {
                 //设置 future为null  这里应该是 同步请求方式
                 RpcContext.getContext().setFuture(null);
-                //返回结果对象
+                //返回结果对象  这里调用了 get 当结果没返回时 阻塞当前线程
                 return (Result) currentClient.request(inv, timeout).get();
             }
         } catch (TimeoutException e) {

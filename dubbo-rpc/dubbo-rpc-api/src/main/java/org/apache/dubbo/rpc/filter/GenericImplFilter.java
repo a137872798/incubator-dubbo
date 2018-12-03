@@ -42,7 +42,7 @@ import java.lang.reflect.Method;
 /**
  * GenericImplInvokerFilter
  *
- * 泛化调用链
+ * 泛化调用链 只针对消费者  并且该消费者必须要有 generic 的标识 才能起作用
  */
 //只针对消费者
 @Activate(group = Constants.CONSUMER, value = Constants.GENERIC_KEY, order = 20000)
@@ -51,7 +51,7 @@ public class GenericImplFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(GenericImplFilter.class);
 
     /**
-     * generic 的 参数类型
+     * generic 的 参数类型 第一个是方法名 第二个是参数列表名 第三个是参数列表
      */
     private static final Class<?>[] GENERIC_PARAMETER_TYPES = new Class<?>[]{String.class, String[].class, Object[].class};
 

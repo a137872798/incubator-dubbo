@@ -675,7 +675,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         //该对象封装了 invoker 和 serviceConfig  该对象还是 实现invoker接口
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
-                        //这里的 protocol 是 SPI 机制拓展的 而不是 配置中的所有协议对象 这个对象应该会自适应成 RegistryProtocol
+                        //这里的 protocol 是 SPI 机制拓展的 而不是 配置中的所有协议对象 这个对象应该会自适应成 RegistryProtocol 同时还设置了 过滤器和监听器
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         //加入到 该服务提供者的出口对象中  每个 注册中心地址 对应一个 出口对象
                         exporters.add(exporter);

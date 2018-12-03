@@ -61,7 +61,7 @@ public class DefaultTPSLimiter implements TPSLimiter {
             //委托判断是否允许  也就是当rate 为0的时候不允许调用 通过cas 和 自旋完成类似 信号量的功能  2者对比有什么优缺点
             return statItem.isAllowable();
         } else {
-            //一旦归0就删除对象 这样 避免 返回时 rate增加的 并发问题
+            //代表不需要 该对象
             StatItem statItem = stats.get(serviceKey);
             if (statItem != null) {
                 stats.remove(serviceKey);

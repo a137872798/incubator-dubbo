@@ -75,7 +75,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
         //在 group 模式下 这里的 每个 invoker 对象 代表一个 组对象 里面有一个 invoker list
         List<Invoker<T>> invokers = directory.list(invocation);
 
-        //获取merger属性
+        //获取merger属性  没有merge 就是普通的 集群对象
         String merger = getUrl().getMethodParameter(invocation.getMethodName(), Constants.MERGER_KEY);
         //merger 属性为 空 选择第一个invoker 执行
         if (ConfigUtils.isEmpty(merger)) { // If a method doesn't have a merger, only invoke one Group

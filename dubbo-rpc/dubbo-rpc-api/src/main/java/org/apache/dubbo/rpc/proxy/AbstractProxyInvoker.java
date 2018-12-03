@@ -102,7 +102,7 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
         //从本地线程中获取上下文对象
         RpcContext rpcContext = RpcContext.getContext();
         try {
-            //由子类实现
+            //由子类实现  在這個方法裏 已经考虑了异步情况了 生成的 是一个CompletableFuture 对象
             Object obj = doInvoke(proxy, invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments());
             //如果返回值实现了  Compatable 接口 创建异步对象
             if (RpcUtils.isFutureReturnType(invocation)) {

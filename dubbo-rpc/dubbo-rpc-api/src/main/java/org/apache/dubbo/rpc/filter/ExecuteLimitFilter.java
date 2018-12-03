@@ -50,7 +50,7 @@ public class ExecuteLimitFilter implements Filter {
         String methodName = invocation.getMethodName();
         Semaphore executesLimit = null;
         boolean acquireResult = false;
-        //获取 url 上的 最大执行数
+        //获取 方法级别的 最大 并行数
         int max = url.getMethodParameter(methodName, Constants.EXECUTES_KEY, 0);
         if (max > 0) {
             //获取该方法级的 status
@@ -60,7 +60,7 @@ public class ExecuteLimitFilter implements Filter {
              * http://manzhizhen.iteye.com/blog/2386408
              * use semaphore for concurrency control (to limit thread number)
              */
-            //创建指定数量的 信号量
+            //创建指定数量的 信号量 同时 如果 permit 不同就会自动扩充 并发访问量  之前的 信号量在 引用全部结束后被gc回收 不能这里清除他 因为有其他线程在使用
             executesLimit = count.getSemaphore(max);
             //获取信号量失败 超过限制次数了
             if(executesLimit != null && !(acquireResult = executesLimit.tryAcquire())) {
@@ -69,7 +69,7 @@ public class ExecuteLimitFilter implements Filter {
         }
         long begin = System.currentTimeMillis();
         boolean isSuccess = true;
-        //增加活跃数
+        //增加服务级别和方法级别的 并发量
         RpcStatus.beginCount(url, methodName);
         try {
             Result result = invoker.invoke(invocation);
@@ -82,6 +82,7 @@ public class ExecuteLimitFilter implements Filter {
                 throw new RpcException("unexpected exception when ExecuteLimitFilter", t);
             }
         } finally {
+            //释放信号量 和 减少并发量
             RpcStatus.endCount(url, methodName, System.currentTimeMillis() - begin, isSuccess);
             if(acquireResult) {
                 //释放信号量

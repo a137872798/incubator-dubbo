@@ -40,7 +40,7 @@ public abstract class AbstractProtocol implements Protocol {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     /**
-     * 该协议下所有的  出口对象   key: serviceKey(URL) getServiceKey()  key 是服务键对象 通过不同的方式生成
+     * 该协议下所有的  出口对象   key: serviceKey(URL) getServiceKey()  key 是服务键对象 通过不同的方式生成 这个对象在服务端上
      */
     protected final Map<String, Exporter<?>> exporterMap = new ConcurrentHashMap<String, Exporter<?>>();
 

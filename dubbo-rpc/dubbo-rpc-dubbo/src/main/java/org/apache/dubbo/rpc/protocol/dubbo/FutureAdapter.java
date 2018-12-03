@@ -42,7 +42,7 @@ public class FutureAdapter<V> extends CompletableFuture<V> {
     private CompletableFuture<Result> resultFuture;
 
     public FutureAdapter(ResponseFuture future) {
-        //初始化 2个 future 对象并设置回调对象
+        //为 future 对象设置 回调  当 客户端发送request时 创建 future对象 然后再这里设置回调 当收到返回结果时 自动计算结果
         this.future = future;
         this.resultFuture = new CompletableFuture<>();
         future.setCallback(new ResponseCallback() {

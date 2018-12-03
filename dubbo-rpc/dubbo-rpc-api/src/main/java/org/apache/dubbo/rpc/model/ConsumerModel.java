@@ -26,7 +26,7 @@ import java.util.Optional;
 /**
  * Consumer Model which is about subscribed services.
  *
- * 消费模型对象
+ * 异步调用时 使用的类 封装了 指定方法与对应回调函数的 pojo
  */
 public class ConsumerModel {
     private final Object proxyObject;

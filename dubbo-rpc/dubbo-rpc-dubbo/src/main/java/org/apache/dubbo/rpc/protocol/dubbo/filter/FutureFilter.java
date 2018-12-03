@@ -38,7 +38,7 @@ import java.lang.reflect.Method;
  *
  * 过滤链
  */
-//这个 设置代表了 只有消费者才能触发
+//这个 设置代表了 只有消费者才能触发 这个是当 通过SPI 方式创建Protocol 时 就会设置的 过滤链对象
 @Activate(group = Constants.CONSUMER)
 public class FutureFilter implements PostProcessFilter {
 
@@ -46,22 +46,23 @@ public class FutureFilter implements PostProcessFilter {
 
     /**
      * 正常的 调用就是从这个入口进入到 过滤链的
-     * @param invoker    service
+     * @param invoker    service  链中的上一层 invoker
      * @param invocation invocation.
      * @return
      * @throws RpcException
      */
     @Override
     public Result invoke(final Invoker<?> invoker, final Invocation invocation) throws RpcException {
-        //在这个方法中已经触发了 回调函数了
+        //这里触发了 onInvoke 时的 回调
         fireInvokeCallback(invoker, invocation);
         // need to configure if there's return value before the invocation in order to help invoker to judge if it's
         // necessary to return future.
+        //这里是让调用链往下走 使用invoker的结果对象触发 方法
         return postProcessResult(invoker.invoke(invocation), invoker, invocation);
     }
 
     /**
-     * 处理请求
+     * 处理结果
      * @param result 从底层返回上来的结果对象
      * @param invoker
      * @param invocation
@@ -72,6 +73,7 @@ public class FutureFilter implements PostProcessFilter {
         //这里 获取到的是 执行完invoker的结果对象
         if (result instanceof AsyncRpcResult) {
             AsyncRpcResult asyncResult = (AsyncRpcResult) result;
+            //当返回结果时  如果 有异常就触发异常回调 否则是return 回调 这里给 dubboInvoker 返回的 future对象设置回调
             asyncResult.thenApplyWithContext(r -> {
                 //在指定时机 触发回调
                 asyncCallback(invoker, invocation, r);
@@ -148,6 +150,7 @@ public class FutureFilter implements PostProcessFilter {
             //反射执行 invoker时触发的回调方法
             onInvokeMethod.invoke(onInvokeInst, params);
         } catch (InvocationTargetException e) {
+            //执行异常回调
             fireThrowCallback(invoker, invocation, e.getTargetException());
         } catch (Throwable e) {
             fireThrowCallback(invoker, invocation, e);
@@ -284,12 +287,12 @@ public class FutureFilter implements PostProcessFilter {
         if (consumerModel == null) {
             return null;
         }
-        //从消费模型中寻找指定方法对象
+        //针对方法级别的模型 里面包含了 对应的回调函数
         ConsumerMethodModel methodModel = consumerModel.getMethodModel(invocation.getMethodName());
         if (methodModel == null) {
             return null;
         }
-        //获取异步信息 这个对象中包含了 各种回调方法对象
+        //保存了 异步对象和回调方法的pojo
         final ConsumerMethodModel.AsyncMethodInfo asyncMethodInfo = methodModel.getAsyncInfo();
         if (asyncMethodInfo == null) {
             return null;

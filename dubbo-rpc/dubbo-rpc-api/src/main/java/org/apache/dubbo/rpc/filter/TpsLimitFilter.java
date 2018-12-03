@@ -30,7 +30,7 @@ import org.apache.dubbo.rpc.filter.tps.TPSLimiter;
 /**
  * Limit TPS for either service or service's particular method
  *
- * 限流的 过滤器
+ * 限流的 过滤器 就是单位时间内的 访问量 通过tps.interval 设置 单位时间
  */
 @Activate(group = Constants.PROVIDER, value = Constants.TPS_LIMIT_RATE_KEY)
 public class TpsLimitFilter implements Filter {

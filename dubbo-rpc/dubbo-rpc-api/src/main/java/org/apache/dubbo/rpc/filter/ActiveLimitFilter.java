@@ -58,9 +58,9 @@ public class ActiveLimitFilter implements Filter {
             //获取当前开始时间
             long start = System.currentTimeMillis();
             long remain = timeout;
-            //获取当前的活跃时间
+            //获取当前的活跃量 也就是并发量
             int active = count.getActive();
-            //如果超过了 最大的活跃时间
+            //超过最大活跃量
             if (active >= max) {
                 synchronized (count) {
                     //当活跃数超过了 最大活跃数
