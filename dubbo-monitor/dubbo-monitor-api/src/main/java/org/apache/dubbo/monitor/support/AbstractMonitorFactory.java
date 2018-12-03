@@ -40,6 +40,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * AbstractMonitorFactory. (SPI, Singleton, ThreadSafe)
+ * 监控中心骨架类
  */
 public abstract class AbstractMonitorFactory implements MonitorFactory {
     private static final Logger logger = LoggerFactory.getLogger(AbstractMonitorFactory.class);
@@ -50,19 +51,34 @@ public abstract class AbstractMonitorFactory implements MonitorFactory {
     // monitor centers Map<RegistryAddress, Registry>
     private static final Map<String, Monitor> MONITORS = new ConcurrentHashMap<String, Monitor>();
 
+    /**
+     * 统计的 结果
+     */
     private static final Map<String, CompletableFuture<Monitor>> FUTURES = new ConcurrentHashMap<String, CompletableFuture<Monitor>>();
 
+    /**
+     * 只能处理单个任务的线程池
+     */
     private static final ExecutorService executor = new ThreadPoolExecutor(0, 10, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), new NamedThreadFactory("DubboMonitorCreator", true));
 
     public static Collection<Monitor> getMonitors() {
         return Collections.unmodifiableCollection(MONITORS.values());
     }
 
+    /**
+     * 获取 监控中心对象
+     * @param url
+     * @return
+     */
     @Override
     public Monitor getMonitor(URL url) {
+        //设置 监控中心为 path
         url = url.setPath(MonitorService.class.getName()).addParameter(Constants.INTERFACE_KEY, MonitorService.class.getName());
+        //将url 转换成key
         String key = url.toServiceStringWithoutResolving();
+        //获取 全局 监控对象
         Monitor monitor = MONITORS.get(key);
+        //这里是代表正在创建 监控中心
         Future<Monitor> future = FUTURES.get(key);
         if (monitor != null || future != null) {
             return monitor;
@@ -77,7 +93,9 @@ public abstract class AbstractMonitorFactory implements MonitorFactory {
             }
 
             final URL monitorUrl = url;
+            //创建监控中心对象
             final CompletableFuture<Monitor> completableFuture = CompletableFuture.supplyAsync(() -> AbstractMonitorFactory.this.createMonitor(monitorUrl));
+            //当执行完时 触发监听器
             completableFuture.thenRunAsync(new MonitorListener(key), executor);
             FUTURES.put(key, completableFuture);
 
@@ -102,7 +120,9 @@ public abstract class AbstractMonitorFactory implements MonitorFactory {
         @Override
         public void run() {
             try {
+                //获取future 对象
                 CompletableFuture<Monitor> completableFuture = AbstractMonitorFactory.FUTURES.get(key);
+                //保存结果
                 AbstractMonitorFactory.MONITORS.put(key, completableFuture.get());
                 AbstractMonitorFactory.FUTURES.remove(key);
             } catch (InterruptedException e) {

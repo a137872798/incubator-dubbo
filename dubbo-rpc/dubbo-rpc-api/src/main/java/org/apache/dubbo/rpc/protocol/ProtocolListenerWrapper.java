@@ -33,7 +33,7 @@ import java.util.Collections;
 /**
  * ListenerProtocol
  * 协议监听器
- * 当通过SPI 初始化 协议对象时 同时 初始化了这些包装类
+ * 当通过SPI 初始化 协议对象时 同时 初始化了这些包装类  在SPI 导入 Protocol实现类时 将该类作为 cachedWrapperClasses 并 包装到生成的Protocol上
  */
 public class ProtocolListenerWrapper implements Protocol {
 
@@ -60,7 +60,7 @@ public class ProtocolListenerWrapper implements Protocol {
      */
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
-        //同样 如果 是 registry 不做任何处理
+        //同样 如果 是 registry 不做处理 当到注册中心 完成订阅or 发布后 再调用 还是会进入到下面
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
@@ -81,7 +81,7 @@ public class ProtocolListenerWrapper implements Protocol {
      */
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
-        //registry 不做处理
+        //registry 不做处理 当到注册中心 完成订阅or 发布后 再调用 还是会进入到下面
         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return protocol.refer(type, url);
         }

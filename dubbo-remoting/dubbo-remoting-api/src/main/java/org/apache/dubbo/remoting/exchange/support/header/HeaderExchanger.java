@@ -34,6 +34,9 @@ public class HeaderExchanger implements Exchanger {
 
     public static final String NAME = "header";
 
+    //handler 的包装顺序应该是 HeaderExchangeHandler -> DecodeHandler -> Dispatcher -> HeartbeatHandler -> MultiMessageHandler
+    //调用顺序是 反过来 并且 这个handler 是在编解码后 的
+
     /**
      * 多层包装handler 后生成 client对象
      * @param url

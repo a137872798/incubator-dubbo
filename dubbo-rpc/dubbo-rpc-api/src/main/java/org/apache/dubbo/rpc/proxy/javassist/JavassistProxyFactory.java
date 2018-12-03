@@ -34,21 +34,23 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
+        //将对象使用 InvokerInvocationHandler 包装
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
-        // 不能处理带$ 的类名
+        // 不能处理带$ 的类名  将服务端的 ref 对象 生成了一个包装类
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
 
+        //返回一个 invoke 对象 并重写了 invoke 相关的 doInvoke 方法
         return new AbstractProxyInvoker<T>(proxy, type, url) {
-            //委托包装类 调用 方法
             @Override
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
+                //委托到 包装类调用方法
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };

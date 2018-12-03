@@ -27,7 +27,7 @@ import org.apache.dubbo.remoting.exchange.Request;
 import org.apache.dubbo.remoting.exchange.Response;
 
 /**
- * 解码处理对象
+ * 这个是在 nettyHandler 之后 调用到 初始化 server时传入的 handler 再 委托到这里
  */
 public class DecodeHandler extends AbstractChannelHandlerDelegate {
 
@@ -38,14 +38,13 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
     }
 
     /**
-     * 当收到数据后 触发 解码事件
+     * 这里的数据已经在nettyhandler解码过了  如果消息本身 是可解码类型 还要调用消息的解码
      * @param channel
      * @param message
      * @throws RemotingException
      */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
-        //根据消息类型 进行解码
         if (message instanceof Decodeable) {
             decode(message);
         }

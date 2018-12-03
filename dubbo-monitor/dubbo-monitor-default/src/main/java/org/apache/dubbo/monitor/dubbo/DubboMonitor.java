@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * DubboMonitor
+ * 监控中心实现
  */
 public class DubboMonitor implements Monitor {
 
@@ -44,16 +45,34 @@ public class DubboMonitor implements Monitor {
 
     private static final int LENGTH = 10;
 
+    /**
+     * 定时器
+     */
     private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(3, new NamedThreadFactory("DubboMonitorSendTimer", true));
 
+    /**
+     * 定时任务结果
+     */
     private final ScheduledFuture<?> sendFuture;
 
+    /**
+     * invoker 中包含 的就是监控中心对象
+     */
     private final Invoker<MonitorService> monitorInvoker;
 
+    /**
+     * 监控服务对象  这是调用getProxy 生成的 还不知道 动态代理是怎么处理的 这个对象才是进行远程调用的对象
+     */
     private final MonitorService monitorService;
 
+    /**
+     * 汇报的间隔时间
+     */
     private final long monitorInterval;
 
+    /**
+     * 统计信息  这个long 数组中每个元素 都对应一个 数据
+     */
     private final ConcurrentMap<Statistics, AtomicReference<long[]>> statisticsMap = new ConcurrentHashMap<Statistics, AtomicReference<long[]>>();
 
     public DubboMonitor(Invoker<MonitorService> monitorInvoker, MonitorService monitorService) {
@@ -66,6 +85,7 @@ public class DubboMonitor implements Monitor {
             public void run() {
                 // collect data
                 try {
+                    //定期往监控中心发送信息
                     send();
                 } catch (Throwable t) {
                     logger.error("Unexpected error occur at send statistic, cause: " + t.getMessage(), t);
@@ -74,11 +94,15 @@ public class DubboMonitor implements Monitor {
         }, monitorInterval, monitorInterval, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 定时 发送数据
+     */
     public void send() {
         logger.debug("Send statistics to monitor " + getUrl());
         String timestamp = String.valueOf(System.currentTimeMillis());
         for (Map.Entry<Statistics, AtomicReference<long[]>> entry : statisticsMap.entrySet()) {
             // get statistics data
+            // 获取当前的数据
             Statistics statistics = entry.getKey();
             AtomicReference<long[]> reference = entry.getValue();
             long[] numbers = reference.get();
@@ -94,7 +118,7 @@ public class DubboMonitor implements Monitor {
             long maxConcurrent = numbers[9];
             String version = getUrl().getParameter(Constants.DEFAULT_PROTOCOL);
 
-            // send statistics data
+            // send statistics data  生成统计信息数据
             URL url = statistics.getUrl()
                     .addParameters(MonitorService.TIMESTAMP, timestamp,
                             MonitorService.SUCCESS, String.valueOf(success),
@@ -109,12 +133,14 @@ public class DubboMonitor implements Monitor {
                             MonitorService.MAX_CONCURRENT, String.valueOf(maxConcurrent),
                             Constants.DEFAULT_PROTOCOL, version
                     );
+            //这个url 包含了最新的 统计信息
             monitorService.collect(url);
 
             // reset
             long[] current;
             long[] update = new long[LENGTH];
             do {
+                //更新统计信息
                 current = reference.get();
                 if (current == null) {
                     update[0] = 0;
@@ -124,6 +150,7 @@ public class DubboMonitor implements Monitor {
                     update[4] = 0;
                     update[5] = 0;
                 } else {
+                    //发送过的 统计信息 就 清除 如果出现并发 那么 - 之后 还剩下 最新增加的统计信息
                     update[0] = current[0] - success;
                     update[1] = current[1] - failure;
                     update[2] = current[2] - input;
@@ -135,8 +162,13 @@ public class DubboMonitor implements Monitor {
         }
     }
 
+    /**
+     * 更新本地数据 没有更新到 监控中心 只有调用 MonitorService 的 collect 才会发起请求
+     * @param url
+     */
     @Override
     public void collect(URL url) {
+        //解析出 监控拦截器 获取到 的数据
         // data to collect from url
         int success = url.getParameter(MonitorService.SUCCESS, 0);
         int failure = url.getParameter(MonitorService.FAILURE, 0);
@@ -145,13 +177,16 @@ public class DubboMonitor implements Monitor {
         int elapsed = url.getParameter(MonitorService.ELAPSED, 0);
         int concurrent = url.getParameter(MonitorService.CONCURRENT, 0);
         // init atomic reference
+        // 生成对应的 key
         Statistics statistics = new Statistics(url);
+        // 获取该统计对象的 记录
         AtomicReference<long[]> reference = statisticsMap.get(statistics);
         if (reference == null) {
             statisticsMap.putIfAbsent(statistics, new AtomicReference<long[]>());
             reference = statisticsMap.get(statistics);
         }
         // use CompareAndSet to sum
+        // 将数据增加上去
         long[] current;
         long[] update = new long[LENGTH];
         do {
@@ -168,6 +203,7 @@ public class DubboMonitor implements Monitor {
                 update[8] = elapsed;
                 update[9] = concurrent;
             } else {
+                //当前数据存在的情况下 增加数据
                 update[0] = current[0] + success;
                 update[1] = current[1] + failure;
                 update[2] = current[2] + input;
@@ -181,6 +217,8 @@ public class DubboMonitor implements Monitor {
             }
         } while (!reference.compareAndSet(current, update));
     }
+
+    //委托给动态代理类实现
 
     @Override
     public List<URL> lookup(URL query) {

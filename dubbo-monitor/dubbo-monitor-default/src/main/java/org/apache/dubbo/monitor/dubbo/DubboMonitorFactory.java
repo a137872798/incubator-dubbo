@@ -27,6 +27,7 @@ import org.apache.dubbo.rpc.ProxyFactory;
 
 /**
  * DefaultMonitorFactory
+ * duboo 的 监控中心 工厂对象
  */
 public class DubboMonitorFactory extends AbstractMonitorFactory {
 
@@ -42,10 +43,16 @@ public class DubboMonitorFactory extends AbstractMonitorFactory {
         this.proxyFactory = proxyFactory;
     }
 
+    /**
+     * 创建 监控中心对象
+     * @param url
+     * @return
+     */
     @Override
     protected Monitor createMonitor(URL url) {
         url = url.setProtocol(url.getParameter(Constants.PROTOCOL_KEY, "dubbo"));
         if (url.getPath() == null || url.getPath().length() == 0) {
+            //设置path 属性
             url = url.setPath(MonitorService.class.getName());
         }
         String filter = url.getParameter(Constants.REFERENCE_FILTER_KEY);
@@ -54,10 +61,14 @@ public class DubboMonitorFactory extends AbstractMonitorFactory {
         } else {
             filter = filter + ",";
         }
+        //默认使用 安全失败的 集群 拦截器中去除掉monitor 避免被重复添加
         url = url.addParameters(Constants.CLUSTER_KEY, "failsafe", Constants.CHECK_KEY, String.valueOf(false),
                 Constants.REFERENCE_FILTER_KEY, filter + "-monitor");
+        //这里通过 dubboProtocol 的形式 连接到 监控中心地址 并返回一个 dubboInvoker对象
         Invoker<MonitorService> monitorInvoker = protocol.refer(MonitorService.class, url);
+        //这里 不是将 ref 变成invoker 而是 将 invoker 对象本身做处理
         MonitorService monitorService = proxyFactory.getProxy(monitorInvoker);
+        //用代理对象创建监控中心
         return new DubboMonitor(monitorInvoker, monitorService);
     }
 

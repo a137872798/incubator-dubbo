@@ -305,12 +305,12 @@ public class ExtensionLoader<T> {
         List<T> exts = new ArrayList<T>();
         //将values 数组转换成一个 List
         List<String> names = values == null ? new ArrayList<String>(0) : Arrays.asList(values);
-        //如果 不包含 -default    -default 代表 移除所有默认配置
+        //如果 不包含 -default    -default 代表 移除所有默认的过滤器
         if (!names.contains(Constants.REMOVE_VALUE_PREFIX + Constants.DEFAULT_KEY)) {
             //这里代表没有移除 任何 默认配置
             //加载
             getExtensionClasses();
-            //循环 这个容器中存放了 每个拓展名和Activate注解对象的映射关系
+            //循环 这个容器中存放了 每个拓展名和Activate注解对象的映射关系  @Activate 代表该类在符合条件的情况下才激活
             for (Map.Entry<String, Object> entry : cachedActivates.entrySet()) {
                 //获取 拓展名 和 Activate 注解对象
                 String name = entry.getKey();
@@ -329,13 +329,15 @@ public class ExtensionLoader<T> {
                 } else {
                     continue;
                 }
-                //判断 在 group[]中能否找到 group 如果group 为 null 就直接返回true
+                //寻找 @Active 中group 匹配的 实现类
                 if (isMatchGroup(group, activateGroup)) {
                     //根据拓展名 获取 拓展对象
                     T ext = getExtension(name);
-                    //第一个 是代表不包含在自定义配置中  第二个代表 配置是否移除 第三个判断是否激活
+                    //第一个 必须要不存在于指定filter  第二个代表 配置是否移除 第三个判断是否激活 指定名字的 应该是在下面单独添加
+                    //这里第一个判断的处理是为了方便
                     if (!names.contains(name)
                             && !names.contains(Constants.REMOVE_VALUE_PREFIX + name)
+                            //value 也必须要对应
                             && isActive(activateValue, url)) {
                         //加入到符合条件的 拓展对象list中
                         exts.add(ext);
@@ -345,11 +347,12 @@ public class ExtensionLoader<T> {
             //使用指定的排序类 进行排序
             Collections.sort(exts, ActivateComparator.COMPARATOR);
         }
+        //这里代表是用户指定添加的
         List<T> usrs = new ArrayList<T>();
         for (int i = 0; i < names.size(); i++) {
             //遍历 获取每个 key
             String name = names.get(i);
-            //未被 移除
+            //未被 移除 就全部加入
             if (!name.startsWith(Constants.REMOVE_VALUE_PREFIX)
                     && !names.contains(Constants.REMOVE_VALUE_PREFIX + name)) {
                 //如果 name 是 default
@@ -410,6 +413,7 @@ public class ExtensionLoader<T> {
                 String v = entry.getValue();
                 //激活条件的 变量存在且有效时
                 if ((k.equals(key) || k.endsWith("." + key))
+                        //not empty 代表不为0 false null N/A 等
                         && ConfigUtils.isNotEmpty(v)) {
                     return true;
                 }

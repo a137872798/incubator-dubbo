@@ -83,7 +83,7 @@ final class NettyCodecAdapter {
             //获取 dubbo 的 channel 适配器对象
             NettyChannel channel = NettyChannel.getOrAddChannel(ch, url, handler);
             try {
-                //委托 给 codec 进行编码
+                //委托 给 codec 进行编码 Exchange级别的请求对象都会被封装成完整的数据体 每发送一次消息 触发一次encode 并将数据写入buf
                 codec.encode(channel, buffer, msg);
             } finally {
                 NettyChannel.removeChannelIfDisconnected(ch);
@@ -99,10 +99,10 @@ final class NettyCodecAdapter {
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf input, List<Object> out) throws Exception {
 
-            //bytebuf 的 适配器
+            //netty bytebuf 的 适配器
             ChannelBuffer message = new NettyBackedChannelBuffer(input);
 
-            //channel 的 适配器
+            //netty channel 的 适配器
             NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
 
             Object msg;
@@ -112,7 +112,8 @@ final class NettyCodecAdapter {
             try {
                 // decode object.
                 do {
-                    //记录 标识
+                    //解码 也是一次 解析一个数据 同时只要未返回readable == false 就会一直解码 因为读取到的数据可能是 多个
+                    //记录 标识 当需要更多数据时 要 还原标识
                     saveReaderIndex = message.readerIndex();
                     try {
                         //委托 解码
@@ -120,7 +121,7 @@ final class NettyCodecAdapter {
                     } catch (IOException e) {
                         throw e;
                     }
-                    //数据不够时 重置 指针
+                    //这里对应的 是 ExchangeCode#decode 当数据不到一个请求头的长度时 重置指针 等待下次数据足够
                     if (msg == Codec2.DecodeResult.NEED_MORE_INPUT) {
                         message.readerIndex(saveReaderIndex);
                         break;

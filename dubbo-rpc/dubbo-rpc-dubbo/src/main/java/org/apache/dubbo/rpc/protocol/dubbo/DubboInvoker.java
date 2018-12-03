@@ -81,7 +81,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
     }
 
     /**
-     * 实现父类的抽象调用方法
+     * 实现父类的抽象调用方法    RpcContext.getContext().setFuture 这个future 对象是在 停止客户端时判断是否有 未处理的结果吗???
      * @param invocation  初始化完成并设置了一堆参数后
      * @return
      * @throws Throwable
@@ -95,6 +95,8 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         inv.setAttachment(Constants.PATH_KEY, getUrl().getPath());
         inv.setAttachment(Constants.VERSION_KEY, version);
 
+        //这些 client 是 连接到 服务提供者的 数组 因为根据 连接数 会创建多个对象  返回的invoker 是针对服务提供者级别的 然后调用前
+        //先通过均衡负载 定位到 某个服务提供者 然后 从多个 连接client 中随机使用一个
         ExchangeClient currentClient;
         //这个应该是 共享client
         if (clients.length == 1) {
@@ -121,7 +123,8 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 //直接返回请求结果 没有结果和异常对象
                 return new RpcResult();
             } else if (isAsync) {
-                //异步 的 请求方式不同 返回一个future对象
+                //异步 的 请求方式不同 返回一个future对象 这个future 是在请求发出的时候创建的 然后收到结果就会设置
+                // 而不是  CompletableFuture  future
                 ResponseFuture future = currentClient.request(inv, timeout);
                 // For compatibility
                 // future 适配器对象

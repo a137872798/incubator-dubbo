@@ -79,7 +79,7 @@ public class ExchangeCodec extends TelnetCodec {
     }
 
     /**
-     * 编码
+     * 编码  这里是要将给定的 msg 写入到buffer对象中 一次encode 只执行一次
      * @param channel
      * @param buffer
      * @param msg
@@ -110,7 +110,7 @@ public class ExchangeCodec extends TelnetCodec {
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
         int readable = buffer.readableBytes();
         byte[] header = new byte[Math.min(readable, HEADER_LENGTH)];
-        //将数据 读取到 header 数组中
+        //将数据 读取到 header 数组中 先尝试 获取 header 的 部分 看看 一共能读取的数据 是否满足一个完整的数据块
         buffer.readBytes(header);
         //解码
         return decode(channel, buffer, readable, header);
@@ -127,23 +127,26 @@ public class ExchangeCodec extends TelnetCodec {
      */
     @Override
     protected Object decode(Channel channel, ChannelBuffer buffer, int readable, byte[] header) throws IOException {
-        // check magic number. 对比 魔法数 高低位是否正确 错误时
+        //这里是 如何保证 开头一定是 魔数 因为 一旦数据不够 是会等待下次数据过来的 这样保证每次都是消费一个完整的消息
+        //也就不会让有消息残留 这样每次都判断头部就可以知道 该消息 是否是 dubbo 消息了 那么在发送消息的时候还是会有粘包拆包问题
+        //只是通过这种方式规避了
+        // check magic number. 每个 exchangeCode 层的 请求都会携带 魔数 如果不是 就代表发送的消息 不是 dubbo协议的
         if (readable > 0 && header[0] != MAGIC_HIGH
                 || readable > 1 && header[1] != MAGIC_LOW) {
             int length = header.length;
-            //代表被 裁剪了一部分
+            //代表被 裁剪了一部分  将全部数据都取出来
             if (header.length < readable) {
                 //为 header 扩容
                 header = Bytes.copyOf(header, readable);
                 //读取 剩余的数据
                 buffer.readBytes(header, length, readable - length);
             }
-            //尝试从数据流中找到匹配 魔法数的部分 应该是 针对 拆包和粘包
+            //尝试 获取 魔数 因为发来的 一整条数据 可能后面的部分会携带 dubbo协议级的数据 这样就要截取 dubbo协议之外的数据
             for (int i = 1; i < header.length - 1; i++) {
                 if (header[i] == MAGIC_HIGH && header[i + 1] == MAGIC_LOW) {
                     //从 该位置 开始读取数据
                     buffer.readerIndex(buffer.readerIndex() - header.length + i);
-                    //从能读取到魔法数的地方开始 读取数据
+                    //这里截取的 是 获取到魔法数之前的数据
                     header = Bytes.copyOf(header, i);
                     break;
                 }
@@ -152,7 +155,7 @@ public class ExchangeCodec extends TelnetCodec {
             return super.decode(channel, buffer, readable, header);
         }
         // check length.
-        // 如果 正好能匹配上 魔法数 代表下层 处理了粘包拆包问题 但是长度不够 代表 需要更多的输入
+        // 如果 正好能匹配上 魔法数 但是小于 头部长度 需要 更多数据
         if (readable < HEADER_LENGTH) {
             return DecodeResult.NEED_MORE_INPUT;
         }
@@ -170,12 +173,12 @@ public class ExchangeCodec extends TelnetCodec {
             return DecodeResult.NEED_MORE_INPUT;
         }
 
-        //这里代表可以正常读取 将buffer 包装成一个 输入流
+        //这里代表可以正常读取 将buffer 包装成一个 输入流 然后将数据取出来
         // limit input stream.
         ChannelBufferInputStream is = new ChannelBufferInputStream(buffer, len);
 
         try {
-            //开始解析body
+            //开始解析body  如果是 dubbo 协议 会调用子类的方法  这一层的 decode 就是 直接 调用输入流的 read方法
             return decodeBody(channel, is, header);
         } finally {
             //如果数据没有用完 也就是 有多余数据
@@ -221,13 +224,14 @@ public class ExchangeCodec extends TelnetCodec {
                 //通过 给定的 序列化方式 和 输入流 将数据 解析成 对象 输入流中保存了 head + body
                 ObjectInput in = CodecSupport.deserialize(channel.getUrl(), is, proto);
                 if (status == Response.OK) {
-                    //这些都是 操作 对象流 现在还不清楚实现 先不管
+                    //in 对象内部 封装了 序列化对象在 读取的 同时 会进行反序列化
                     Object data;
                     if (res.isHeartbeat()) {
                         data = decodeHeartbeatData(channel, in);
                     } else if (res.isEvent()) {
                         data = decodeEventData(channel, in);
                     } else {
+                        //这里还传入了  发送请求时 的 request对象
                         data = decodeResponseData(channel, in, getRequestData(id));
                     }
                     res.setResult(data);
@@ -290,8 +294,8 @@ public class ExchangeCodec extends TelnetCodec {
     /**
      * 解析请求对象
      * @param channel
-     * @param buffer
-     * @param req
+     * @param buffer 写入的 目标buffer
+     * @param req 待encode 的 请求体对象
      * @throws IOException
      */
     protected void encodeRequest(Channel channel, ChannelBuffer buffer, Request req) throws IOException {
@@ -318,24 +322,23 @@ public class ExchangeCodec extends TelnetCodec {
         Bytes.long2bytes(req.getId(), header, 4);
 
         // encode request data.
-        //记录当前的 下标 现在应该还是0 可能 传过来的 时候已经移动过了吧
+        // 先记录 指针当前位置 因为 触发这里的时候 buffer 里面可能已经有数据了
         int savedWriteIndex = buffer.writerIndex();
         //跳过 头部的长度
         buffer.writerIndex(savedWriteIndex + HEADER_LENGTH);
-        //创建输出流对象
+        //将 buffer 对象封装成 outputStream对象 代表是一个空容器 可以往里面写入数据
         ChannelBufferOutputStream bos = new ChannelBufferOutputStream(buffer);
-        //将channel.url序列化 这里先不看
+        //通过序列化对象 包装bos对象 在调用对应的 写入时 自动进行序列化
         ObjectOutput out = serialization.serialize(channel.getUrl(), bos);
         //根据是否是 事件 进行二次编码
-        //将req.data 编码
+        //将req 的 数据写入到 out 中
         if (req.isEvent()) {
-            //就是直接将 data 写入out  channel 是无效参数
             encodeEventData(channel, out, req.getData());
         } else {
-            //就是直接将 data 写入out  version 是无效参数
+            //同上 channel 和 version 是无效参数
             encodeRequestData(channel, out, req.getData(), req.getVersion());
         }
-        //刷盘 并 执行清理工作
+        //将数据 刷入到 req.getData 中
         out.flushBuffer();
         if (out instanceof Cleanable) {
             ((Cleanable) out).cleanup();
@@ -346,19 +349,21 @@ public class ExchangeCodec extends TelnetCodec {
         //负荷检测
         int len = bos.writtenBytes();
         checkPayload(channel, len);
-        //从12 字节 开始 写到15字节 代表长度
+        //从12 字节 开始 写到15字节 代表长度 在头部 写入 body 的长度
         Bytes.int2bytes(len, header, 12);
 
-        // write 回到 0指针
+        //这里是先写入 body 数据 然后知道body长度后 在header[]中标注body长度 写入header
+
+        // write 回到 起始位置
         buffer.writerIndex(savedWriteIndex);
         //写入头部 对象
         buffer.writeBytes(header); // write header.
-        //将指针移动到 写入的数据末尾  也就是这个len 不包含头部的长度
+        //记录指针的 末尾
         buffer.writerIndex(savedWriteIndex + HEADER_LENGTH + len);
     }
 
     /**
-     * 针对响应结果进行编码
+     * 针对响应结果进行编码  写入的逻辑基本 和 encodeRequest 一致 不过写入的是 res 对象
      * @param channel
      * @param buffer
      * @param res
@@ -395,13 +400,13 @@ public class ExchangeCodec extends TelnetCodec {
             ChannelBufferOutputStream bos = new ChannelBufferOutputStream(buffer);
             ObjectOutput out = serialization.serialize(channel.getUrl(), bos);
             // encode response data or error message.
-            // 请求成功时
+            // 代表本次请求成功时
             if (status == Response.OK) {
                 if (res.isHeartbeat()) {
                     //就是 out.write(result)
                     encodeHeartbeatData(channel, out, res.getResult());
                 } else {
-                    //同上
+                    //同上 dubboCodec 会重写该方法
                     encodeResponseData(channel, out, res.getResult(), res.getVersion());
                 }
             } else {
@@ -430,15 +435,16 @@ public class ExchangeCodec extends TelnetCodec {
             buffer.writerIndex(savedWriteIndex);
             // send error message to Consumer, otherwise, Consumer will wait till timeout.
             if (!res.isEvent() && res.getStatus() != Response.BAD_RESPONSE) {
-                //重新发起一个 响应结果
+                //当编码异常时 创建 一个 badResponse
                 Response r = new Response(res.getId(), res.getVersion());
                 r.setStatus(Response.BAD_RESPONSE);
 
+                //如果是超流量
                 if (t instanceof ExceedPayloadLimitException) {
                     logger.warn(t.getMessage(), t);
                     try {
                         r.setErrorMessage(t.getMessage());
-                        //通过channel 应该会在哪个地方 再次进入这里的 编码器 进行编码然后发送到 客户端
+                        //在channel.send时 会触发 nettyHandler 的 编解码器
                         channel.send(r);
                         return;
                     } catch (RemotingException e) {

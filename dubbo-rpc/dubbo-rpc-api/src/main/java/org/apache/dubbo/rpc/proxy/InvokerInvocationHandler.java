@@ -52,6 +52,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
         if (method.getDeclaringClass() == Object.class) {
             return method.invoke(invoker, args);
         }
+        //这3个 方法 不再通过invoke 进行调用 而是 直接 使用invoker对象本身的 方法  一般就是object的方法
         if ("toString".equals(methodName) && parameterTypes.length == 0) {
             return invoker.toString();
         }

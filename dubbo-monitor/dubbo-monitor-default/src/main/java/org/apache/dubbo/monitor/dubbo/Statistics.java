@@ -23,6 +23,7 @@ import java.io.Serializable;
 
 /**
  * Statistics. (SPI, Prototype, ThreadSafe)
+ * 成员变量记录了 该信息是针对 哪个服务的
  */
 public class Statistics implements Serializable {
 

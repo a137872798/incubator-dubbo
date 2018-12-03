@@ -84,7 +84,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
     private static final Logger log = LoggerFactory.getLogger(DubboCodec.class);
 
     /**
-     * 解码  这是 覆盖了父类的方法
+     * 解码  这是 覆盖了父类的方法 也就不是单纯的解析 数据 而是通过解析数据后返回的对象 进行不同处理
      * @param channel
      * @param is
      * @param header 包含了包括 head 和 body
@@ -97,7 +97,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
         byte flag = header[2], proto = (byte) (flag & SERIALIZATION_MASK);
         // get request id.  [4-11] 存的是 请求id
         long id = Bytes.bytes2long(header, 4);
-        //代表是响应类型
+        //代表是响应类型  代表是 消费者端返回的 动态代理对象
         if ((flag & FLAG_REQUEST) == 0) {
             // decode response.
             Response res = new Response(id);
@@ -124,7 +124,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                     } else {
                         //创建 结果对象
                         DecodeableRpcResult result;
-                        //如果是在 通信框架的 io 线程中解码 不懂???
+                        //如果是在 io 线程中解码 也就是在当前线程解码
                         if (channel.getUrl().getParameter(
                                 Constants.DECODE_IN_IO_THREAD_KEY,
                                 Constants.DEFAULT_DECODE_IN_IO_THREAD)) {
@@ -134,9 +134,9 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                             //执行解码
                             result.decode();
                         } else {
-                            //在 dubbo 的线程中 使用DecoderHandler解码
+                            //在handler链的 尾部 如果传入的message 是 decodeable 就会调用decode 方法 也就是 这里只是创建对象没有直接解码
+                            //然后 在传递链中可能 处理消息的 就会分发到线程池 那个时候进行decode 就是委托到线程池执行 没有直接占用io线程
                             result = new DecodeableRpcResult(channel, res,
-                                    //从is 中读取数据并包装到 unsafe 对象中 但是好像没有进行解码
                                     new UnsafeByteArrayInputStream(readMessageData(is)),
                                     (Invocation) getRequestData(id), proto);
                         }
@@ -156,7 +156,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
             return res;
         } else {
             // decode request.
-            //解析请求 数据
+            //解析请求 数据  也就是客户端发来的 需要被动态代理的对象信息
             Request req = new Request(id);
             //设置协议版本
             req.setVersion(Version.getProtocolVersion());
@@ -175,6 +175,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                 } else if (req.isEvent()) {
                     data = decodeEventData(channel, in);
                 } else {
+                    //通过解析消费者的请求对象创建了 在ExchangeHandlerAdapter 中就会使用该invocation
                     DecodeableRpcInvocation inv;
                     //和 响应的 类似 不过 使用的对象不同 响应是 DecodeableRpcResult
                     if (channel.getUrl().getParameter(
@@ -183,11 +184,14 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                         inv = new DecodeableRpcInvocation(channel, req, is, proto);
                         inv.decode();
                     } else {
+                        //在handler链的 尾部 如果传入的message 是 decodeable 就会调用decode 方法 也就是 这里只是创建对象没有直接解码
+                        //然后 在传递链中可能 处理消息的 就会分发到线程池 那个时候进行decode 就是委托到线程池执行 没有直接占用io线程
                         inv = new DecodeableRpcInvocation(channel, req,
                                 new UnsafeByteArrayInputStream(readMessageData(is)), proto);
                     }
                     data = inv;
                 }
+                //请求的  data 就是 invocation
                 req.setData(data);
             } catch (Throwable t) {
                 if (log.isWarnEnabled()) {
@@ -242,7 +246,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
     }
 
     /**
-     * 为请求数据编码
+     * 为请求数据编码 重写了 ExchangeCodec 对象
      * @param channel
      * @param out
      * @param data
@@ -251,7 +255,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
      */
     @Override
     protected void encodeRequestData(Channel channel, ObjectOutput out, Object data, String version) throws IOException {
-        //将传入参数 改成 RPC invocation对象
+        //将传入参数 改成 RPC invocation对象  代表 req.getData 是 RPCinvocation 类型
         RpcInvocation inv = (RpcInvocation) data;
 
         //写入dubbo版本 path version
@@ -259,7 +263,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
         out.writeUTF(inv.getAttachment(Constants.PATH_KEY));
         out.writeUTF(inv.getAttachment(Constants.VERSION_KEY));
 
-        //写入方法名和 参数类型
+        //写入方法名和 参数类型 这里就是服务提供者 知道要调用哪个方法 有哪些参数
         out.writeUTF(inv.getMethodName());
         out.writeUTF(ReflectUtils.getDesc(inv.getParameterTypes()));
         //获取参数列表

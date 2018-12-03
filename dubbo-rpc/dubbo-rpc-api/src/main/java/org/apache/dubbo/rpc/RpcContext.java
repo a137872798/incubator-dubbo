@@ -81,7 +81,7 @@ public class RpcContext {
     private Future<?> future;
 
     /**
-     * 能够提供该服务的 url集合
+     * 该线程 上下文中发起的所有 服务提供者的url
      */
     private List<URL> urls;
 
@@ -814,6 +814,10 @@ public class RpcContext {
         return asyncContext.stop();
     }
 
+    /**
+     * 保存异步上下文对象 便于在某个时机取出这个异步对象
+     * @param asyncContext
+     */
     public void setAsyncContext(AsyncContext asyncContext) {
         this.asyncContext = asyncContext;
     }

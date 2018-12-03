@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AbstractInvoker.
- * invoker 的 骨架类
+ * invoker 的 骨架类  针对消费者端的 invoker 也就是 调用invoke 会发起请求  而 提供者端的invoker 就是动态代理实现
  */
 public abstract class AbstractInvoker<T> implements Invoker<T> {
 
@@ -168,7 +168,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         if (attachment != null && attachment.size() > 0) {
             invocation.addAttachmentsIfAbsent(attachment);
         }
-        //获取上下文 对象
+        //获取上下文 对象 这个attach 应该是针对每个请求的
         Map<String, String> contextAttachments = RpcContext.getContext().getAttachments();
         if (contextAttachments != null && contextAttachments.size() != 0) {
             /**
@@ -187,7 +187,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
 
 
         try {
-            //执行的实际逻辑
+            //执行的实际逻辑  这里就是委托到 dubboInvoker 执行 远程通信返回结果
             return doInvoke(invocation);
             //biz 异常先不管
         } catch (InvocationTargetException e) { // biz exception

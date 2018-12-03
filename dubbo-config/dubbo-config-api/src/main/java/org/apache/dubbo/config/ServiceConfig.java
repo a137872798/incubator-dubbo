@@ -667,8 +667,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                             registryURL = registryURL.addParameter(Constants.PROXY_KEY, proxy);
                         }
 
-                        //通过 代理工厂 创建 invoker 对象 这里就是创建动态代理的 地方
                         //这里为注册中心的 url 上又增加了 服务提供者的url (服务提供者上又携带了 监控中心的 url)
+                        //getInvoker返回一个invoker 对象 调用invoke 方法时 使用动态类的 doInvoke
+                        //这3个参数是 方便 javassist 进行动态代理的
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
 
                         //该对象封装了 invoker 和 serviceConfig  该对象还是 实现invoker接口

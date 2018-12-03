@@ -56,7 +56,7 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
         //生成 接口数组
         Class<?>[] interfaces = null;
-        //获取 需要生成的 接口类型
+        //获取 需要生成的 接口类型  在监控中心 会被设置成 MonitorService 为该对象增加2个实现的接口
         String config = invoker.getUrl().getParameter(Constants.INTERFACES);
         if (config != null && config.length() > 0) {
             //多个接口 用 "," 拼接

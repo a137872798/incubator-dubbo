@@ -42,9 +42,16 @@ public class AsyncContextImpl implements AsyncContext {
     public AsyncContextImpl() {
     }
 
+    /**
+     * 异步上下文对象
+     * @param future
+     */
     public AsyncContextImpl(CompletableFuture<Object> future) {
+        //保存的 future
         this.future = future;
+        //获取线程专属的 context
         this.storedContext = RpcContext.getContext();
+        //线程专属的 服务端 context
         this.storedServerContext = RpcContext.getServerContext();
     }
 

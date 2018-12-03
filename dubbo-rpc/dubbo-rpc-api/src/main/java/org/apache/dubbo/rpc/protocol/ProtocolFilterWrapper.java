@@ -32,6 +32,7 @@ import java.util.List;
 /**
  * ListenerProtocol
  * 给Invoker 增加过滤链
+ * 当通过SPI 初始化 协议对象时 同时 初始化了这些包装类  在SPI 导入 Protocol实现类时 将该类作为 cachedWrapperClasses 并 包装到生成的Protocol上
  */
 public class ProtocolFilterWrapper implements Protocol {
 
@@ -47,7 +48,7 @@ public class ProtocolFilterWrapper implements Protocol {
 
     /**
      * 构建一个 调用链对象
-     * @param invoker 调用者对象
+     * @param invoker invoker 原型对象
      * @param key serivce.filter
      * @param group provider/ consumer
      * @param <T>
@@ -65,7 +66,7 @@ public class ProtocolFilterWrapper implements Protocol {
                 //通过 这个引用来 保存 临时 对象的 地址 链中每次下一个对象调的都是上一个临时保存的对象
                 final Invoker<T> next = last;
 
-                //全部委托给 invoker 实现
+                //新创建的对象 而invoke 还是 委托给 未被本次 包装的对象
                 last = new Invoker<T>() {
 
                     @Override
@@ -85,7 +86,7 @@ public class ProtocolFilterWrapper implements Protocol {
 
                     @Override
                     public Result invoke(Invocation invocation) throws RpcException {
-                        //调用 next 相当于 从前往后调用
+                        //next 是 上次生成包装对象
                         return filter.invoke(next, invocation);
                     }
 
@@ -120,12 +121,11 @@ public class ProtocolFilterWrapper implements Protocol {
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
 
-        //如果 协议是 registry 代表是 出口到 注册中心 就不走调用链
+        //如果 协议是 registry 代表是 出口到 注册中心 就不走调用链 完成订阅or 发布后 再调用 还是会进入到下面
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
-        //通过 service.filter 这个key 返回了  一组拓展对象 并构成一个调用链
-        //还是 委托 给 协议对象 出口
+        //先过滤 后 发布
         return protocol.export(buildInvokerChain(invoker, Constants.SERVICE_FILTER_KEY, Constants.PROVIDER));
     }
 
@@ -139,11 +139,11 @@ public class ProtocolFilterWrapper implements Protocol {
      */
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
-        //远程情况 也就是去注册中心 获取
+        //远程情况 也就是去注册中心 获取 当到注册中心 完成订阅or 发布后 再调用 还是会进入到下面
         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return protocol.refer(type, url);
         }
-        //本地 需要构建 filter链
+        //先引用后过滤
         return buildInvokerChain(protocol.refer(type, url), Constants.REFERENCE_FILTER_KEY, Constants.CONSUMER);
     }
 

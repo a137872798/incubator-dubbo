@@ -90,6 +90,13 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     }
 
     // TODO Unified to AsyncResult?
+
+    /**
+     * invoker 的 核心invoke 方法 doInvoke 由子类实现
+     * @param invocation 就是 request中解码获得的 包含了请求的方法名参数等
+     * @return
+     * @throws RpcException
+     */
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         //从本地线程中获取上下文对象
@@ -100,17 +107,17 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
             //如果返回值实现了  Compatable 接口 创建异步对象
             if (RpcUtils.isFutureReturnType(invocation)) {
                 return new AsyncRpcResult((CompletableFuture<Object>) obj);
-                //如果异步上下文 处于启动状态???
+                //如果异步上下文 处于启动状态??? 这里看不懂
             } else if (rpcContext.isAsyncStarted()) { // ignore obj in case of RpcContext.startAsync()? always rely on user to write back.
                 return new AsyncRpcResult(rpcContext.getAsyncContext().getInternalFuture());
             } else {
-                //返回普通对象
+                //将动态代理的结果返回
                 return new RpcResult(obj);
             }
             //这个 异常是 method.invoke 找不到 合适的异常时 抛出
         } catch (InvocationTargetException e) {
             // TODO async throw exception before async thread write back, should stop asyncContext
-            //出现异常时 异步状态无法关闭
+            //出现异常时 异步状态无法关闭 就打印日志
             if (rpcContext.isAsyncStarted() && !rpcContext.stopAsync()) {
                 logger.error("Provider async started, but got an exception from the original method, cannot write the exception back to consumer because an async result may have returned the new thread.", e);
             }

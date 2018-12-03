@@ -91,9 +91,9 @@ public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable 
     }
 
     /**
-     * 实际的 解码逻辑
+     * 实际的 解码逻辑  返回动态代理对象
      * @param channel channel.
-     * @param input   input stream.
+     * @param input   input stream.  使用当前 inputStream 进行解析
      * @return
      * @throws IOException
      */

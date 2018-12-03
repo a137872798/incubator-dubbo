@@ -91,7 +91,7 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
                 if (log.isWarnEnabled()) {
                     log.warn("Decode rpc invocation failed: " + e.getMessage(), e);
                 }
-                //broken 代表该请求失败了
+                //broken 代表该请求失败了  当解析失败时 会设置这个数据 给请求发起方
                 request.setBroken(true);
                 request.setData(e);
             } finally {
@@ -159,7 +159,7 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
             //从对象流中获取存放属性的  map 容器
             Map<String, String> map = (Map<String, String>) in.readObject(Map.class);
             if (map != null && map.size() > 0) {
-                //获取 attachment
+                //获取 attachment  一般就是 null
                 Map<String, String> attachment = getAttachments();
                 if (attachment == null) {
                     attachment = new HashMap<String, String>();
