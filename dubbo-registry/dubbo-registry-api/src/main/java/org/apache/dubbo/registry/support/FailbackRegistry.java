@@ -252,14 +252,16 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         removeFailedSubscribed(url, listener);
         try {
             // Sending a subscription request to the server side
+            //正常订阅 会以正常方式 触发回调
             doSubscribe(url, listener);
         } catch (Exception e) {
             Throwable t = e;
 
-            //以 传入的 url 的 服务键 作为key 获取所有的 url 信息
+            //以 传入的 url 的 服务键 作为key 获取所有的 url 信息 以服务键为单位 也就是相同组 接口 版本的 就能获取到对应的订阅信息 即使不是一个消费者
             List<URL> urls = getCacheUrls(url);
             if (urls != null && !urls.isEmpty()) {
-                //通知 这个方法被重写了
+                //通知 该订阅者订阅的 所有url  这个方法被重写了 只要发起订阅 就会通知订阅者当前获取到的所有url
+                //这里是 针对 注册中心出问题的情况  就使用缓存数据进行通知
                 notify(url, listener, urls);
                 logger.error("Failed to subscribe " + url + ", Using cached list: " + urls + " from cache file: " + getUrl().getParameter(Constants.FILE_KEY, System.getProperty("user.home") + "/dubbo-registry-" + url.getHost() + ".cache") + ", cause: " + t.getMessage(), t);
             } else {
@@ -316,8 +318,8 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     }
 
     /**
-     * 父类的 通知 是保存了 url 对应 urls 下的所有 信息 并持久化到文件中
-     * @param url 需要被通知的 每个地址
+     * 父类会将 订阅的 全量数据(哪种变化了就发哪种的全量) 发送到订阅者上
+     * @param url 订阅者url
      * @param listener 针对需要被通知地址的 监听器
      * @param urls
      */
@@ -334,7 +336,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             doNotify(url, listener, urls);
         } catch (Exception t) {
             // Record a failed registration request to a failed list, retry regularly
-            // 当捕获到异常时  通过url 获取到相关的 监听器 将 监听器 添加到容器中
+            // 当捕获到异常时  通过url 获取到相关的 监听器 将 监听器 添加到容器中  准备重试
             Map<NotifyListener, List<URL>> listeners = failedNotified.get(url);
             if (listeners == null) {
                 failedNotified.putIfAbsent(url, new ConcurrentHashMap<NotifyListener, List<URL>>());
@@ -350,7 +352,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     }
 
     /**
-     * 恢复配置  从父类配置中获取相关信息 保存到本类的成员变量中
+     * 重新订阅 和 注册 相当于 使用后台线程进行
      * @throws Exception
      */
     @Override
@@ -362,7 +364,6 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             if (logger.isInfoEnabled()) {
                 logger.info("Recover register url " + recoverRegistered);
             }
-            //将 父类的 注册信息保存到 本类的容器中 相当于 父类全部的 注册者都需要重试???
             for (URL url : recoverRegistered) {
                 failedRegistered.add(url);
             }

@@ -52,11 +52,12 @@ import java.util.regex.Pattern;
  * <li>default extension is an adaptive instance</li>
  * </ul>
  *
- * dubbo 用来拓展spi 的 核心类  一个拓展对象 对应一个 Loader 对象
  * @see <a href="http://java.sun.com/j2se/1.5.0/docs/guide/jar/jar.html#Service%20Provider">Service Provider in Java 5</a>
  * @see org.apache.dubbo.common.extension.SPI
  * @see org.apache.dubbo.common.extension.Adaptive
  * @see org.apache.dubbo.common.extension.Activate
+ *
+ * dubbo 用来拓展spi 的 核心类  一个拓展对象 对应一个 Loader 对象
  */
 public class ExtensionLoader<T> {
 
@@ -83,7 +84,7 @@ public class ExtensionLoader<T> {
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");
 
     /**
-     * 拓展加载器的 集合
+     * 拓展加载器的 集合   全局容器
      * key: 拓展接口
      */
     private static final ConcurrentMap<Class<?>, ExtensionLoader<?>> EXTENSION_LOADERS = new ConcurrentHashMap<Class<?>, ExtensionLoader<?>>();

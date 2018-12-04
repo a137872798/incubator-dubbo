@@ -92,11 +92,11 @@ public abstract class AbstractRegistry implements Registry {
      */
     private final Set<URL> registered = new ConcurrentHashSet<URL>();
     /**
-     * 针对 url 的 监听器 集合
+     * 针对 该url 的 监听器 集合 例如 当registryDirectory 订阅的时候 传入 监听器和 消费者url 这个url 记录了订阅类型
      */
     private final ConcurrentMap<URL, Set<NotifyListener>> subscribed = new ConcurrentHashMap<URL, Set<NotifyListener>>();
     /**
-     * 提供者 与 订阅者的 关系 针对某个 url 有多少个订阅该 服务的 对象
+     * key1 订阅者 url key2 订阅的种类 provider configurator route consumer  value key2对应的 所有url
      */
     private final ConcurrentMap<URL, Map<String, List<URL>>> notified = new ConcurrentHashMap<URL, Map<String, List<URL>>>();
     /**
@@ -128,9 +128,9 @@ public abstract class AbstractRegistry implements Registry {
         }
         //设置文件对象
         this.file = file;
-        //加载属性
+        //从文件中 将数据加载到 properties
         loadProperties();
-        //通知 url 以及 url 中包含的 其他地址
+        //通知 url 以及 backup 地址 backup 代表是 集群的备选地址  这里应该还没注册监听器
         notify(url.getBackupUrls());
     }
 
@@ -217,7 +217,7 @@ public abstract class AbstractRegistry implements Registry {
             try {
                 FileChannel channel = raf.getChannel();
                 try {
-                    //上锁 后 开始 保存属性 文件锁 还不懂 先不管
+                    //获取到锁才能 写入
                     FileLock lock = channel.tryLock();
                     if (lock == null) {
                         throw new IOException("Can not lock the registry cache file " + file.getAbsolutePath() + ", ignore and retry later, maybe multi java process use the file, please config: dubbo.registry.file=xxx.properties");
@@ -246,7 +246,7 @@ public abstract class AbstractRegistry implements Registry {
             if (version < lastCacheChanged.get()) {
                 return;
             } else {
-                //可能是 上锁失败了就 用后台线程  并增加版本号
+                //可能是 上锁失败了就 用后台线程进行写入  并增加版本号
                 registryCacheExecutor.execute(new SaveProperties(lastCacheChanged.incrementAndGet()));
             }
             logger.warn("Failed to save registry store file, cause: " + e.getMessage(), e);
@@ -281,7 +281,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 获取 缓存 url  property 在保存 的时候 根据  url 的服务键 作为key
+     * 获取会通知该url 的 所有 url (就是那4种类型的数据)
      * @param url
      * @return
      */
@@ -306,10 +306,17 @@ public abstract class AbstractRegistry implements Registry {
         return null;
     }
 
+    /**
+     * 获取 该url 订阅的4种类型 对应的 全部数据
+     * @param url 查询条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
+     * @return
+     */
     @Override
     public List<URL> lookup(URL url) {
         List<URL> result = new ArrayList<URL>();
+        //key 是 订阅类型  list 是url集合
         Map<String, List<URL>> notifiedUrls = getNotified().get(url);
+        //存在 数据 立即返回
         if (notifiedUrls != null && notifiedUrls.size() > 0) {
             for (List<URL> urls : notifiedUrls.values()) {
                 for (URL u : urls) {
@@ -319,13 +326,16 @@ public abstract class AbstractRegistry implements Registry {
                 }
             }
         } else {
+            //这里 应该是 当数据发生变化时 再通知 返回 而不是立即返回
             final AtomicReference<List<URL>> reference = new AtomicReference<List<URL>>();
             NotifyListener listener = new NotifyListener() {
+                //这里传入的 是全部的变化数据 既然进入这里代表数据为空  那也就是通知全部数据
                 @Override
                 public void notify(List<URL> urls) {
                     reference.set(urls);
                 }
             };
+            //为该消费者url 增加 这个监听器
             subscribe(url, listener); // Subscribe logic guarantees the first notify to return
             List<URL> urls = reference.get();
             if (urls != null && !urls.isEmpty()) {
@@ -395,6 +405,11 @@ public abstract class AbstractRegistry implements Registry {
         listeners.add(listener);
     }
 
+    /**
+     * 取消该订阅者的 某个监听器 订阅者url 中 还包含了 订阅类型
+     * @param url      订阅条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
+     * @param listener 变更事件监听器，不允许为空
+     */
     @Override
     public void unsubscribe(URL url, NotifyListener listener) {
         if (url == null) {
@@ -425,11 +440,12 @@ public abstract class AbstractRegistry implements Registry {
                 logger.info("Recover register url " + recoverRegistered);
             }
             for (URL url : recoverRegistered) {
-                //针对 每个 url 进行重新注册 就是重新加入容器
+                //针对 每个 url 进行重新注册 就是重新加入容器 子类会重写这个方法 进行真正的注册
                 register(url);
             }
         }
         // subscribe
+        //重新订阅
         Map<URL, Set<NotifyListener>> recoverSubscribed = new HashMap<URL, Set<NotifyListener>>(getSubscribed());
         if (!recoverSubscribed.isEmpty()) {
             if (logger.isInfoEnabled()) {
@@ -446,7 +462,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 通知 给予的 url 列表  这里传入的 是 给定的url 以及 后面携带的 备份url
+     * 将新增的 url 通知到 指定url
      * @param urls
      */
     protected void notify(List<URL> urls) {
@@ -458,12 +474,12 @@ public abstract class AbstractRegistry implements Registry {
         for (Map.Entry<URL, Set<NotifyListener>> entry : getSubscribed().entrySet()) {
             URL url = entry.getKey();
 
-            //只匹配第一个 主地址  找到 该 url 下 所有的 监听器对象 这个监听器是什么时候加进去的  如果 该注册中心是刚创建的  关联关系应该还没有建立啊 ???
+            //因为 这批url 应该是针对同一个 url 进行通知的 所以第一个能对应就可以了
             if (!UrlUtils.isMatch(url, urls.get(0))) {
                 continue;
             }
 
-            //当匹配上地址后  执行每个监听对象 并通知到每个 url上
+            //触发该订阅者携带的 每个 监听器对象
             Set<NotifyListener> listeners = entry.getValue();
             if (listeners != null) {
                 for (NotifyListener listener : listeners) {
@@ -479,10 +495,9 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 传入的 urls 应该是 新注册的  url 包含了备份信息 然后 先去 订阅者缓存中找到对应的 订阅者对象 同时还有针对该订阅者的 监听器
-     * @param url 消费者url
-     * @param listener 针对需要被通知地址的 监听器
-     * @param urls 通知的结果
+     * @param url 订阅者url
+     * @param listener 通知订阅者需要触发的监听器
+     * @param urls 新增的数据
      */
     protected void notify(URL url, NotifyListener listener, List<URL> urls) {
         if (url == null) {
@@ -503,7 +518,7 @@ public abstract class AbstractRegistry implements Registry {
         Map<String, List<URL>> result = new HashMap<String, List<URL>>();
         //遍历每个url 对象
         for (URL u : urls) {
-            //当2个 url 匹配上后 这里是在匹配 备份地址 因为 主地址已经匹配上了  筛选出 需要通知url 的 地址 没匹配上的就不用通知到 url了
+            //匹配url 只有符合条件的才能 通知
             if (UrlUtils.isMatch(url, u)) {
                 //获取 category 信息  照理说这里匹配上了 category 应该是相同的
                 String category = u.getParameter(Constants.CATEGORY_KEY, Constants.DEFAULT_CATEGORY);
@@ -517,6 +532,9 @@ public abstract class AbstractRegistry implements Registry {
                 categoryList.add(u);
             }
         }
+
+        //到这里  result 已经按协议类型 存储了 url  该url 代表 待通知的url
+
         //代表没有 找到匹配的url 也就不用通知了
         if (result.size() == 0) {
             return;
@@ -531,11 +549,11 @@ public abstract class AbstractRegistry implements Registry {
         for (Map.Entry<String, List<URL>> entry : result.entrySet()) {
             String category = entry.getKey();
             List<URL> categoryList = entry.getValue();
-            //添加到 已通知该 url 的 所有 url信息中
+            //获取到的是全量数据  并替换掉原来的旧数据
             categoryNotified.put(category, categoryList);
-            //保存 该 url 最新的 订阅者数据
+            //保存 该 url 最新的 订阅者数据 里面也是用url 获取 notified 的数据
             saveProperties(url);
-            //触发 目标 url 被 categoryList 通知后 的监听器对象
+            //触发 目标 url 被 categoryList 通知后 的监听器对象  看来一次只会通知一种类型的数据
             listener.notify(categoryList);
         }
     }
@@ -552,6 +570,7 @@ public abstract class AbstractRegistry implements Registry {
         try {
             StringBuilder buf = new StringBuilder();
             //获取 会通知 指定url 的 所有url 对象 并且以category分配好
+            //这里每次写入的 都是 最新的 数据 并且是全部数据
             Map<String, List<URL>> categoryNotified = notified.get(url);
             if (categoryNotified != null) {
                 //遍历 每个 category 下的 url

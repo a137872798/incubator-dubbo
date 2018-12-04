@@ -171,6 +171,7 @@ public class RegistryProtocol implements Protocol {
     public void register(URL registryUrl, URL registedProviderUrl) {
         Registry registry = registryFactory.getRegistry(registryUrl);
         //这里就是 将 服务提供者 发布到注册中心的过程 然后消费者 会从 注册中心订阅相关全量数据 并筛选需要的 invoker
+        //将 registedProviderUrl 解析成zookeeper 的 节点信息 并创建节点然后消费者可以订阅这个节点 当节点下的数据变化就会通知到消费者
         registry.register(registedProviderUrl);
     }
 
@@ -220,7 +221,7 @@ public class RegistryProtocol implements Protocol {
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         //为监听器管理容器 增加一个监听器对象
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
-        //为该注册中心 设置 该监听器对象
+        //为该服务提供者 订阅 配置 信息 当配置发生变化时 会触发监听器修改服务提供者url
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
         //Ensure that a new exporter instance is returned every time export
         //返回一个可销毁的 出口者
@@ -261,7 +262,7 @@ public class RegistryProtocol implements Protocol {
     /**
      * Reexport the invoker of the modified url
      *
-     * 更换 export 对象
+     * 当服务提供者的 url 被 Configurator 修改后 重新发起export
      * @param originInvoker
      * @param newInvokerUrl
      */
@@ -461,16 +462,16 @@ public class RegistryProtocol implements Protocol {
         //获取 目录对象的url 的属性 这个url 是消费者 url 缩减部分数据后的
         Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
         //创建 一个 消费者 url 对象 协议是 consumer 传入的 param 中 端口 使用 绑定到注册中心的 端口 也就是消费者端 连接 注册中心使用的端口
+        //consumer协议代表 订阅失败不抛出异常  详见 FailbackRegistry
         URL subscribeUrl = new URL(Constants.CONSUMER_PROTOCOL, parameters.remove(Constants.REGISTER_IP_KEY), 0, type.getName(), parameters);
         //当消费者订阅的 接口 不是 * 时 且消费者 register 为true 应该是 代表该url 可以注册到注册中心 那么
         if (!Constants.ANY_VALUE.equals(url.getServiceInterface())
                 && url.getParameter(Constants.REGISTER_KEY, true)) {
-            //向注册中心 注册该订阅信息  注册实际逻辑先不看
-            //相比上面 增加了 category = consumer  check = false 代表订阅了 消费者的变化
+            //注册消费者节点   这个好像是跟  广播实现的注册中心有关 这个场景是用不到的
             registry.register(subscribeUrl.addParameters(Constants.CATEGORY_KEY, Constants.CONSUMERS_CATEGORY,
                     Constants.CHECK_KEY, String.valueOf(false)));
         }
-        //使用 目录对象 发起订阅 种类是 服务提供者，路由信息，配置信息
+        //使用 目录对象 发起订阅 种类是 服务提供者，路由信息，配置信息 这个拆分category 应该是在zookeeper 里面做好了
         directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY,
                 Constants.PROVIDERS_CATEGORY
                         + "," + Constants.CONFIGURATORS_CATEGORY
@@ -527,6 +528,7 @@ public class RegistryProtocol implements Protocol {
      * 1.Ensure that the exporter returned by registryprotocol can be normal destroyed
      * 2.No need to re-register to the registry after notify
      * 3.The invoker passed by the export method , would better to be the invoker of exporter
+     * 这个就是 服务提供者订阅了 注册中心的 configurator 当发生变化时 修改url
      */
     private class OverrideListener implements NotifyListener {
 

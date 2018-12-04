@@ -60,12 +60,12 @@ public class ZookeeperRegistry extends FailbackRegistry {
     private final String root;
 
     /**
-     * 接口集合
+     * 保存所有 服务接口
      */
     private final Set<String> anyServices = new ConcurrentHashSet<String>();
 
     /**
-     * 监听器集合
+     * 监听器集合  这里url是订阅者 key2 是订阅者传入的监听器 value 是 对应到zookeeper的监听器
      */
     private final ConcurrentMap<URL, ConcurrentMap<NotifyListener, ChildListener>> zkListeners = new ConcurrentHashMap<URL, ConcurrentMap<NotifyListener, ChildListener>>();
 
@@ -77,6 +77,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
     public ZookeeperRegistry(URL url, ZookeeperTransporter zookeeperTransporter) {
         super(url);
         //如果 没有设置端口 抛出 异常 注意 在 dubbo 中url不等于 ip:port url 是属性的 载体
+        //这里对应 获取 registryConfig 时 没有地址的情况 默认就是使用 anyhost
         if (url.isAnyHost()) {
             throw new IllegalStateException("registry address == null");
         }
@@ -89,7 +90,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
         //将 根节点定位成group  默认是 dubbo
         this.root = group;
         //通过 封装的 transporter 连接到指定url 返回 zookeeper 客户端 client 对象也是被dubbo 封装过的
-        //通过 组合的 方式从传入的url 中获取属性 初始化对象
+        //通过 组合的 方式从传入的url 中获取属性 初始化对象 这个client 对象内部维护zookeeper 的client
         zkClient = zookeeperTransporter.connect(url);
         //给 对象设置监听器
         //zookeeper 原生的 客户端对象会被 创建监听器对象 当触发时 通过映射 状态枚举 以及 触发 dubbo创建的 适配 监听器 实现 功能兼容
@@ -158,7 +159,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
     @Override
     protected void doRegister(URL url) {
         try {
-            //传入 是否为 动态数据 如果是 就是 临时的 否就是要做持久化 保存在 zookeeper上
+            //传入 是否为 动态数据 如果是 就是 临时的 否就是要做持久化 保存在 zookeeper上  动态对应referenceConfig 中 动态属性
             zkClient.create(toUrlPath(url), url.getParameter(Constants.DYNAMIC_KEY, true));
         } catch (Throwable e) {
             throw new RpcException("Failed to register " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);
@@ -187,8 +188,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
     @Override
     protected void doSubscribe(final URL url, final NotifyListener listener) {
         try {
-            //获取 订阅的 目标接口   这里代表每个 订阅的 url 都需要一个 当节点发生变化时 回调的监听器
-            //当调用顶层的 订阅时 根据下面所有的 服务接口 又会 进行单独的 订阅
+            //代表针对 所有接口层发起的订阅
             if (Constants.ANY_VALUE.equals(url.getServiceInterface())) {
                 //获取根目录地址
                 String root = toRootPath();
@@ -202,27 +202,26 @@ public class ZookeeperRegistry extends FailbackRegistry {
                 //尝试 通过指定的监听器 获取 childList
                 ChildListener zkListener = listeners.get(listener);
                 if (zkListener == null) {
-                    //设置 该监听器 关联的 ChildListener  触发的时机在哪里
+                    //设置 该监听器 关联的 ChildListener  在zookeeper 发生变化时触发
                     listeners.putIfAbsent(listener, new ChildListener() {
                         /**
-                         * 当子节点发生变化时
+                         * 当子节点发生变化时 也就是接口级别发生变化
                          * @param parentPath 父节点
-                         * @param currentChilds 同级所有子节点 应该就是 接口名
+                         * @param currentChilds 全量子节点数据
                          */
                         @Override
                         public void childChanged(String parentPath, List<String> currentChilds) {
                             //遍历所有子节点
                             for (String child : currentChilds) {
                                 child = URL.decode(child);
-                                //发现不包含子节点 就 增加新的 可订阅接口
+                                //发现不包含子节点 就 增加新的 节点
                                 if (!anyServices.contains(child)) {
                                     anyServices.add(child);
                                     //触发订阅事件
                                     //1.在 顶层父类 维护 订阅者的信息中增加这个新的url
                                     //2.触发本级的 doSubscribe
 
-                                    //这里是 发起一个新的订阅操作 因为返回的 url 是一个新对象 同一层所以使用同一个监听对象
-                                    //这个相当于是 自动创建订阅 信息
+                                    //发起接口级别的订阅
                                     subscribe(url.setPath(child).addParameters(Constants.INTERFACE_KEY, child,
                                             Constants.CHECK_KEY, String.valueOf(false)), listener);
                                 }
@@ -235,9 +234,10 @@ public class ZookeeperRegistry extends FailbackRegistry {
 
                 //这里创建新节点  如果节点存在应该是不用操作了  订阅* 就是获取root下所有节点
                 zkClient.create(root, false);
-                //为子节点设置 监听器 以根节点为父节点 当子节点发生变化时 触发对应的监听器 也就是 自动发起订阅动作
                 //返回子节点层的全部元素  也就是接口层
+                //这里才是真正将创建的监听器绑定到zookeeper 上
                 List<String> services = zkClient.addChildListener(root, zkListener);
+                //如果当前已经有接口级别的节点了 就 针对接口级别发起订阅
                 if (services != null && !services.isEmpty()) {
                     for (String service : services) {
                         service = URL.decode(service);
@@ -264,12 +264,12 @@ public class ZookeeperRegistry extends FailbackRegistry {
                         listeners = zkListeners.get(url);
                     }
                     ChildListener zkListener = listeners.get(listener);
-                    //如果监听器不存在 这个 监听器 的 逻辑跟上面的不同
                     if (zkListener == null) {
                         listeners.putIfAbsent(listener, new ChildListener() {
+                            //针对 category 级别的订阅 触发 全量数据
                             @Override
                             public void childChanged(String parentPath, List<String> currentChilds) {
-                                //触发 注册中心的 notify
+                                //toUrlsWithEmpty这个方法 将 获取到的全量数据根据 url 进行过滤
                                 ZookeeperRegistry.this.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));
                             }
                         });
@@ -280,11 +280,10 @@ public class ZookeeperRegistry extends FailbackRegistry {
                     //返回 具体的 url 级别的 children
                     List<String> children = zkClient.addChildListener(path, zkListener);
                     if (children != null) {
-                        //代表需要通知的  url 也就是寻找 与 url 匹配的 children
                         urls.addAll(toUrlsWithEmpty(url, path, children));
                     }
                 }
-                //为 传入的url 通知 订阅到的 urls  通知只到 TYPE 和 URL 级别 订阅只到 Service
+                //如果当前已经有数据就直接通知  对应到 首次订阅 直接返回数据
                 notify(url, listener, urls);
             }
         } catch (Throwable e) {

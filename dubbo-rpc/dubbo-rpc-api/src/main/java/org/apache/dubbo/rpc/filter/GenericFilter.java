@@ -60,7 +60,7 @@ public class GenericFilter implements Filter {
      */
     @Override
     public Result invoke(Invoker<?> invoker, Invocation inv) throws RpcException {
-        //如果没有实现泛化接口
+        //如果获取到泛化调用 解析 方法名和参数 调用
         if (inv.getMethodName().equals(Constants.$INVOKE)
                 && inv.getArguments() != null
                 && inv.getArguments().length == 3

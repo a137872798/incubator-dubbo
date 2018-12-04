@@ -66,7 +66,7 @@ public class GenericImplFilter implements Filter {
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         //获取 generic 的 值 可能是 nativejava true bean
         String generic = invoker.getUrl().getParameter(Constants.GENERIC_KEY);
-        //确定是否是 泛化类型
+        //如果是 非泛化形式 但是 设置了  generic = true 那么就在这里 转换为 泛化形式 也就是genericService.$invoke(...)
         if (ProtocolUtils.isGeneric(generic)
                 //这里好像是避免被重复处理
                 && !Constants.$INVOKE.equals(invocation.getMethodName())
@@ -187,7 +187,11 @@ public class GenericImplFilter implements Filter {
             return result;
         }
 
-        //如果该invoker 对象一开始就已经泛化好了
+        //如果直接是以泛化形式进行调用的 比如
+        /**
+         * GenericService genericService = (GenericService) context.getBean("demoService");
+         * Object result = genericService.$invoke("say01", new String[]{"java.lang.String"}, new Object[]{"123"});
+         */
         if (invocation.getMethodName().equals(Constants.$INVOKE)
                 && invocation.getArguments() != null
                 && invocation.getArguments().length == 3
