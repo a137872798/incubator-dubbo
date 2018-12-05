@@ -42,7 +42,7 @@ import java.lang.reflect.Method;
 /**
  * GenericImplInvokerFilter
  *
- * 泛化调用链 只针对消费者  并且该消费者必须要有 generic 的标识 才能起作用
+ * 泛化调用链 只针对消费者  并且该消费者必须要有 generic 的标识 才能起作用 先从泛化调用开始 在这里做处理后 才会进入 泛化引用
  */
 //只针对消费者
 @Activate(group = Constants.CONSUMER, value = Constants.GENERIC_KEY, order = 20000)
@@ -57,8 +57,8 @@ public class GenericImplFilter implements Filter {
 
     /**
      * 调用链的实际逻辑
-     * @param invoker    service
-     * @param invocation invocation.
+     * @param invoker    service 链中的 上层元素
+     * @param invocation invocation. 调用invoke 传入的上下文对象记录了 方法名等信息
      * @return
      * @throws RpcException
      */
@@ -68,12 +68,12 @@ public class GenericImplFilter implements Filter {
         String generic = invoker.getUrl().getParameter(Constants.GENERIC_KEY);
         //确定是否是 泛化类型
         if (ProtocolUtils.isGeneric(generic)
-                //这里好像是避免被重复处理
+                //如果已经处理过的 方法名会变成 $invoke 这里是避免重复处理
                 && !Constants.$INVOKE.equals(invocation.getMethodName())
                 //invocation 一定要是 RPCinvocation???
                 && invocation instanceof RpcInvocation) {
             RpcInvocation invocation2 = (RpcInvocation) invocation;
-            //转型获取方法名
+            //转型获取方法名  这里的方法名还没有被处理过 处理后这个methodName 需要是 $invoke
             String methodName = invocation2.getMethodName();
             //参数列表和参数类型
             Class<?>[] parameterTypes = invocation2.getParameterTypes();
@@ -92,27 +92,31 @@ public class GenericImplFilter implements Filter {
                 //设置参数列表
                 args = new Object[arguments.length];
                 for (int i = 0; i < arguments.length; i++) {
-                    //每个参数都进行序列化
+                    //生成对应参数的 描述信息  JavaBeanAccessor.METHOD 代表描述范围
                     args[i] = JavaBeanSerializeUtil.serialize(arguments[i], JavaBeanAccessor.METHOD);
                 }
                 //这里 只有generic= true了  没有看到关于 nativejava的 相关代码
             } else {
+                //也是 获取参数信息
                 args = PojoUtils.generalize(arguments);
             }
 
             //设置方法名
             invocation2.setMethodName(Constants.$INVOKE);
+            //设置成 泛化对象的 标准参数
             invocation2.setParameterTypes(GENERIC_PARAMETER_TYPES);
-            //将原来的 方法名作为参数设置
+            //对应 GENERIC_PARAMETER_TYPES 需要的参数
             invocation2.setArguments(new Object[]{methodName, types, args});
-            //将参数进行转换后开始一般调用
+            //使用泛化发起 调用
             Result result = invoker.invoke(invocation2);
 
             //返回结果无异常时
             if (!result.hasException()) {
                 Object value = result.getValue();
                 try {
-                    //通过指定方法名和参数 获取method对象
+                    //这里要将 泛化返回的 结果 也就是 map类型转换成 本身需要的 结果
+
+                    //通过指定方法名和参数 获取method对象  getInterface() 也就是返回一开始消费者需要的 服务接口类型
                     Method method = invoker.getInterface().getMethod(methodName, parameterTypes);
                     //如果是 bean的 序列化方式
                     if (ProtocolUtils.isBeanGenericSerialization(generic)) {
@@ -170,7 +174,7 @@ public class GenericImplFilter implements Filter {
                             if (!field.isAccessible()) {
                                 field.setAccessible(true);
                             }
-                            //还原 该异常对象 从包装的  genericException 中又拿出异常消息
+                            //将异常信息 转移到这里
                             field.set(targetException, exception.getExceptionMessage());
                         } catch (Throwable e) {
                             logger.warn(e.getMessage(), e);
@@ -187,7 +191,7 @@ public class GenericImplFilter implements Filter {
             return result;
         }
 
-        //如果该invoker 对象一开始就已经泛化好了
+        //如果该invoker 对象一开始就已经泛化好了  这里就是做校验工作
         if (invocation.getMethodName().equals(Constants.$INVOKE)
                 && invocation.getArguments() != null
                 && invocation.getArguments().length == 3

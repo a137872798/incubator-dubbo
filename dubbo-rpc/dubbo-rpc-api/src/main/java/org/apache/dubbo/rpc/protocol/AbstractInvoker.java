@@ -187,7 +187,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
 
 
         try {
-            //执行的实际逻辑  这里就是委托到 dubboInvoker 执行 远程通信返回结果
+            //执行的实际逻辑  这里就是委托到 dubboInvoker 执行 远程通信返回结果 如果是通过injvmInvoker 直接获取服务提供者的invoker对象
             return doInvoke(invocation);
             //biz 异常先不管
         } catch (InvocationTargetException e) { // biz exception

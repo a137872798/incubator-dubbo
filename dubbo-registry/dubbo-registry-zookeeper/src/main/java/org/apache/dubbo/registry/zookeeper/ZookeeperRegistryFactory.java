@@ -24,7 +24,7 @@ import org.apache.dubbo.remoting.zookeeper.ZookeeperTransporter;
 /**
  * ZookeeperRegistryFactory.
  *
- *
+ * zookeeper 注册中心
  */
 public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
 
@@ -34,7 +34,7 @@ public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
     private ZookeeperTransporter zookeeperTransporter;
 
     /**
-     * 设置 工厂对象
+     * 设置 工厂对象  在SPI 机制中好像 会自动填充属性 那么这个属性是怎么来的???
      * @param zookeeperTransporter
      */
     public void setZookeeperTransporter(ZookeeperTransporter zookeeperTransporter) {

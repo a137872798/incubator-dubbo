@@ -73,11 +73,17 @@ public final class JavaBeanSerializeUtil {
         if (obj instanceof JavaBeanDescriptor) {
             return (JavaBeanDescriptor) obj;
         }
+        //保存对象与 描述信息的缓存
         IdentityHashMap<Object, JavaBeanDescriptor> cache = new IdentityHashMap<Object, JavaBeanDescriptor>();
         JavaBeanDescriptor result = createDescriptorIfAbsent(obj, accessor, cache);
         return result;
     }
 
+    /**
+     * 创建描述信息
+     * @param cl
+     * @return
+     */
     private static JavaBeanDescriptor createDescriptorForSerialize(Class<?> cl) {
         if (cl.isEnum()) {
             return new JavaBeanDescriptor(cl.getName(), JavaBeanDescriptor.TYPE_ENUM);
@@ -96,12 +102,22 @@ public final class JavaBeanSerializeUtil {
         }
     }
 
+    /**
+     * 创建 对象 的描述信息 并保存到给定的 缓存容器
+     * @param obj
+     * @param accessor
+     * @param cache
+     * @return
+     */
     private static JavaBeanDescriptor createDescriptorIfAbsent(Object obj, JavaBeanAccessor accessor, IdentityHashMap<Object, JavaBeanDescriptor> cache) {
+        //如果在缓存中能找到 直接返回
         if (cache.containsKey(obj)) {
             return cache.get(obj);
+            //本身是描述类型直接返回
         } else if (obj instanceof JavaBeanDescriptor) {
             return (JavaBeanDescriptor) obj;
         } else {
+            //通过对象创建描述信息
             JavaBeanDescriptor result = createDescriptorForSerialize(obj.getClass());
             cache.put(obj, result);
             serializeInternal(result, obj, accessor, cache);
@@ -109,6 +125,13 @@ public final class JavaBeanSerializeUtil {
         }
     }
 
+    /**
+     * 给描述信息设置对象的属性
+     * @param descriptor 描述信息
+     * @param obj 对象
+     * @param accessor  描述类型
+     * @param cache 缓存对象
+     */
     private static void serializeInternal(JavaBeanDescriptor descriptor, Object obj, JavaBeanAccessor accessor, IdentityHashMap<Object, JavaBeanDescriptor> cache) {
         if (obj == null || descriptor == null) {
             return;

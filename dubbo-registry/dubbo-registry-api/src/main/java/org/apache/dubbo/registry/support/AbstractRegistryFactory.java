@@ -33,7 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * AbstractRegistryFactory. (SPI, Singleton, ThreadSafe)
  *
- * 注册中心工厂的骨架类
+ * 注册中心工厂的骨架类  主要就是为创建的注册中心对象 针对同一台机器 做了缓存
  * @see org.apache.dubbo.registry.RegistryFactory
  */
 public abstract class AbstractRegistryFactory implements RegistryFactory {
@@ -45,7 +45,7 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
     private static final ReentrantLock LOCK = new ReentrantLock();
 
     /**
-     * 维护注册者的容器 在终止时 会清空
+     * 维护注册中心的容器 在终止时 会清空
      * Registry Collection Map<RegistryAddress, Registry>
      */
     private static final Map<String, Registry> REGISTRIES = new HashMap<>();
@@ -98,6 +98,7 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
     @Override
     public Registry getRegistry(URL url) {
         //将 url 的 路径设置为 RegistryService 的 名字 增加指定参数 移除 export  refer属性 就是将 消费者 和 提供者的相关消息全部去除了
+        //因为 发送到registryProtocol  的url 肯定是携带了消费者和 提供者信息的
         url = url.setPath(RegistryService.class.getName())
                 .addParameter(Constants.INTERFACE_KEY, RegistryService.class.getName())
                 .removeParameters(Constants.EXPORT_KEY, Constants.REFER_KEY);
@@ -106,6 +107,7 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         // Lock the registry access process to ensure a single instance of the registry
         LOCK.lock();
         try {
+            //从容器中获取注册中心对象 获取不到 就 创建
             Registry registry = REGISTRIES.get(key);
             if (registry != null) {
                 return registry;
@@ -125,6 +127,11 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
     }
 
 
+    /**
+     * 将创建注册中心的核心方法 转发到这里
+     * @param url
+     * @return
+     */
     protected abstract Registry createRegistry(URL url);
 
 }

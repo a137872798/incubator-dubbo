@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * AbstractRegistry. (SPI, Prototype, ThreadSafe)
  *
- * 抽象注册中心
+ * 注册中心骨架类
  */
 public abstract class AbstractRegistry implements Registry {
 
@@ -70,7 +70,7 @@ public abstract class AbstractRegistry implements Registry {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     // Local disk cache, where the special key value.registies records the list of registry centers, and the others are the list of notified service providers
     /**
-     * 注册中心 的 数据会暂时被保存在这个文件中
+     * 注册中心 的 数据会暂时被保存在这个文件中 这在注册中心挂掉的时候可以使用
      */
     private final Properties properties = new Properties();
     // File cache timing writing
@@ -130,7 +130,7 @@ public abstract class AbstractRegistry implements Registry {
         this.file = file;
         //加载属性
         loadProperties();
-        //通知 url 以及 url 中包含的 其他地址
+        //通知 注册中心url 上的 所有url  对应生成注册中心url时 地址是 拼接的情况下 那么就将后面的地址以 backup为key 拼接
         notify(url.getBackupUrls());
     }
 
@@ -217,7 +217,7 @@ public abstract class AbstractRegistry implements Registry {
             try {
                 FileChannel channel = raf.getChannel();
                 try {
-                    //上锁 后 开始 保存属性 文件锁 还不懂 先不管
+                    //保证文件不会被多进程修改
                     FileLock lock = channel.tryLock();
                     if (lock == null) {
                         throw new IOException("Can not lock the registry cache file " + file.getAbsolutePath() + ", ignore and retry later, maybe multi java process use the file, please config: dubbo.registry.file=xxx.properties");
@@ -229,6 +229,7 @@ public abstract class AbstractRegistry implements Registry {
                         }
                         FileOutputStream outputFile = new FileOutputStream(file);
                         try {
+                            //将 properties 中的全部数据 写入到 文件中
                             properties.store(outputFile, "Dubbo Registry Cache");
                         } finally {
                             outputFile.close();
@@ -243,10 +244,11 @@ public abstract class AbstractRegistry implements Registry {
                 raf.close();
             }
         } catch (Throwable e) {
+            //如果当前版本 小于最新版本就放弃
             if (version < lastCacheChanged.get()) {
                 return;
             } else {
-                //可能是 上锁失败了就 用后台线程  并增加版本号
+                //在后台线程 继续写入
                 registryCacheExecutor.execute(new SaveProperties(lastCacheChanged.incrementAndGet()));
             }
             logger.warn("Failed to save registry store file, cause: " + e.getMessage(), e);
@@ -261,7 +263,7 @@ public abstract class AbstractRegistry implements Registry {
             InputStream in = null;
             try {
                 in = new FileInputStream(file);
-                //从文件中 读取属性
+                //将文件中的属性写入到 properties 中
                 properties.load(in);
                 if (logger.isInfoEnabled()) {
                     logger.info("Load registry store file " + file + ", data: " + properties);
@@ -281,7 +283,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 获取 缓存 url  property 在保存 的时候 根据  url 的服务键 作为key
+     * 从properties 中获取指定服务键对应的所有数据
      * @param url
      * @return
      */
@@ -371,7 +373,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 为指定 url 添加 监听器 RegistryDirectory 也会被作为 监听器被添加
+     * 为指定 url 添加 监听器 RegistryDirectory 也会被作为 监听器被添加 这个url 一般是消费者url
      * @param url      订阅条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
      * @param listener 变更事件监听器，不允许为空
      */
@@ -395,6 +397,11 @@ public abstract class AbstractRegistry implements Registry {
         listeners.add(listener);
     }
 
+    /**
+     * 代表某消费者 取消了 某个监听器
+     * @param url      订阅条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
+     * @param listener 变更事件监听器，不允许为空
+     */
     @Override
     public void unsubscribe(URL url, NotifyListener listener) {
         if (url == null) {
@@ -446,7 +453,7 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 通知 给予的 url 列表  这里传入的 是 给定的url 以及 后面携带的 备份url
+     * 通知 给予的 url 列表  这里传入的 是 RegistryConfig 中的 所有注册中心地址  也就是 "," 拼接的
      * @param urls
      */
     protected void notify(List<URL> urls) {
@@ -468,7 +475,7 @@ public abstract class AbstractRegistry implements Registry {
             if (listeners != null) {
                 for (NotifyListener listener : listeners) {
                     try {
-                        //通知的 实际逻辑
+                        //通知的 实际逻辑   filterEmpty 如果urls 为空 会设置一个 EmptyProtocol 对应registryDirectory 的 空协议
                         notify(url, listener, filterEmpty(url, urls));
                     } catch (Throwable t) {
                         logger.error("Failed to notify registry event, urls: " + urls + ", cause: " + t.getMessage(), t);
@@ -479,10 +486,10 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 传入的 urls 应该是 新注册的  url 包含了备份信息 然后 先去 订阅者缓存中找到对应的 订阅者对象 同时还有针对该订阅者的 监听器
+     * 传入的是注册中心的urls 包含了备份信息 然后 先去 订阅者缓存中找到对应的 订阅者对象 同时还有针对该订阅者的 监听器
      * @param url 消费者url
      * @param listener 针对需要被通知地址的 监听器
-     * @param urls 通知的结果
+     * @param urls 注册中心url
      */
     protected void notify(URL url, NotifyListener listener, List<URL> urls) {
         if (url == null) {
@@ -501,11 +508,10 @@ public abstract class AbstractRegistry implements Registry {
         }
 
         Map<String, List<URL>> result = new HashMap<String, List<URL>>();
-        //遍历每个url 对象
+        //遍历每个注册中心url 对象
         for (URL u : urls) {
-            //当2个 url 匹配上后 这里是在匹配 备份地址 因为 主地址已经匹配上了  筛选出 需要通知url 的 地址 没匹配上的就不用通知到 url了
             if (UrlUtils.isMatch(url, u)) {
-                //获取 category 信息  照理说这里匹配上了 category 应该是相同的
+                //获取订阅类型
                 String category = u.getParameter(Constants.CATEGORY_KEY, Constants.DEFAULT_CATEGORY);
                 //根据 category 对 数据进行分类
                 List<URL> categoryList = result.get(category);
@@ -541,7 +547,8 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     /**
-     * 为给定url 增加属性
+     * 这里是将 该 url 订阅的 所有 信息保存起来 并写入到properties 再写入到 file 中 保证了在注册中心瘫痪的时候能够使用之前
+     * 获取到的服务提供者 进行 rpc调用
      * @param url
      */
     private void saveProperties(URL url) {
@@ -565,7 +572,7 @@ public abstract class AbstractRegistry implements Registry {
                     }
                 }
             }
-            //以服务键作为 key 保存 订阅的 所有 url 信息
+            //以服务键作为 key 保存 订阅的 所有 url 信息 当某个服务提供者下线时 容器中的数据减少 生成的 string 也就不含该提供者的信息了
             properties.setProperty(url.getServiceKey(), buf.toString());
             //更新版本号
             long version = lastCacheChanged.incrementAndGet();

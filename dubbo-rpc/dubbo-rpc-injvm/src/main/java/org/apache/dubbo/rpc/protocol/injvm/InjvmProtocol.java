@@ -131,6 +131,7 @@ public class InjvmProtocol extends AbstractProtocol implements Protocol {
      */
     @Override
     public <T> Invoker<T> refer(Class<T> serviceType, URL url) throws RpcException {
+        //该对象也保存了 exporterMap 的引用 同时 该对象是单例的
         return new InjvmInvoker<T>(serviceType, url, url.getServiceKey(), exporterMap);
     }
 

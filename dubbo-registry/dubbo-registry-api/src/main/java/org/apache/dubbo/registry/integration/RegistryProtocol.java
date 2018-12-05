@@ -55,7 +55,7 @@ import static org.apache.dubbo.common.Constants.VALIDATION_KEY;
 
 /**
  * RegistryProtocol
- * 注册中心 协议
+ * 注册中心 级别协议  就是在这层完成了 订阅 和 注册
  */
 public class RegistryProtocol implements Protocol {
 
@@ -192,7 +192,7 @@ public class RegistryProtocol implements Protocol {
         URL registryUrl = getRegistryUrl(originInvoker);
 
         //registry provider
-        //根据注册中心协议类型获取对应的实现
+        //根据注册中心协议类型获取对应的实现  这里可选的 有 dubbo redis zookeeper 等 注意 dubbo 是有自己的注册中心实现的
         final Registry registry = getRegistry(originInvoker);
 
         //将服务提供者 url 去除无关属性
@@ -249,6 +249,7 @@ public class RegistryProtocol implements Protocol {
                     //通过服务提供者 url 和 原始的 invoker对象 创建 delegate 对象
                     final Invoker<?> invokerDelegete = new InvokerDelegete<T>(originInvoker, getProviderUrl(originInvoker));
                     //初始化 一个 出口服务的 包装对象 这个protocol 应该也是 自适应对象 这里一般就会转发到 dubboProtocol
+                    //如果该协议是 injvm 还是会使用 injvmProtocol 不过多了一层通过注册中心 发现
                     exporter = new ExporterChangeableWrapper<T>((Exporter<T>) protocol.export(invokerDelegete), originInvoker);
                     //设置到绑定对象中
                     bounds.put(key, exporter);
@@ -461,16 +462,17 @@ public class RegistryProtocol implements Protocol {
         //获取 目录对象的url 的属性 这个url 是消费者 url 缩减部分数据后的
         Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
         //创建 一个 消费者 url 对象 协议是 consumer 传入的 param 中 端口 使用 绑定到注册中心的 端口 也就是消费者端 连接 注册中心使用的端口
+        //设置成消费者 这样 就不会在订阅失败时抛出异常了
         URL subscribeUrl = new URL(Constants.CONSUMER_PROTOCOL, parameters.remove(Constants.REGISTER_IP_KEY), 0, type.getName(), parameters);
-        //当消费者订阅的 接口 不是 * 时 且消费者 register 为true 应该是 代表该url 可以注册到注册中心 那么
+        //当消费者订阅的 接口 不是 * 时 且消费者 register 为true 应该是 代表该url 可以注册到注册中心
         if (!Constants.ANY_VALUE.equals(url.getServiceInterface())
                 && url.getParameter(Constants.REGISTER_KEY, true)) {
-            //向注册中心 注册该订阅信息  注册实际逻辑先不看
+            //将消费者自身 注册到了注册中心
             //相比上面 增加了 category = consumer  check = false 代表订阅了 消费者的变化
             registry.register(subscribeUrl.addParameters(Constants.CATEGORY_KEY, Constants.CONSUMERS_CATEGORY,
                     Constants.CHECK_KEY, String.valueOf(false)));
         }
-        //使用 目录对象 发起订阅 种类是 服务提供者，路由信息，配置信息
+        //使用 目录对象 发起订阅 种类是 服务提供者，路由信息，配置信息 内部会委托到registry
         directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY,
                 Constants.PROVIDERS_CATEGORY
                         + "," + Constants.CONFIGURATORS_CATEGORY

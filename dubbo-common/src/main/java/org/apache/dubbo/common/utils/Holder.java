@@ -19,6 +19,7 @@ package org.apache.dubbo.common.utils;
 /**
  * Helper Class for hold a value.
  *
+ * 协同 synchronize  使得 在内置锁 中调用get 方法 获取到的是 volatile 的对象
  */
 public class Holder<T> {
 

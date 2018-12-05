@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
  * FailbackRegistry. (SPI, Prototype, ThreadSafe)
  *
  * 失败重试 将注册失败和 订阅失败的数据在这里进行重试 销毁时 就关闭线程池  子类实现就是对接到第三方框架 destory 就是调用第三方的close
+ * check 设置成false 就是为了在注册中心进行操作的时候不直接抛出异常而是使用重试
  */
 public abstract class FailbackRegistry extends AbstractRegistry {
 
@@ -82,10 +83,12 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     /**
      * The time in milliseconds the retryExecutor will wait
+     * 重试时间间隔
      */
     private final int retryPeriod;
 
     public FailbackRegistry(URL url) {
+        //调用父类的 构造函数 会加载文件 并读取到properties 中
         super(url);
         //重试频率
         this.retryPeriod = url.getParameter(Constants.REGISTRY_RETRY_PERIOD_KEY, Constants.DEFAULT_REGISTRY_RETRY_PERIOD);
@@ -153,7 +156,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         if (listeners != null) {
             listeners.remove(listener);
         }
-        //同时 移除了 订阅失败的 数据
+        //同时 移除了 注销失败的 数据 应该是代表 注销失败的 结果成功订阅了 就不需要注销了
         listeners = failedUnsubscribed.get(url);
         if (listeners != null) {
             listeners.remove(listener);
@@ -171,9 +174,11 @@ public abstract class FailbackRegistry extends AbstractRegistry {
      */
     @Override
     public void register(URL url) {
+        //继承父类 就是 给一个容器 增加数据
         super.register(url);
         //重新注册前 从容器中移除 url
         failedRegistered.remove(url);
+        //刚注册成功避免 之前的注销触发
         failedUnregistered.remove(url);
         try {
             // Sending a registration request to the server side
@@ -183,7 +188,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             Throwable t = e;
 
             // If the startup detection is opened, the Exception is thrown directly.
-            // 如果都需要检查 并且不是 消费者 消费者 就不需要进行检查
+            // 如果都需要检查 并且不是 消费者 消费者 就不需要进行检查 一旦检查到就会直接抛出异常
             boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
                     && url.getParameter(Constants.CHECK_KEY, true)
                     && !Constants.CONSUMER_PROTOCOL.equals(url.getProtocol());
@@ -241,7 +246,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     }
 
     /**
-     * 订阅
+     * 订阅 在订阅的 同时 也 在父类将url 和 监听器关联起来 这里传入的 listener 是 RegistryDirectory
      * @param url      订阅条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.foo.BarService?version=1.0.0&application=kylin
      * @param listener 变更事件监听器，不允许为空
      */
@@ -256,7 +261,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         } catch (Exception e) {
             Throwable t = e;
 
-            //以 传入的 url 的 服务键 作为key 获取所有的 url 信息
+            //以 传入的 url 的 服务键 作为key 获取所有的 url 信息 应该是代表针对该url 有多少监听的url
             List<URL> urls = getCacheUrls(url);
             if (urls != null && !urls.isEmpty()) {
                 //通知 这个方法被重写了

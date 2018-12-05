@@ -38,6 +38,7 @@ import java.util.List;
 /**
  * DubboRegistryFactory
  *
+ * dubbo 默认的注册中心
  */
 public class DubboRegistryFactory extends AbstractRegistryFactory {
 

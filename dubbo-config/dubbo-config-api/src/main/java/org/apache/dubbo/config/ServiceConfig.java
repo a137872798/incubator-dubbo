@@ -445,7 +445,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     /**
-     * 出口服务
+     * 出口服务  服务提供者暴露的对象都进行过动态代理  而 消费者获取到服务端的invoker对象都要 通过getProxy 获取代理对象
      */
     private void doExportUrls() {
         //加载注册中心的 信息 boolean 代表执行这个方法的是 服务提供者
@@ -453,6 +453,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         //遍历 协议 列表
         for (ProtocolConfig protocolConfig : protocols) {
             //根据 每种通信协议 对每个注册中心进行发布  注意如果 regisry 是 N/A 返回的是空列表
+            //这里的 协议是指 dubbo injvm hessian 等  hessian 好像是 基于http请求 进行 调用的
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
@@ -629,7 +630,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (!Constants.SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
-            //主要不是 remote 就进行本地暴露
+            //只要不是 remote 就进行本地暴露
             if (!Constants.SCOPE_REMOTE.equalsIgnoreCase(scope)) {
                 //本地暴露
                 exportLocal(url);
@@ -685,6 +686,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                     Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);
                     DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
+                    //这个协议是 根据 protocolConfig 中取出来的默认协议还是dubbo 代表不通过注册中心 直接发布服务 这个就是通过直连方式
+                    //如果是 injvm 就直接是本地暴露了
                     Exporter<?> exporter = protocol.export(wrapperInvoker);
                     exporters.add(exporter);
                 }
@@ -709,6 +712,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                     .setProtocol(Constants.LOCAL_PROTOCOL)
                     .setHost(LOCALHOST)
                     .setPort(0);
+
+            //本地暴露使用的 是 injvmProtocol 同样会设置 filter链 和 listener 链  直接返回一个 InjvmExporter 对象
+
             //委托协议对象 进行出口 也就是 injvm 在本地还是要进行出口的
             //这里是基于 url 实现功能的 能够根据 协议和 方法名 动态实现 那么这里export 调用的应该是 injvmPorotocol
             Exporter<?> exporter = protocol.export(

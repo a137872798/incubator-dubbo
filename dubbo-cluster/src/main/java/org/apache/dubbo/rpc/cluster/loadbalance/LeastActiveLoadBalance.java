@@ -57,6 +57,7 @@ public class LeastActiveLoadBalance extends AbstractLoadBalance {
         for (int i = 0; i < length; i++) {
             Invoker<T> invoker = invokers.get(i);
             //获取 该方法被调用的 活跃度 可以理解为当前方法 被访问的 并发度
+            //这个活跃度 要配合 dubbo 的 活跃度过滤链  ActiveLimitFilter 当每次针对某个invoker 进行调用的时候 会增加 活跃度
             int active = RpcStatus.getStatus(invoker.getUrl(), invocation.getMethodName()).getActive(); // Active number
             //通过暖机时间获取权重
             int afterWarmup = getWeight(invoker, invocation);

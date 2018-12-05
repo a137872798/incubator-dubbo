@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  * InjvmInvoker
- * 本地 服务提供者 提供的 调用者对象
+ * 本地 服务提供者 提供的 调用者对象 通过  AbstractInvoker 定义 invoke 的基本架构 然后重写子类核心的 doInvoke方法
  */
 class InjvmInvoker<T> extends AbstractInvoker<T> {
 
@@ -67,7 +67,7 @@ class InjvmInvoker<T> extends AbstractInvoker<T> {
      */
     @Override
     public Result doInvoke(Invocation invocation) throws Throwable {
-        //通过传入的 url 直接在容器中 寻找export 对象 也就是说 export 一开始就是创建好的
+        //通过传入的 url 直接在容器中 寻找export 对象 export 是在服务提供者本地暴露时 添加到容器的
         Exporter<?> exporter = InjvmProtocol.getExporter(exporterMap, getUrl());
         if (exporter == null) {
             throw new RpcException("Service [" + key + "] not found.");

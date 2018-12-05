@@ -45,7 +45,7 @@ import java.lang.reflect.Method;
 
 /**
  * GenericInvokerFilter.
- * 泛化过滤链
+ * 泛化过滤链  只针对服务提供者  当提供者获取到请求 并调用该方法时
  */
 //仅限服务提供者
 @Activate(group = Constants.PROVIDER, order = -20000)
@@ -60,7 +60,7 @@ public class GenericFilter implements Filter {
      */
     @Override
     public Result invoke(Invoker<?> invoker, Invocation inv) throws RpcException {
-        //如果没有实现泛化接口
+        //这里代表消费者 发起的是 泛化调用 invoker 的接口是 实际需要的服务接口
         if (inv.getMethodName().equals(Constants.$INVOKE)
                 && inv.getArguments() != null
                 && inv.getArguments().length == 3
@@ -69,6 +69,7 @@ public class GenericFilter implements Filter {
             String name = ((String) inv.getArguments()[0]).trim();
             //这里的 string 记录的 是类型的全限定名
             String[] types = (String[]) inv.getArguments()[1];
+            //代表需要的 参数 已经做过 序列化处理
             Object[] args = (Object[]) inv.getArguments()[2];
             try {
                 //通过接口和 类型 查找对应的方法
@@ -79,7 +80,12 @@ public class GenericFilter implements Filter {
                     //该方法没有参数 就将args滞空
                     args = new Object[params.length];
                 }
-                //获取 泛化信息
+                //获取 泛化信息 对应
+                /*
+                    GenericImpl#//将参数存入 attachment
+                        ((RpcInvocation) invocation).setAttachment(
+                        Constants.GENERIC_KEY, invoker.getUrl().getParameter(Constants.GENERIC_KEY));
+                 */
                 String generic = inv.getAttachment(Constants.GENERIC_KEY);
 
                 //从inv 上没有获取到就要从全局上下文中找
@@ -90,9 +96,9 @@ public class GenericFilter implements Filter {
                 //如果 没有泛化信息 或者是默认的泛化信息 也就是generic = true
                 if (StringUtils.isEmpty(generic)
                         || ProtocolUtils.isDefaultGenericSerialization(generic)) {
-                    //参数列表中如果有泛型 会返回泛型信息
+                    //反序列化
                     args = PojoUtils.realize(args, params, method.getGenericParameterTypes());
-                    //如果是 generic = nativejava
+                    //如果是 generic = nativejava  这里在 GenericImpl没有找到对应实现 先不管
                 } else if (ProtocolUtils.isJavaGenericSerialization(generic)) {
                     for (int i = 0; i < args.length; i++) {
                         //找到参数中的byte[]
@@ -122,6 +128,7 @@ public class GenericFilter implements Filter {
                     //这里参数也必须都是 bean类型
                     for (int i = 0; i < args.length; i++) {
                         if (args[i] instanceof JavaBeanDescriptor) {
+                            //也是反序列化 获取 泛化调用时 的参数信息
                             args[i] = JavaBeanSerializeUtil.deserialize((JavaBeanDescriptor) args[i]);
                         } else {
                             throw new RpcException(
@@ -135,12 +142,13 @@ public class GenericFilter implements Filter {
                     }
                 }
                 //将改造后的 参数 传入 之后的操作都跟原来一样 上面就是对传入参数做了处理
+                //这里应该是使用了 泛化 invoker 调用 返回 泛化结果
                 Result result = invoker.invoke(new RpcInvocation(method, args, inv.getAttachments()));
 
                 //下面针对结果 又进行了序列化 保持跟传入时 的格式一致 因为装饰器模式使得调用起来像是aop 每个单元都可以为其他单元的
                 //调用前后做处理
 
-                //这里将 异常包装成了 GenericException
+                //这里将 异常包装成了 GenericException 对应 GenericImplFilter从GenericException 中解析真正的异常
                 if (result.hasException()
                         && !(result.getException() instanceof GenericException)) {
                     return new RpcResult(new GenericException(result.getException()));

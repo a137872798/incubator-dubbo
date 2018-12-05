@@ -361,7 +361,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         map.put(methodConfig.getName() + ".retries", "0");
                     }
                 }
-                //将 方法 与 调用时触发的 相关回调 保存到容器中
+                //将 方法 与 调用时触发的 相关回调 保存到容器中 这里会涉及到调用链 在调用链中触发 设定的回调
                 attributes.put(methodConfig.getName(), convertMethodConfig2AyncInfo(methodConfig));
             }
         }
@@ -392,7 +392,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         //创建新的 url 对象 使用临时协议 和本地ip
         URL tmpUrl = new URL("temp", "localhost", 0, map);
         final boolean isJvmRefer;
-        //是否是 本地引用
+        //是否是 本地引用  本地服务在发布的 时候只是创建了一个injvmExport对象并保存在一个容器中
         if (isInjvm() == null) {
             //存在 url 代表是 直连模式
             if (url != null && url.length() > 0) { // if a url is specified, don't do local reference
@@ -410,7 +410,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (isJvmRefer) {
             //创建本地 url 使用本机 ip
             URL url = new URL(Constants.LOCAL_PROTOCOL, NetUtils.LOCALHOST, 0, interfaceClass.getName()).addParameters(map);
-            //获取自适应拓展对象 通过url 的 协议 也就是 injvm 返回了invoker对象
+            //获取自适应拓展对象 通过url 的 协议 也就是 injvmProtocol 返回了invoker对象
             invoker = refprotocol.refer(interfaceClass, url);
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
@@ -449,7 +449,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         if (monitorUrl != null) {
                             map.put(Constants.MONITOR_KEY, URL.encode(monitorUrl.toFullString()));
                         }
-                        //将map 中属性 以 refer 作为key 保存
+                        //将map 中属性 以 refer 作为key 保存 map中还保存了集群策略
                         urls.add(u.addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map)));
                     }
                 }
@@ -460,7 +460,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
             //直连 或是从注册中心 发现
             if (urls.size() == 1) {
-                //通过唯一的 注册中心 进行 引用
+                //通过唯一的 注册中心 进行 引用 或者就是 直连 直接使用dubboProtocol 获取invoker
                 invoker = refprotocol.refer(interfaceClass, urls.get(0));
             } else {
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
@@ -481,11 +481,11 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
                     //这里代表从所有注册中心 获取到的可用的单个invoker 对象 然后又用集群对象包装使用 available选择第一个可用的invoker对象
                     URL u = registryURL.addParameter(Constants.CLUSTER_KEY, AvailableCluster.NAME);
-                    //因为 集群也是实现invoker 的 所以在 外部看来 就是一个普通的 invoker对象
-                    //这里设置url 就是为了 SPI 机制
+                    //这里使用第一个可用的 注册中心获取到的invoker 然后这个invoker 又是通过集群包裹的 invoker 根据集群容错策略
+                    //返回一个合适的 invoker对象 如果是 group模式 那么 按组还有一层集群
                     invoker = cluster.join(new StaticDirectory(u, invokers));
                 } else { // not a registry url
-                    //如果 这个url 没有 cluster属性 会 发生什么??? 应该就是使用默认的cluster 也就是直连情况使用 failover
+                    //没有url属性就获取 invoekr 中的 url 然后找不到关于集群的设定就使用默认的
                     invoker = cluster.join(new StaticDirectory(invokers));
                 }
             }
@@ -510,7 +510,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
         // create service proxy
-        // 还需要从invoker 中  获取ref对象
+        // 这里将invoker 对象变成了 代理对象
         return (T) proxyFactory.getProxy(invoker);
     }
 
