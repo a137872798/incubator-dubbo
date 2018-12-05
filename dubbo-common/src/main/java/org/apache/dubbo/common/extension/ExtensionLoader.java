@@ -101,7 +101,7 @@ public class ExtensionLoader<T> {
     // ==============================
 
     /**
-     * 拓展接口
+     * 待拓展对象
      */
     private final Class<?> type;
 
@@ -814,7 +814,7 @@ public class ExtensionLoader<T> {
         final SPI defaultAnnotation = type.getAnnotation(SPI.class);
         if (defaultAnnotation != null) {
             String value = defaultAnnotation.value();
-            //存在拓展名的情况
+            //这里是 获取默认的 拓展名
             if ((value = value.trim()).length() > 0) {
                 //尝试是否能拆分
                 String[] names = NAME_SEPARATOR.split(value);
@@ -824,7 +824,7 @@ public class ExtensionLoader<T> {
                             + ": " + Arrays.toString(names));
                 }
                 if (names.length == 1) {
-                    //设置成 默认的 拓展名 也就是SPI("") 里面的就是默认拓展名
+                    //保存默认拓展名属性
                     cachedDefaultName = names[0];
                 }
             }
@@ -845,8 +845,8 @@ public class ExtensionLoader<T> {
     /**
      * 从指定目录下 加载SPI 配置文件
      * @param extensionClasses
-     * @param dir
-     * @param type
+     * @param dir 目录
+     * @param type 传入待拓展接口的全限定名
      */
     private void loadDirectory(Map<String, Class<?>> extensionClasses, String dir, String type) {
         //获取完整的文件名  传入的 type 就是拓展类接口对象 type.getName  获取全限定名
@@ -865,7 +865,7 @@ public class ExtensionLoader<T> {
             if (urls != null) {
                 while (urls.hasMoreElements()) {
                     java.net.URL resourceURL = urls.nextElement();
-                    //从指定URL 中加载资源
+                    //加载到所有 同名的资源 例如 mina netty netty4下都有 org.apache.dubbo.remoting.Transporter
                     loadResource(extensionClasses, classLoader, resourceURL);
                 }
             }
@@ -877,9 +877,9 @@ public class ExtensionLoader<T> {
 
     /**
      * 从指定路径加载资源并保存到 给定的容器中
-     * @param extensionClasses
-     * @param classLoader
-     * @param resourceURL
+     * @param extensionClasses 存放结果的容器
+     * @param classLoader 当前线程保存的类加载器 确保能加载对应类对象
+     * @param resourceURL 一个资源对象 因为 可能存在多个同名资源
      */
     private void loadResource(Map<String, Class<?>> extensionClasses, ClassLoader classLoader, java.net.URL resourceURL) {
         try {
@@ -904,7 +904,7 @@ public class ExtensionLoader<T> {
                                 line = line.substring(i + 1).trim();
                             }
                             if (line.length() > 0) {
-                                //存在 全限定名 反射创建对应的类 读取 该类的 注解信息并保存到 各个容器中
+                                //key是 拓展名 value 是全限定名 通过从SPI 中获取key 就可以知道加载的是哪个value
                                 //现在读取到的内容应该是这种格式: jcl=org.apache.dubbo.common.logger.jcl.JclLoggerAdapter
                                 loadClass(extensionClasses, resourceURL, Class.forName(line, true, classLoader), name);
                             }
@@ -926,8 +926,8 @@ public class ExtensionLoader<T> {
 
     /**
      * 加载
-     * @param extensionClasses
-     * @param resourceURL
+     * @param extensionClasses 存放结果的容器
+     * @param resourceURL SPI 所在的文件
      * @param clazz
      * @param name
      * @throws NoSuchMethodException
