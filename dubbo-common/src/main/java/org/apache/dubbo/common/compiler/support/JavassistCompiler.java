@@ -52,7 +52,7 @@ public class JavassistCompiler extends AbstractCompiler {
     private static final Pattern FIELD_PATTERN = Pattern.compile("[^\n]+=[^\n]+;");
 
     /**
-     * javassist 实现 动态编译
+     * javassist 实现 动态编译 这样就可以通过类加载器 进行加载了  这个相当于就是把 sourceCode 中的各个部分拆成package import 等 信息 设置到 ctclass中 然后就可以编译了
      * @param name  这里经过上层处理后 只剩下类的全限定名
      * @param source
      * @return

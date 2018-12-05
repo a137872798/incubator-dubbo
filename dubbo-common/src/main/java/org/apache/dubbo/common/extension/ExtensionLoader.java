@@ -170,12 +170,15 @@ public class ExtensionLoader<T> {
     private Map<String, IllegalStateException> exceptions = new ConcurrentHashMap<String, IllegalStateException>();
 
     /**
-     *
+     * 初始化 拓展类 加载器
      * @param type 被拓展的接口
      */
     private ExtensionLoader(Class<?> type) {
         this.type = type;
-        //如果 拓展接口本身就是 拓展工厂就不设置 否则先获取拓展工厂的  SPI对象 信息
+        //这里需要创建一个 ExtensionFactory 对象 这个对象也是SPI 对象 这个对象需要最先被 创建 拓展加载器
+        //这个对象是 当 拓展实现类 如果 有需要注入的 属性 就是从里面获取  也就是这个工厂具备随时拿取拓展类 的功能
+        //.getAdaptive 代表 指定获取 拓展类 中 在类上使用 @Adaptive 注解的类 也就是AdaptiveExtensionFactory
+        //ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(name) 代表获取 该SPI 所有拓展类下 指定 名字的 那个实现类 这个名字是 spi文件里的
         objectFactory = (type == ExtensionFactory.class ? null : ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension());
     }
 
@@ -190,8 +193,7 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     * 通过 class 获取 对应的拓展类 这个class 应该就是接口类
-     * 每次调用顺序就是先通过拓展类 接口去 获取对应的 拓展类加载器实例对象然后加载 对应的文件 装载里面的 实现类
+     * 通过传入指定的类型 生成该类的SPI加载器
      * @param type
      * @param <T>
      * @return
@@ -296,9 +298,9 @@ public class ExtensionLoader<T> {
      * Get activate extensions.
      *
      * 返回符合条件的List
-     * @param url    url
-     * @param values extension point names
-     * @param group  group
+     * @param url    url  给与的 url
+     * @param values extension point names 需要匹配的信息
+     * @param group  group  限定组
      * @return extension list which are activated
      * @see org.apache.dubbo.common.extension.Activate
      */
@@ -358,7 +360,7 @@ public class ExtensionLoader<T> {
                     && !names.contains(Constants.REMOVE_VALUE_PREFIX + name)) {
                 //如果 name 是 default
                 if (Constants.DEFAULT_KEY.equals(name)) {
-                    //如果 usrs 不为空 就将 元素 全部转义到 exts 并清空usrs
+                    //如果 usrs 不为空 就将 元素 全部转移到 exts 并清空usrs
                     if (!usrs.isEmpty()) {
                         exts.addAll(0, usrs);
                         usrs.clear();
@@ -692,22 +694,21 @@ public class ExtensionLoader<T> {
      * 根据拓展名 创建拓展对象 如果 该拓展类 有包装类 要返回被包装过的 对象
      */
     private T createExtension(String name) {
-        //getExtensionClasses() 就已经加载了配置
-        //从 拓展名 容器中获取 拓展类
+        //加载配置 并从 设置好的存放所有SPI实现的容器中找到这个类  这个 容器 只是存放了普通实现类 而不是adaptive 和 wrapper
         Class<?> clazz = getExtensionClasses().get(name);
         if (clazz == null) {
             //从拓展名 <-> 异常 中 寻找对应异常类
             throw findException(name);
         }
         try {
-            //获取拓展类 对应的 实例对象 看来这个对象 是单例 在加载过程中 这个容器并没有被设置
+            //保存该class 与 对象的 容器 那么该对象必须做到线程安全
             T instance = (T) EXTENSION_INSTANCES.get(clazz);
             if (instance == null) {
                 //创建实例对象
                 EXTENSION_INSTANCES.putIfAbsent(clazz, clazz.newInstance());
                 instance = (T) EXTENSION_INSTANCES.get(clazz);
             }
-            //注射 依赖的属性 也就是拓展类 即使初始化 可能有些成员变量还没有被设置
+            //查看该 SPI 实现类 是不是有需要注入的 属性
             injectExtension(instance);
             //包装对象看来是 一个 包装链 每个 拓展对象都要通过层层包装
             Set<Class<?>> wrapperClasses = cachedWrapperClasses;
@@ -733,7 +734,7 @@ public class ExtensionLoader<T> {
      */
     private T injectExtension(T instance) {
         try {
-            // == null 代表type 是ExtensionloaderFactory
+            // 这个对象就是 拓展类 用来注入属性的  如果本身就是 ExtensionFactory 是不具备属性注入的也不需要
             if (objectFactory != null) {
                 //获取setXXX方法
                 for (Method method : instance.getClass().getMethods()) {
@@ -751,7 +752,7 @@ public class ExtensionLoader<T> {
                         try {
                             //获取 属性名
                             String property = method.getName().length() > 3 ? method.getName().substring(3, 4).toLowerCase() + method.getName().substring(4) : "";
-                            //根据 类型和属性名获取属性对象
+                            //根据 类型和属性名获取属性对象  这里怎么知道 设置的 是哪一个SPI 实现类 也就是 某个类如果自身还携带 SPI接口的属性 还可以进行注入
                             Object object = objectFactory.getExtension(pt, property);
                             if (object != null) {
                                 //反射调用 setXXX 方法
@@ -810,7 +811,7 @@ public class ExtensionLoader<T> {
      */
     // synchronized in getExtensionClasses
     private Map<String, Class<?>> loadExtensionClasses() {
-        //从拓展的 接口上 获取 SPI 注解  SPI 的 value 是拓展名
+        //加载SPI 类的同时 设置默认类
         final SPI defaultAnnotation = type.getAnnotation(SPI.class);
         if (defaultAnnotation != null) {
             String value = defaultAnnotation.value();
@@ -939,13 +940,12 @@ public class ExtensionLoader<T> {
                     type + ", class line: " + clazz.getName() + "), class "
                     + clazz.getName() + "is not subtype of interface.");
         }
-        //一个拓展接口，有且仅有一个 Adaptive 拓展实现类
-        //如果该 类 存在 Adaptive 注解
+        //关于adaptive 注解有2种情况 一种是在方法上 一种是在 类上
         if (clazz.isAnnotationPresent(Adaptive.class)) {
-            //将 Adaptive 设置到这个引用上
+            //如果类上存在 注解 就将 设置 缓存属性  代表这个类 是 这个SPI接口的 拓展类
             if (cachedAdaptiveClass == null) {
                 cachedAdaptiveClass = clazz;
-                //如果 已经存在Adaptive对象 并且 2个对象不同 抛出异常
+                //一个 SPI接口 只允许一个 Adaptive 类
             } else if (!cachedAdaptiveClass.equals(clazz)) {
                 throw new IllegalStateException("More than 1 adaptive class found: "
                         + cachedAdaptiveClass.getClass().getName()
@@ -962,11 +962,10 @@ public class ExtensionLoader<T> {
             wrappers.add(clazz);
         } else {
             //如果没有无参构造函数 这里应该会抛出异常到上一层方法 也就是 IllegalStateException
+            //这里就是获取 所有 SPI的 普通实现类  即 不是Adaptive 修饰  也不是包装类
             clazz.getConstructor();
-            //name 是 spi 的 key
+            //这里是兼容JDK的 SPI  根据实现类名生成 name 属性
             if (name == null || name.length() == 0) {
-                //如果 name 不存在 从注解上获取信息
-                //这里就是 兼容 jdk 的SPI 自动创建name
                 name = findAnnotationName(clazz);
                 if (name.length() == 0) {
                     throw new IllegalStateException("No such extension name for the class " + clazz.getName() + " in the config " + resourceURL);
@@ -975,6 +974,7 @@ public class ExtensionLoader<T> {
             //尝试 拆分 key
             String[] names = NAME_SEPARATOR.split(name);
             if (names != null && names.length > 0) {
+                //尝试获取 类上的activate  这个注解代表这个类什么时候起作用
                 Activate activate = clazz.getAnnotation(Activate.class);
                 //这里都是保存第一个元素
                 if (activate != null) {
@@ -994,7 +994,7 @@ public class ExtensionLoader<T> {
                     if (!cachedNames.containsKey(clazz)) {
                         cachedNames.put(clazz, n);
                     }
-                    //缓存到 extensionClass 这里 每个name 都被使用到
+                    //这里针对一个SPI 实现类的 每个名字都被保存 虽然对应的是一个类
                     Class<?> c = extensionClasses.get(n);
                     if (c == null) {
                         extensionClasses.put(n, clazz);
@@ -1066,7 +1066,7 @@ public class ExtensionLoader<T> {
         if (cachedAdaptiveClass != null) {
             return cachedAdaptiveClass;
         }
-        //针对 方法上的 Adaptive注解
+        //生成针对 方法上的 Adaptive注解  的 动态类 能够根据传入的 url 自动切换成实现类 并调用对应方法
         return cachedAdaptiveClass = createAdaptiveExtensionClass();
     }
 
@@ -1077,16 +1077,20 @@ public class ExtensionLoader<T> {
     private Class<?> createAdaptiveExtensionClass() {
         //生成 待编译的 代码字符串
         String code = createAdaptiveExtensionClassCode();
-        //获取类加载器
+        //获取类加载器  使用 当前线程上下文的 类加载器 能避免 加载不了对象的 异常 或者使用加载本类的 加载器
         ClassLoader classLoader = findClassLoader();
-        //获取编译对象 也就是 从SPI 中加载对应的实现信息
+        //获取编译对象 也就是 从SPI 中加载对应的实现信息 会获取到AdaptiveCompiler 这个类
         org.apache.dubbo.common.compiler.Compiler compiler = ExtensionLoader.getExtensionLoader(org.apache.dubbo.common.compiler.Compiler.class).getAdaptiveExtension();
-        //使用编译类 进行编译
+        //使用编译类 进行编译 生成动态类
         return compiler.compile(code, classLoader);
     }
 
     /**
-     * 生成 创建自适应拓展类的 代码字符串
+     * 生成 创建自适应拓展类的 代码字符串 这里要找出@Adaptive 注解修饰的方法并做处理
+     * 生成的自适应对象  只能调用自适应方法 没有@Adaptive 修饰的方法 都不能再调用
+     * 总的概括就是 @Adaptive 的 方法 在调用时 根据注解携带的  key 从参数中获取url 并获取对应属性 能获取到就通过 ExtensionLoader.getExtension 获取指定对应类 并调用方法
+     * 如果 找不到就是使用默认拓展类
+     * 这个类不是实际存在的 所以要通过 动态代理生成这个 类
      * @return
      */
     private String createAdaptiveExtensionClassCode() {
@@ -1110,7 +1114,7 @@ public class ExtensionLoader<T> {
         //这里相当于 动态生成了一个 XXX$Adaptive 的类对象
         codeBuilder.append("package ").append(type.getPackage().getName()).append(";");
         codeBuilder.append("\nimport ").append(ExtensionLoader.class.getName()).append(";");
-        //代表该类实现了 XXX 接口
+        //代表该类实现了 该拓展对象的原生接口
         codeBuilder.append("\npublic class ").append(type.getSimpleName()).append("$Adaptive").append(" implements ").append(type.getCanonicalName()).append(" {");
 
         //创建日志类 和 计数器
@@ -1145,7 +1149,7 @@ public class ExtensionLoader<T> {
                 // found parameter in URL type
                 if (urlTypeIndex != -1) {
                     // Null Point check
-                    //检验参数是否存在
+                    //检验url 是否存在
                     String s = String.format("\nif (arg%d == null) throw new IllegalArgumentException(\"url == null\");",
                             urlTypeIndex);
                     code.append(s);
@@ -1203,6 +1207,7 @@ public class ExtensionLoader<T> {
                 }
 
                 //获取该方法注解的 值  返回的是一个String[] 对应了多个key 按顺序 依次查找value 如果没有 就 返回默认的value
+                //就是使用 该注解上的 名字知道要获取对应url 中那个 key
                 String[] value = adaptiveAnnotation.value();
                 // value is not set, use the value generated from class name as the key
                 //将 type 按照 "." 拆分后作为 key[]
@@ -1212,7 +1217,7 @@ public class ExtensionLoader<T> {
                 }
 
                 boolean hasInvocation = false;
-                //这一层是针对每个 方法 的 每个参数中是否存在 Invocation 也就是 只有存在这个参数的方法才会有影响
+                //遍历该 自适应方法的所有参数
                 for (int i = 0; i < pts.length; ++i) {
                     //如果参数类型中存在 Invocation
                     if (("org.apache.dubbo.rpc.Invocation").equals(pts[i].getName())) {
@@ -1228,7 +1233,7 @@ public class ExtensionLoader<T> {
                     }
                 }
 
-                //获取默认的 拓展名
+                //获取默认的 拓展名 应该是再 没有在url 中找到 key 对应的值时 使用
                 String defaultExtName = cachedDefaultName;
                 String getNameCode = null;
                 //遍历 Adaptive.value() 的 各个key
@@ -1237,17 +1242,18 @@ public class ExtensionLoader<T> {
                     //如果是最后一个key
                     if (i == value.length - 1) {
                         if (null != defaultExtName) {
-                            //最后一个 key 不是 protocol
+                            //最后一个 key 不是 protocol  因为 如果 要获取的 key 是protocol 那从url 上获取的 方法名要修改
                             if (!"protocol".equals(value[i])) {
                                 //参数中 存在 Invocation
                                 if (hasInvocation) {
-                                    //methodName 是当参数是 Invocation 时 获取的方法名
+                                    //如果存在 invocation 那么自适应获取的 就是方法级别的属性
                                     getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
                                 } else {
+                                    //直接获取 url 级别的 属性
                                     getNameCode = String.format("url.getParameter(\"%s\", \"%s\")", value[i], defaultExtName);
                                 }
                             } else {
-                                //是 protocol 就获取  url 对象是从 参数 或者 包含protocol 的 参数的其他对象中获取的
+                                //从url 上获取protocol
                                 getNameCode = String.format("( url.getProtocol() == null ? \"%s\" : url.getProtocol() )", defaultExtName);
                             }
                         } else {
@@ -1270,16 +1276,16 @@ public class ExtensionLoader<T> {
                             if (hasInvocation) {
                                 getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
                             } else {
-                                //这里好像是嵌套调用
+                                //这里好像是嵌套调用  也就是作为前一个的默认值  等价于第一个无效就使用第二个
                                 getNameCode = String.format("url.getParameter(\"%s\", %s)", value[i], getNameCode);
                             }
                         } else {
-                            //这里好像是嵌套调用
+                            //这里好像是嵌套调用  也就是作为前一个的默认值
                             getNameCode = String.format("url.getProtocol() == null ? (%s) : url.getProtocol()", getNameCode);
                         }
                     }
                 }
-                //嵌套多层后 最终结果设置到了 extName 上
+                //获取 的 key 上 指定的 实际调用对象的 名字  比如 dubbo injvm
                 code.append("\nString extName = ").append(getNameCode).append(";");
                 // check extName == null?
                 //如果拓展名为null 就抛出异常
@@ -1288,7 +1294,7 @@ public class ExtensionLoader<T> {
                         type.getName(), Arrays.toString(value));
                 code.append(s);
 
-                //获取拓展对象
+                //获取指定拓展名的  对象  相当于就是将@Adaptive 换成了 使用
                 code.append(String.format("\n%s extension = null;\n try {\nextension = (%<s)%s.getExtensionLoader(%s.class).getExtension(extName);\n}catch(Exception e){\n",
                         type.getName(), ExtensionLoader.class.getSimpleName(), type.getName()));
                 //如果计数器为1 就代表失败了 使用默认的 拓展名

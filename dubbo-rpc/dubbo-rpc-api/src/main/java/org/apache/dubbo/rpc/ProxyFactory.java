@@ -30,7 +30,7 @@ public interface ProxyFactory {
 
     /**
      * create proxy.
-     * 创建 Proxy 在引用服务时调用
+     * 创建 Proxy 在引用服务时调用  将invoker 变成 代理对象
      * @param invoker
      * @return proxy
      */
@@ -48,7 +48,7 @@ public interface ProxyFactory {
 
     /**
      * create invoker.
-     * 创建 Invoker 在出口服务时调用
+     * 创建 Invoker 在出口服务时调用  将实例对象转换为 invoker
      * @param <T>
      * @param proxy 服务提供者 实现类
      * @param type 被提供的 接口

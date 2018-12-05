@@ -33,7 +33,7 @@ public class SpiExtensionFactory implements ExtensionFactory {
             //获取 该类的 拓展类加载器
             ExtensionLoader<T> loader = ExtensionLoader.getExtensionLoader(type);
             if (!loader.getSupportedExtensions().isEmpty()) {
-                //返回 Adaptive 拓展类
+                //返回 Adaptive 拓展类 返回的是自适应对象 那也就是注入的都是自适应对象 那么那些 registryProtocol 中的 协议 就全是自适应了 根据url 参数自动调用
                 return loader.getAdaptiveExtension();
             }
         }

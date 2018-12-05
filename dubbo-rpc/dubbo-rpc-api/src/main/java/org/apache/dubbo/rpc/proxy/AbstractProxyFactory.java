@@ -84,6 +84,7 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
             Class<?>[] temp = interfaces;
             interfaces = new Class<?>[len + 1];
             System.arraycopy(temp, 0, interfaces, 0, len);
+            //增加一个泛化接口  也就是将 普通实现类 变成 了  泛化类
             interfaces[len] = com.alibaba.dubbo.rpc.service.GenericService.class;
         }
 

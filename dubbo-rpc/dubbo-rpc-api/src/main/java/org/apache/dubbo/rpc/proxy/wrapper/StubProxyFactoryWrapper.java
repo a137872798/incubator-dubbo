@@ -38,7 +38,7 @@ import java.lang.reflect.Constructor;
 /**
  * StubProxyFactoryWrapper
  *
- * 存根工厂 包装类
+ * 存根工厂 包装类  在proxyFactory时 自动包装上去
  */
 public class StubProxyFactoryWrapper implements ProxyFactory {
 

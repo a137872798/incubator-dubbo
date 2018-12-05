@@ -70,7 +70,7 @@ public abstract class AbstractCompiler implements Compiler {
         //将 package 后面的 路径名 加上类名 变成全限定名
         String className = pkg != null && pkg.length() > 0 ? pkg + "." + cls : cls;
         try {
-            //生成类对象  如果已经编译过可能就 会编译成功
+            //生成类对象  如果已经编译过就能直接加载对象
             return Class.forName(className, true, ClassHelper.getCallerClassLoader(getClass()));
         } catch (ClassNotFoundException e) {
             //如果 这段代码不是已 } 结尾就抛出异常
@@ -78,6 +78,7 @@ public abstract class AbstractCompiler implements Compiler {
                 throw new IllegalStateException("The java code not endsWith \"}\", code: \n" + code + "\n");
             }
             try {
+                //代表还未编译 开始编译
                 return doCompile(className, code);
             } catch (RuntimeException t) {
                 throw t;

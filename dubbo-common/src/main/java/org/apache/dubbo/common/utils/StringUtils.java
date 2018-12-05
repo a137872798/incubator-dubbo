@@ -754,19 +754,19 @@ public final class StringUtils {
             return camelName;
         }
         StringBuilder buf = null;
-        for (int i = 0; i < camelName.length(); i++) {
-            char ch = camelName.charAt(i);
-            //如果方法中还有 大写的 字符
-            if (ch >= 'A' && ch <= 'Z') {
-                //延时初始化
-                if (buf == null) {
-                    buf = new StringBuilder();
-                    if (i > 0) {
-                        //将 之前的 字符截取出来
-                        buf.append(camelName.substring(0, i));
-                    }
-                }
-                if (i > 0) {
+                    for (int i = 0; i < camelName.length(); i++) {
+                        char ch = camelName.charAt(i);
+                        //如果方法中还有 大写的 字符
+                        if (ch >= 'A' && ch <= 'Z') {
+                            //延时初始化
+                            if (buf == null) {
+                                buf = new StringBuilder();
+                                if (i > 0) {
+                                    //将 之前的 字符截取出来
+                                    buf.append(camelName.substring(0, i));
+                                }
+                            }
+                            if (i > 0) {
                     //设置分隔符
                     buf.append(split);
                 }

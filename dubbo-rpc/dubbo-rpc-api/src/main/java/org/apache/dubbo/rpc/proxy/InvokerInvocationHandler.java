@@ -48,6 +48,9 @@ public class InvokerInvocationHandler implements InvocationHandler {
         //获取 方法名和 该方法需要的参数
         String methodName = method.getName();
         Class<?>[] parameterTypes = method.getParameterTypes();
+
+        //这里执行的 都是 invoker 的 方法 而不是proxy的
+
         //如果 是 Object 的方法  传入的 执行对象是 invoker
         if (method.getDeclaringClass() == Object.class) {
             return method.invoke(invoker, args);
@@ -65,7 +68,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
 
         //创建 RPC 调用对象
         RpcInvocation invocation;
-        //是否是异步
+        //是否是异步  这段看不懂 先不管
         if (RpcUtils.hasGeneratedFuture(method)) {
             Class<?> clazz = method.getDeclaringClass();
             //获取同步方法的长度 因为异步方法在最后会加 异步标识
@@ -86,7 +89,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
                 invocation.setAttachment(Constants.ASYNC_KEY, "true");
             }
         }
-        //根据 future 返回不同结果 异常 or 正常结果
+        //这个 动态代理没有使用传入的 proxy 而是全程调用 初始化的 invoker 对象
         return invoker.invoke(invocation).recreate();
     }
 
