@@ -31,6 +31,8 @@ import org.apache.dubbo.rpc.ProxyFactory;
  */
 public class DubboMonitorFactory extends AbstractMonitorFactory {
 
+    //这2个属性也是通过SPI 加载的
+
     private Protocol protocol;
 
     private ProxyFactory proxyFactory;

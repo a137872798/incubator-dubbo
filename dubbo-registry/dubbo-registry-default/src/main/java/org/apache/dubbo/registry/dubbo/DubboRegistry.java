@@ -38,7 +38,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * DubboRegistry
- *
+ * dubbo 自带的注册中心  就是委托给 RegistryService
  */
 public class DubboRegistry extends FailbackRegistry {
 
@@ -47,10 +47,16 @@ public class DubboRegistry extends FailbackRegistry {
     // Reconnecting detection cycle: 3 seconds (unit:millisecond)
     private static final int RECONNECT_PERIOD_DEFAULT = 3 * 1000;
 
-    // Scheduled executor service
+    /**
+     * Scheduled executor service
+     * 定时器
+     */
     private final ScheduledExecutorService reconnectTimer = Executors.newScheduledThreadPool(1, new NamedThreadFactory("DubboRegistryReconnectTimer", true));
 
-    // Reconnection timer, regular check connection is available. If unavailable, unlimited reconnection.
+    /**
+     * Reconnection timer, regular check connection is available. If unavailable, unlimited reconnection.
+     *
+     */
     private final ScheduledFuture<?> reconnectFuture;
 
     // The lock for client acquisition process, lock the creation process of the client instance to prevent repeated clients
