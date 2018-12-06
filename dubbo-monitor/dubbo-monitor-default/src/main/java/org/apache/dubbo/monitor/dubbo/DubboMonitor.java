@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * DubboMonitor
- * 监控中心实现
+ * 监控中心实现  感觉在服务提供者 通过创建一个 实现 监控中心接口的类对象 可以直接调用那个对象灵活的实现自己想要的 监控中心统计功能
  */
 public class DubboMonitor implements Monitor {
 
@@ -61,7 +61,7 @@ public class DubboMonitor implements Monitor {
     private final Invoker<MonitorService> monitorInvoker;
 
     /**
-     * 监控服务对象  这是调用getProxy 生成的 还不知道 动态代理是怎么处理的 这个对象才是进行远程调用的对象
+     * 代理对象 当调用该对象的 collect时 会发起远程调用 到 监控中心的 地址
      */
     private final MonitorService monitorService;
 

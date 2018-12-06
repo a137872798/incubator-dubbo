@@ -45,12 +45,12 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger(StubProxyFactoryWrapper.class);
 
     /**
-     * 代理工厂对象
+     * 代理工厂对象 在创建该对象时 已经通过 extension 进行属性注入了 这个对象 也是 自适应对象
      */
     private final ProxyFactory proxyFactory;
 
     /**
-     * 协议对象
+     * 协议对象 也是自适应
      */
     private Protocol protocol;
 
@@ -76,7 +76,7 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
     }
 
     /**
-     * 获取代理对象
+     * 在 代理工厂 本身 尝试 获取 代理对象时  判断是否是存根类
      * @param invoker
      * @param <T>
      * @return
@@ -85,7 +85,7 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> T getProxy(Invoker<T> invoker) throws RpcException {
-        //默认返回非泛化的 类对象
+        //这里已经返回了  动态代理对象了
         T proxy = proxyFactory.getProxy(invoker);
         //没有实现泛化接口 一般都会进入
         if (GenericService.class != invoker.getInterface()) {
@@ -93,7 +93,7 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
             String stub = invoker.getUrl().getParameter(Constants.STUB_KEY, invoker.getUrl().getParameter(Constants.LOCAL_KEY   ));
             //存在 存根名时
             if (ConfigUtils.isNotEmpty(stub)) {
-                //获取 invoker 对象的 接口
+                //获取 invoker 对象的 接口  有存根的时候 会指定 存根类 对象 默认是 接口名后缀 增加 Stub or Local
                 Class<?> serviceType = invoker.getInterface();
                 //如果 stub:true or stub:default 也有可能上面返回的 时 local的 属性
                 if (ConfigUtils.isDefault(stub)) {
@@ -112,20 +112,20 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
                         throw new IllegalStateException("The stub implementation class " + stubClass.getName() + " not implement interface " + serviceType.getName());
                     }
                     try {
-                        //获取 存根类 的 构造函数 这个意思应该是 该类是一个包装类 继承某接口的同时内部也有该类型的属性
+                        //获取 存根类 的 构造函数 存根类 应该有一个 原始 ref 作为 参数 在调用方法时 加一些额外逻辑后 调用ref.XXX
                         Constructor<?> constructor = ReflectUtils.findConstructor(stubClass, serviceType);
-                        //因为代理对象也是实现了 serviceType 所以能直接返回  相当于这里又装饰了 一层现在变成了 存根对象了
+                        //装饰成存根对象了 然后 proxy 还是动态代理对象
                         proxy = (T) constructor.newInstance(new Object[]{proxy});
                         //export stub service
                         URL url = invoker.getUrl();
                         //如果 存在存根事件???
                         if (url.getParameter(Constants.STUB_EVENT_KEY, Constants.DEFAULT_STUB_EVENT)) {
-                            //将存根对象 被包装后生成的 所有方法 保存到这个 存根方法属性中
+                            //设置 存根方法
                             url = url.addParameter(Constants.STUB_EVENT_METHODS_KEY, StringUtils.join(Wrapper.getWrapper(proxy.getClass()).getDeclaredMethodNames(), ","));
                             //修改为不是 服务类型
                             url = url.addParameter(Constants.IS_SERVER_KEY, Boolean.FALSE.toString());
                             try {
-                                //暴露新的存根对象
+                                //暴露新的存根对象  这步感觉是不需要的 可能是为了测试能不能正常运行把
                                 export(proxy, (Class) invoker.getInterface(), url);
                             } catch (Exception e) {
                                 LOGGER.error("export a stub service error.", e);
@@ -149,7 +149,7 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
     }
 
     /**
-     * 将代理对象 封装成 invoker 后 通过协议进行暴露
+     * 把整个存根对象又作为动态代理对象 暴露
      * @param instance
      * @param type
      * @param url

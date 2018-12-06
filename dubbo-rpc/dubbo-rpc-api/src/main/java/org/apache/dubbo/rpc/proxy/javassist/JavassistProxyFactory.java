@@ -43,6 +43,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
         // 不能处理带$ 的类名  将服务端的 ref 对象 生成了一个包装类
+        // 这里不同于jdk 使用反射调用ref(proxy) 的方法 而是生成一个动态类 这个类具有 invokeMethod 并且根据传入的 参数自动调用真正的方法
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
 
         //返回一个 invoke 对象 并重写了 invoke 相关的 doInvoke 方法
@@ -51,7 +52,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
-                //委托到 包装类调用方法
+                //根据 方法名 获取 proxy的 指定方法  并根据参数进行调用
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };

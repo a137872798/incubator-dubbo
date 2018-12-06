@@ -93,6 +93,7 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
 
     /**
      * invoker 的 核心invoke 方法 doInvoke 由子类实现
+     * 为什么要这样做 对外部统一 在外部看来始终是使用 invoker.invoke(Invocation) 进行远处调用 而不是 在代码中 每次给 ref对象传不同的参数
      * @param invocation 就是 request中解码获得的 包含了请求的方法名参数等
      * @return
      * @throws RpcException

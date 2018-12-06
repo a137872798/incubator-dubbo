@@ -31,7 +31,7 @@ import org.apache.dubbo.rpc.ProxyFactory;
  */
 public class DubboMonitorFactory extends AbstractMonitorFactory {
 
-    //这2个属性也是通过SPI 加载的
+    //这2个 属性 会自动变成 extension 的 自适应对象
 
     private Protocol protocol;
 
@@ -66,9 +66,9 @@ public class DubboMonitorFactory extends AbstractMonitorFactory {
         //默认使用 安全失败的 集群 拦截器中去除掉monitor 避免被重复添加
         url = url.addParameters(Constants.CLUSTER_KEY, "failsafe", Constants.CHECK_KEY, String.valueOf(false),
                 Constants.REFERENCE_FILTER_KEY, filter + "-monitor");
-        //这里通过 dubboProtocol 的形式 连接到 监控中心地址 并返回一个 dubboInvoker对象
+        //这里通过 dubboProtocol 的形式 连接到 监控中心地址 并返回一个 dubboInvoker对象  这个url 就是监控中心地址
         Invoker<MonitorService> monitorInvoker = protocol.refer(MonitorService.class, url);
-        //这里 不是将 ref 变成invoker 而是 将 invoker 对象本身做处理
+        //将 连接 返回结果的远程调用对象代理成 普通的 ref对象  当调用对应方法时 就会在内部 发起RPC 请求
         MonitorService monitorService = proxyFactory.getProxy(monitorInvoker);
         //用代理对象创建监控中心
         return new DubboMonitor(monitorInvoker, monitorService);
