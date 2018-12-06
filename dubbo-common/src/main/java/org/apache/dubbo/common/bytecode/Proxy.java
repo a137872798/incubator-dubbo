@@ -134,7 +134,7 @@ public abstract class Proxy {
 
         // get cache by class loader.
         Map<String, Object> cache;
-        //创建 以 classLoader 为key 的 对象  value 是一个 map对象 key 为 接口
+        //创建 以 classLoader 为key 的 对象  value 是一个 map对象 key 为 全接口名拼接
         synchronized (ProxyCacheMap) {
             cache = ProxyCacheMap.get(cl);
             if (cache == null) {
@@ -156,7 +156,7 @@ public abstract class Proxy {
                     }
                 }
 
-                //如果value 是某个 特殊值  这是 在 缩小同步块 其他线程在进入的时候 发现 已经被占位了 代表要开始生成代理对象了 就沉睡等待其他线程
+                //如果value 是个中介值 代表状态正在修改  这是 在 缩小同步块 其他线程在进入的时候 发现 已经被占位了 代表要开始生成代理对象了 就沉睡等待其他线程
                 //创建代理对象
                 if (value == PendingGenerationMarker) {
                     try {
@@ -173,7 +173,7 @@ public abstract class Proxy {
             while (true);
         }
 
-        //每次生成代理对象 计数器都会加1
+        //每次生成代理对象 计数器都会加1  防止代理类冲突
         long id = PROXY_CLASS_COUNTER.getAndIncrement();
         String pkg = null;
         ClassGenerator ccp = null, ccm = null;
@@ -233,7 +233,8 @@ public abstract class Proxy {
                         code.append(" return ").append(asArgument(rt, "ret")).append(";");
                     }
 
-                    //该代理类应该是 实现了所有的 接口方法的 并且 通过下标知道哪个方法要实现哪个功能 但是实现实际功能的 还是 handler.   invoker
+                    //该代理类应该是 实现了所有的 接口方法的 并且 通过下标知道哪个方法要实现哪个功能 但是实现实际功能的 还是 handler
+                    //这个handler 就是Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker)); 这里传入的handler 对象
 
                     //将每个接口的每个方法保存到容器中
                     methods.add(method);

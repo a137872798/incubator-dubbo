@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * ClassGenerator
  *
- * 类生成器
+ * 生成代理类对象 的 生产者  基于javassist 实现
  */
 public final class ClassGenerator {
 

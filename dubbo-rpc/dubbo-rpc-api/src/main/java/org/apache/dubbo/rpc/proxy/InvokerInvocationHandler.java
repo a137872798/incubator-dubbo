@@ -66,6 +66,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
             return invoker.equals(args[0]);
         }
 
+        //将生成 invocation 的动作放到了 这里 这样就对外隐藏
         //创建 RPC 调用对象
         RpcInvocation invocation;
         //是否是异步  这段看不懂 先不管

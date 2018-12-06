@@ -35,8 +35,9 @@ public class JdkProxyFactory extends AbstractProxyFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
-        //将传入的 invoker 封装成 handler 这个handler 实现了 jdk 的 代理接口
-        //也就是 调用获取代理对象的时候 就是 创建了一个 RpcInvocation 就是在远程调用 然后创建的invoker对象 可以执行这个对象 完成代理
+        //生成代理对象 interfaces 代表该对象需要实现的所有方法 handler是 实际调用的方法对象
+        //这里的 T就代表了 代理后生成的 类 可以调用什么方法
+        //这里使用动态代理相当于是 对外隐藏 invoker对象 因为本身调用invoker 需要 invocation 对象 针对调用方法的参数操作 就是动态的部分
         return (T) Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), interfaces, new InvokerInvocationHandler(invoker));
     }
 
